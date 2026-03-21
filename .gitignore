@@ -1,0 +1,27 @@
+# Python cache / test runtime
+__pycache__/
+.pytest_cache/
+.pytest_tmp/
+pytest-cache-files-*/
+*.pyc
+*.pyo
+*.pyd
+
+# Local runtime / packaging
+project/.runtime/
+build/
+dist/
+release/
+
+# Local cache / logs
+project/cache/
+project/logs/
+
+# Generated reports and samples
+project/reports/
+project/sample_output/
+
+# Test output sandboxes
+project/test_output_dashboard/
+project/test_output_history/
+project/tests/_tmp/

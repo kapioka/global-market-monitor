@@ -1,0 +1,7 @@
+numpy>=1.26
+pandas>=2.2
+PyYAML>=6.0
+yfinance>=0.2.54
+scipy>=1.13
+schedule>=1.2
+pytest>=8.0

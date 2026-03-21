@@ -1,0 +1,105 @@
+app:
+  log_level: INFO
+  timezone: Asia/Tokyo
+  report_title: Global Market Monitor
+  continue_on_error: true
+
+paths:
+  logs_dir: project/logs
+  reports_dir: project/reports
+  sample_output_dir: project/sample_output
+  cache_dir: project/cache
+
+data:
+  period_years: 10
+  interval: 1wk
+  min_history_points: 104
+  max_analogue_results: 5
+  use_sample_on_failure: true
+  monitor_windows_weeks:
+    short: 1
+    medium: 4
+    long: 12
+  zscore_window_weeks: 52
+
+tickers:
+  global_equities:
+    ACWI: ACWI
+    VT: VT
+    SPY: SPY
+    VEA: VEA
+    VWO: VWO
+    EWJ: EWJ
+  sector_etfs:
+    XLK: XLK
+    XLF: XLF
+    XLE: XLE
+    XLV: XLV
+    XLY: XLY
+    XLP: XLP
+    XLI: XLI
+    XLB: XLB
+    XLU: XLU
+    XLRE: XLRE
+  asset_classes:
+    US_Stocks: SPY
+    Intl_Stocks: ACWI
+    Gold: GLD
+    Bonds: AGG
+    Inflation_Bonds: TIP
+    REITs: VNQ
+  credit:
+    HYG: HYG
+    LQD: LQD
+  inflation:
+    Oil: CL=F
+    Gold: GC=F
+    Dollar_Index: DX-Y.NYB
+    Wheat: ZW=F
+    Corn: ZC=F
+    Mortgage_30Y: FRED:MORTGAGE30US
+    US10Y: ^TNX
+  japan:
+    usd_jpy: USDJPY=X
+    topix_proxy: 1306.T
+    sox_primary: ^SOX
+    sox_fallback: SOXX
+
+thresholds:
+  adx_trend_strong: 25
+  drawdown_alert: -0.12
+  drawdown_crash: -0.2
+  volatility_compression_ratio: 0.85
+  spot_score_buy: 0.65
+  spot_score_watch: 0.45
+  analogue_similarity_min: 0.6
+  regime_risk_off_score: -0.2
+  regime_risk_on_score: 0.2
+  penalty_transition: 0.02
+  penalty_risk_off: 0.06
+  penalty_risk_off_relief: 0.02
+  penalty_risk_off_relief_score_min: 0.48
+  penalty_credit_stress_moderate: 0.12
+  penalty_credit_stress_severe: 0.16
+  penalty_credit_stress: 0.16
+  penalty_inflation_shock_oil_only: 0.06
+  penalty_inflation_shock_broad: 0.1
+  penalty_inflation_shock: 0.1
+  penalty_stagflation_warning: 0.18
+
+weights:
+  trend: 0.22
+  momentum: 0.18
+  breadth_proxy: 0.13
+  drawdown: 0.13
+  volatility: 0.14
+  macro_proxy: 0.1
+  credit_stress: 0.1
+
+scheduler:
+  enabled: false
+  hour: 7
+  minute: 30
+
+startup:
+  max_backfill_days: 14
