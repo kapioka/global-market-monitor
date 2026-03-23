@@ -183,6 +183,14 @@ def test_write_dashboard_creates_interactive_html():
     assert "校正基準の見方" in html
     assert "主基準: daily_latest" in html
     assert "生活コスト上昇警戒" in html
+    assert ".severity-inline.caution" in html
+    assert "formatAlertSeverityInline" in html
+    assert ".risk-stage-inline.caution" in html
+    assert "formatRiskInline" in html
+    assert "emphasizeRiskText" in html
+    assert "formatActionInline" in html
+    assert "nodeSpotSub" in html
+    assert "nodeAlertsSub" in html
     assert "観察候補" in html
     assert "仕込み候補" in html
     assert "レジーム先回り候補" in html

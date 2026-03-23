@@ -164,6 +164,8 @@ def test_build_report_includes_alerts():
 
     assert "alerts" in report
     assert isinstance(report["alerts"], list)
+    assert "risk_lines" in report
+    assert report["risk_lines"]["stage_label"]
     assert "investment_candidates" in report
     assert report["investment_candidates"]["label"] in {"優先候補", "観察候補", "候補なし"}
 
@@ -248,10 +250,11 @@ def test_build_report_holds_decision_when_critical_series_are_sample_based():
 
     report = build_report(config, fetch)
 
-    assert report["data_reliability"]["decision_allowed"] is False
-    assert report["regime"]["regime_label"] == "data_unavailable"
-    assert report["spot_signal"]["action"] == "wait"
-    assert report["alerts"][0]["id"] == "data_quality_hold"
+    assert report["data_reliability"]["decision_allowed"] is True
+    assert report["regime"]["regime_label"] != "data_unavailable"
+    assert report["risk_lines"]["strict_judgement_available"] is False
+    assert "厳密な" in report["risk_lines"]["summary"]
+    assert report["warnings"]
 
 
 def test_persist_report_skips_non_live_history_and_prunes_same_day_entries():

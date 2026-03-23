@@ -25,3 +25,10 @@ project/sample_output/
 project/test_output_dashboard/
 project/test_output_history/
 project/tests/_tmp/
+
+# Local trial / backup artifacts
+frontend_trial_note_*.md
+history_dashboard.py
+report_generator.py
+project/*.backup_*
+公開用/

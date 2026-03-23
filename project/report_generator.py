@@ -20,6 +20,7 @@ ACTION_LABELS = {
 }
 
 RISK_LABELS = {
+    "extreme": "非常に高い",
     "high": "高い",
     "moderate": "中程度",
     "low": "低い",
@@ -53,6 +54,7 @@ SECTION_EXPLANATIONS = {
     "asset": "資産クラス比較は、各資産の 12 週モメンタム、年率ボラティリティ、最大ドローダウンを並べて相対比較するものです。",
     "credit": "信用監視は、ハイイールド債、投資適格社債、その比率を週次変化率と z スコアで並べ、株価だけでは見えにくい信用市場の悪化や改善を補助的に見るものです。",
     "inflation": "インフレ監視は、原油、金、ドル指数を週次変化率と z スコアで並べ、物価圧力や安全資産選好が強まっていないかを見る補助セクションです。",
+    "risk_lines": "危険ライン監視は、VIX、MOVE、米10年、原油、ドル、SPY、HYG、LQD、HYG/LQD をまとめて、通常・警戒・危険ライン・非常に危険ラインのどこにあるかを示す判定層です。",
     "analogues": "類似局面は、直近 12 週の値動きに近い過去パターンを探し、その後 12 週の結果を参考情報として表示します。",
     "availability": "データ取得状況では、各系列が主系列で取れたか、代替ティッカーへ切り替わったか、サンプル代替か、完全未取得かを示します。",
     "diagnostics": "接続診断では、今回の実行が live 取得だったか、配布 exe 実行か、失敗時にどのホストや例外が出たかを後から追えるようにまとめます。",
@@ -98,11 +100,55 @@ def write_reports(
     return markdown_path, html_path, history_markdown_path, history_html_path, history_json_path
 
 
+def _risk_stage_tone(stage_key: str | None) -> str:
+    if stage_key == "extreme_danger_line_reached":
+        return "extreme"
+    if stage_key == "danger_line_reached":
+        return "danger"
+    if stage_key in {"credit_spillover_initial", "caution"}:
+        return "caution"
+    return "normal"
+
+
+def _risk_label_tone(label: str | None) -> str:
+    normalized = str(label or "").strip()
+    lowered = normalized.lower()
+    if "非常に危険" in normalized or "extreme" in lowered:
+        return "extreme"
+    if "危険" in normalized or "danger" in lowered:
+        return "danger"
+    if any(token in normalized for token in ("警戒", "警告")) or any(token in lowered for token in ("warning", "caution")):
+        return "caution"
+    return "normal"
+
+
+def _risk_badge_markdown(label: str | None, tone: str) -> str:
+    safe = html.escape(str(label or "-"))
+    if tone == "extreme":
+        return f'<span style="color:#c53030;"><strong>{safe}</strong></span>'
+    if tone == "danger":
+        return f'<span style="color:#c05621;"><strong>{safe}</strong></span>'
+    if tone == "caution":
+        return f'<span style="color:#1f2933;"><strong>{safe}</strong></span>'
+    return f'**{safe}**'
+
+
+def _risk_badge_html(label: str | None, tone: str) -> str:
+    safe = html.escape(str(label or "-"))
+    if tone == "normal":
+        return f'<strong>{safe}</strong>'
+    return f'<span class="risk-badge {tone}">{safe}</span>'
+
+
 def render_markdown(report: dict[str, Any]) -> str:
     regime_label = _jp_regime(report["regime"]["regime_label"])
     cycle_label = _jp_cycle(report["cycle"]["phase_label"])
     action_label = _jp_action(report["spot_signal"]["action"])
     risk_label = _jp_risk(report["spot_signal"]["second_leg_risk"])
+    risk_lines = report.get("risk_lines", {})
+    risk_stage_badge_html = _risk_badge_html(risk_lines.get("stage_label", "-"), _risk_stage_tone(risk_lines.get("stage_key")))
+    risk_stage_badge = _risk_badge_markdown(risk_lines.get("stage_label", "-"), _risk_stage_tone(risk_lines.get("stage_key")))
+    internal_warning_count = len(report.get("warnings", []))
 
     lines = [
         f"# {report['title']}",
@@ -117,6 +163,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- 判定用スコア: {_display_number(report['spot_signal'].get('adjusted_score', report['score'].get('total_score')))}",
         f"- スポット投資判断: {action_label}",
         f"- 二段下げリスク: {risk_label}",
+        f"- 市場ストレス段階: {risk_stage_badge}",
         "",
         "## 解説",
         f"- 市場レジーム: {SECTION_EXPLANATIONS['regime']}",
@@ -154,6 +201,23 @@ def render_markdown(report: dict[str, Any]) -> str:
         )
 
     candidate = report.get("investment_candidates", {})
+    lines.extend(["", "## 危険ライン監視", f"- {SECTION_EXPLANATIONS['risk_lines']}"])
+    lines.append(f"- 段階: {risk_stage_badge}")
+    lines.append(f"- 要約: {risk_lines.get('summary', '-')}")
+    lines.append(f"- 厳密性: {risk_lines.get('precision_label', '-')}")
+    lines.append(f"- 不足指標: {', '.join(risk_lines.get('strict_missing_indicators', []) or risk_lines.get('missing_indicators', [])) or 'なし'}")
+    lines.append(f"- 総合ストレス指数: {_display_number(risk_lines.get('composite_risk_score'))}")
+    lines.append(f"- 合成スコア側の内部警告件数: {internal_warning_count}")
+    lines.append("- 注記: 内部警告件数は alerts/warnings の件数で、危険ライン段階とは別の判定です。")
+    lines.append(f"- 危険ライン本数: {risk_lines.get('danger_count', 0)} / 非常に危険ライン本数: {risk_lines.get('extreme_count', 0)}")
+    for reason in risk_lines.get("reasons", []):
+        lines.append(f"- {reason}")
+    for row in risk_lines.get("indicators", []):
+        line_badge = _risk_badge_markdown(row.get('line_level_label', '-'), _risk_label_tone(row.get('line_level_label')))
+        lines.append(
+            f"- {row.get('ticker_name_ja', row.get('ticker', '-'))} ({row.get('ticker', '-')}): 現在値 {_display_number(row.get('current'))} / 1週 {_display_number(row.get('change_1w'))} / 4週 {_display_number(row.get('change_4w'))} / z {_display_number(row.get('zscore'))} / 判定 {line_badge} / warning {row.get('warning_line', '-')} / danger {row.get('danger_line', '-')} / extreme {row.get('extreme_line', '-')}"
+        )
+
     lines.extend(["", "## 投資候補", f"- {SECTION_EXPLANATIONS['candidates']}"])
     lines.append(f"- 判定: {candidate.get('label', '候補なし')}")
     lines.append(f"- 要約: {candidate.get('summary', '-')}")
@@ -282,6 +346,7 @@ def render_html(report: dict[str, Any]) -> str:
     cycle_label = _jp_cycle(report["cycle"]["phase_label"])
     action_label = _jp_action(report["spot_signal"]["action"])
     risk_label = _jp_risk(report["spot_signal"]["second_leg_risk"])
+    internal_warning_count = len(report.get("warnings", []))
 
     warning_items = "".join(
         f"<li>{html.escape(warning)}</li>" for warning in report["warnings"]
@@ -312,6 +377,9 @@ def render_html(report: dict[str, Any]) -> str:
         "</tr>"
         for row in report.get("credit_monitor", [])
     ) or "<tr><td colspan='7'>有効データなし</td></tr>"
+    risk_lines = report.get("risk_lines", {})
+    risk_stage_badge_html = _risk_badge_html(risk_lines.get("stage_label", "-"), _risk_stage_tone(risk_lines.get("stage_key")))
+
     inflation_rows = "".join(
         "<tr>"
         f"<td>{html.escape(row['ticker'])}<br><span style='color:#52606d;font-size:12px'>{html.escape(row['ticker_name_ja'])}</span></td>"
@@ -324,6 +392,19 @@ def render_html(report: dict[str, Any]) -> str:
         "</tr>"
         for row in report.get("inflation_monitor", [])
     ) or "<tr><td colspan='7'>有効データなし</td></tr>"
+    risk_line_rows = "".join(
+        "<tr>"
+        f"<td>{html.escape(str(row.get('ticker_name_ja', row.get('ticker', '-'))))}<br><span style='color:#52606d;font-size:12px'>{html.escape(str(row.get('ticker', '-')))}</span></td>"
+        f"<td>{_risk_badge_html(row.get('line_level_label', '-'), _risk_label_tone(row.get('line_level_label')))}</td>"
+        f"<td>{_display_number(row.get('current'))}</td>"
+        f"<td>{_display_number(row.get('warning_line'))}</td>"
+        f"<td>{_display_number(row.get('danger_line'))}</td>"
+        f"<td>{_display_number(row.get('extreme_line'))}</td>"
+        f"<td>{html.escape(str(row.get('line_reason', '-')))}</td>"
+        "</tr>"
+        for row in risk_lines.get("indicators", [])
+    ) or "<tr><td colspan='7'>有効データなし</td></tr>"
+    risk_line_reason_items = "".join(f"<li>{html.escape(str(reason))}</li>" for reason in risk_lines.get("reasons", [])) or "<li>追加理由はありません。</li>"
     alert_items = "".join(
         "<li>"
         f"<strong>{html.escape(alert.get('title', '-'))}</strong>"
@@ -403,68 +484,117 @@ def render_html(report: dict[str, Any]) -> str:
   <title>{html.escape(report['title'])}</title>
   <style>
     :root {{
-      --bg: #f4f1ea;
-      --panel: #fffdf8;
-      --ink: #1f2933;
-      --muted: #52606d;
+      --bg: #eef3f8;
+      --panel: rgba(255,255,255,0.94);
+      --ink: #102033;
+      --muted: #5d6b7c;
       --line: #d9e2ec;
-      --accent: #8d6e63;
-      --accent-soft: #efe5dc;
+      --accent: #2563eb;
+      --accent-soft: rgba(37,99,235,0.10);
       --ok: #2f855a;
       --warn: #b7791f;
       --bad: #c53030;
+      --danger: #c05621;
+      --caution: #b7791f;
     }}
-    body {{ font-family: 'Yu Gothic UI', 'Hiragino Sans', sans-serif; margin: 0; background: linear-gradient(180deg, #f4f1ea 0%, #fbfaf7 100%); color: var(--ink); }}
-    .wrap {{ max-width: 1100px; margin: 0 auto; padding: 32px 20px 56px; }}
-    .hero {{ background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 24px; box-shadow: 0 8px 24px rgba(31,41,51,0.06); }}
-    .hero h1 {{ margin: 0 0 12px; font-size: 32px; }}
-    .meta {{ display: flex; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 14px; }}
-    .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 22px; }}
-    .card {{ background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }}
-    .card h2 {{ margin: 0 0 10px; font-size: 15px; color: var(--muted); }}
+    body {{ font-family: 'Yu Gothic UI', 'Hiragino Sans', sans-serif; margin: 0; background: linear-gradient(180deg, #f7faff 0%, #eaf0f7 100%); color: var(--ink); }}
+    .wrap {{ max-width: 1160px; margin: 0 auto; padding: 28px 20px 56px; }}
+    .hero {{ background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 22px 24px; box-shadow: none; }}
+    .hero h1 {{ margin: 0; font-size: 34px; line-height: 1.12; }}
+    .hero-copy {{ margin: 10px 0 0; max-width: 76ch; color: var(--muted); line-height: 1.7; }}
+    .meta {{ display: flex; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 14px; margin-top: 14px; }}
+    .hero-status {{ display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }}
+    .status-chip {{ min-width: 180px; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,0.72); }}
+    .status-chip .k {{ font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }}
+    .status-chip .v {{ margin-top: 4px; font-size: 15px; font-weight: 800; line-height: 1.35; color: var(--ink); }}
+    .grid {{ display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 14px; margin-top: 18px; }}
+    .summary-panel {{ background: rgba(255,255,255,0.78); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }}
+    .summary-head {{ display: grid; gap: 6px; }}
+    .summary-head h2 {{ margin: 0; font-size: 14px; color: var(--muted); }}
+    .summary-main {{ display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr); gap: 14px; align-items: start; margin-top: 10px; }}
+    .summary-value {{ font-size: clamp(30px, 4vw, 42px); font-weight: 800; line-height: 1.08; color: #102a43; }}
+    .summary-copy {{ margin-top: 8px; font-size: 14px; color: var(--muted); line-height: 1.65; max-width: 30ch; }}
+    .summary-side {{ padding: 12px 14px; border-radius: 16px; border: 1px solid rgba(125,145,166,0.16); background: rgba(255,255,255,0.68); }}
+    .summary-side .k {{ font-size: 12px; color: var(--muted); font-weight: 700; }}
+    .summary-side .v {{ margin-top: 4px; font-size: 34px; font-weight: 800; line-height: 1.08; color: #102a43; }}
+    .summary-metrics {{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 12px; }}
+    .mini-metric {{ padding-top: 10px; border-top: 1px solid rgba(125,145,166,0.18); }}
+    .mini-metric .k {{ font-size: 12px; color: var(--muted); font-weight: 700; }}
+    .mini-metric .v {{ margin-top: 4px; font-size: 24px; font-weight: 800; line-height: 1.12; color: #243b53; }}
+    .side-grid {{ display: grid; gap: 10px; }}
+    .card {{ background: rgba(255,255,255,0.78); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }}
+    .card h2 {{ margin: 0 0 8px; font-size: 13px; color: var(--muted); }}
     .value {{ font-size: 26px; font-weight: 700; color: #102a43; }}
     .explain {{ margin-top: 8px; font-size: 14px; color: var(--muted); }}
-    .section {{ margin-top: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 22px; }}
+    .section {{ margin-top: 18px; background: rgba(255,255,255,0.82); border: 1px solid var(--line); border-radius: 18px; padding: 20px 22px; }}
     .section h2 {{ margin: 0 0 8px; font-size: 22px; }}
     .section p {{ margin: 0 0 16px; color: var(--muted); }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 8px; }}
     th, td {{ border-bottom: 1px solid var(--line); padding: 10px 8px; text-align: left; vertical-align: top; }}
     th {{ color: var(--muted); font-size: 13px; }}
-    .pill {{ display: inline-block; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: #6d4c41; font-size: 13px; }}
+    .pill {{ display: inline-block; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: #1d4ed8; font-size: 13px; }}
+    .risk-badge {{ display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 800; }}
+    .risk-badge.caution {{ background: rgba(183,121,31,0.12); color: var(--caution); }}
+    .risk-badge.danger {{ background: rgba(192,86,33,0.14); color: var(--danger); }}
+    .risk-badge.extreme {{ background: rgba(197,48,48,0.14); color: var(--bad); }}
+    .inline-note {{ margin-top: 8px; font-size: 13px; color: var(--muted); line-height: 1.6; }}
     .sector-visual {{ display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 18px; align-items: start; }}
     .sector-caption {{ font-size: 13px; color: var(--muted); }}
     ul {{ margin: 0; padding-left: 20px; }}
+    @media (max-width: 860px) {{
+      .grid {{ grid-template-columns: 1fr; }}
+      .summary-main {{ grid-template-columns: 1fr; }}
+      .summary-metrics {{ grid-template-columns: 1fr; }}
+      .hero-status {{ flex-direction: column; }}
+    }}
   </style>
 </head>
 <body>
   <div class=\"wrap\">
     <section class=\"hero\">
       <h1>{html.escape(report['title'])}</h1>
+      <p class=\"hero-copy\">市場レジーム、危険ライン、候補層、取得状況を分離して、運用判断に必要な順序で読めるようにしたレポートです。</p>
       <div class=\"meta\">
         <span>生成時刻: {html.escape(report['generated_at'])}</span>
         <span>データソース: <span class=\"pill\">{html.escape(report['data_source'])}</span></span>
         <span>判定信頼性: <span class=\"pill\">{html.escape(_jp_reliability(report.get('data_reliability', {}).get('level', 'high')))}</span></span>
       </div>
+      <div class=\"hero-status\">
+        <div class=\"status-chip\"><div class=\"k\">最優先</div><div class=\"v\">市場レジームと危険ライン</div></div>
+        <div class=\"status-chip\"><div class=\"k\">次に見る</div><div class=\"v\">合成スコアとスポット判断</div></div>
+        <div class=\"status-chip\"><div class=\"k\">補助層</div><div class=\"v\">候補、取得状況、診断</div></div>
+      </div>
       <div class=\"grid\">
-        <div class=\"card\">
-          <h2>市場レジーム</h2>
-          <div class=\"value\">{html.escape(regime_label)}</div>
-          <div class=\"explain\">{html.escape(SECTION_EXPLANATIONS['regime'])}</div>
+        <div class=\"summary-panel\">
+          <div class=\"summary-head\"><h2>最重要シグナル</h2></div>
+          <div class=\"summary-main\">
+            <div>
+              <div class=\"summary-value\">{html.escape(regime_label)}</div>
+              <div class=\"summary-copy\">{html.escape(SECTION_EXPLANATIONS['regime'])}</div>
+            </div>
+            <div class=\"summary-side\">
+              <div class=\"k\">合成スコア</div>
+              <div class=\"v\">{html.escape(_display_number(report['score'].get('total_score')))}</div>
+              <div class=\"explain\">判定用スコア {html.escape(_display_number(report['spot_signal'].get('adjusted_score', report['score'].get('total_score'))))}</div>
+            </div>
+          </div>
+          <div class=\"summary-metrics\">
+            <div class=\"mini-metric\"><div class=\"k\">サイクル判定</div><div class=\"v\">{html.escape(cycle_label)}</div></div>
+            <div class=\"mini-metric\"><div class=\"k\">スポット判断</div><div class=\"v\">{html.escape(action_label)}</div></div>
+            <div class=\"mini-metric\"><div class=\"k\">二段下げリスク</div><div class=\"v\">{html.escape(risk_label)}</div></div>
+          </div>
         </div>
-        <div class=\"card\">
-          <h2>サイクル判定</h2>
-          <div class=\"value\">{html.escape(cycle_label)}</div>
-          <div class=\"explain\">位相角 {html.escape(_display_number(report['cycle'].get('phase_angle_deg')))} 度。{html.escape(SECTION_EXPLANATIONS['cycle'])}</div>
-        </div>
-        <div class=\"card\">
-          <h2>合成スコア</h2>
-          <div class=\"value\">{html.escape(_display_number(report['score'].get('total_score')))}</div>
-          <div class=\"explain\">判定用スコア {html.escape(_display_number(report['spot_signal'].get('adjusted_score', report['score'].get('total_score'))))} / レジーム減点 {html.escape(_display_number(report['spot_signal'].get('regime_penalty', 0)))} / 信用ストレス補助 {html.escape(_display_number(report['score'].get('credit_stress_component', '-')))}。{html.escape(SECTION_EXPLANATIONS['score'])}</div>
-        </div>
-        <div class=\"card\">
-          <h2>スポット投資判断</h2>
-          <div class=\"value\">{html.escape(action_label)}</div>
-          <div class=\"explain\">二段下げリスクは {html.escape(risk_label)}。{html.escape(SECTION_EXPLANATIONS['spot'])}</div>
+        <div class=\"side-grid\">
+          <div class=\"card\">
+            <h2>判定補足</h2>
+            <div class=\"value\">{html.escape(_display_number(report['spot_signal'].get('regime_penalty', 0)))}</div>
+            <div class=\"explain\">レジーム減点 {html.escape(_display_number(report['spot_signal'].get('regime_penalty', 0)))} / 信用ストレス補助 {html.escape(_display_number(report['score'].get('credit_stress_component', '-')))}</div>
+          </div>
+          <div class=\"card\">
+            <h2>スポット投資判断</h2>
+            <div class=\"value\">{html.escape(action_label)}</div>
+            <div class=\"explain\">二段下げリスクは {html.escape(risk_label)}。{html.escape(SECTION_EXPLANATIONS['spot'])}</div>
+          </div>
         </div>
       </div>
     </section>
@@ -484,6 +614,26 @@ def render_html(report: dict[str, Any]) -> str:
       <h2>判定理由</h2>
       <p>{html.escape(SECTION_EXPLANATIONS['decision_reasons'])}</p>
       <ul>{"".join(f"<li>{html.escape(reason)}</li>" for reason in report["spot_signal"].get("rationale", []))}</ul>
+    </section>
+
+    <section class=\"section\">
+      <h2>危険ライン監視</h2>
+      <p>{html.escape(SECTION_EXPLANATIONS['risk_lines'])}</p>
+      <ul>
+        <li>段階: {risk_stage_badge_html}</li>
+        <li>要約: {html.escape(str(risk_lines.get("summary", "-")))}</li>
+        <li>厳密性: {html.escape(str(risk_lines.get("precision_label", "-")))}</li>
+        <li>不足指標: {html.escape(", ".join(risk_lines.get("strict_missing_indicators", []) or risk_lines.get("missing_indicators", [])) or "なし")}</li>
+        <li>総合ストレス指数: {html.escape(_display_number(risk_lines.get("composite_risk_score")))}</li>
+        <li>合成スコア側の内部警告件数: {internal_warning_count}</li>
+        <li>危険ライン本数: {risk_lines.get("danger_count", 0)} / 非常に危険ライン本数: {risk_lines.get("extreme_count", 0)}</li>
+        <li>注記: 内部警告件数は alerts/warnings の件数で、危険ライン段階とは別の判定です。</li>
+      </ul>
+      <ul>{risk_line_reason_items}</ul>
+      <table>
+        <thead><tr><th>指標</th><th>判定</th><th>現在値</th><th>warning</th><th>danger</th><th>extreme</th><th>根拠</th></tr></thead>
+        <tbody>{risk_line_rows}</tbody>
+      </table>
     </section>
 
     <section class=\"section\">

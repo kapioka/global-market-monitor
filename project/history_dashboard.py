@@ -40,15 +40,23 @@ DASHBOARD_TEMPLATE = """<!doctype html>
   <style>
     :root {
       color-scheme: light;
-      --bg: #f4eee4;
-      --panel: rgba(255,252,246,0.92);
-      --ink: #1d2935;
-      --muted: #5c6976;
-      --line: rgba(123,141,160,0.22);
-      --accent: #7a5c4d;
-      --accent-soft: rgba(122,92,77,0.12);
-      --shadow: 0 20px 50px rgba(29,41,53,0.08);
-      --shadow-soft: 0 12px 24px rgba(29,41,53,0.06);
+      --bg: #eef3f8;
+      --panel: rgba(255,255,255,0.94);
+      --ink: #102033;
+      --muted: #5d6b7c;
+      --line: rgba(125,145,166,0.22);
+      --accent: #5f7c92;
+      --accent-strong: #476477;
+      --accent-soft: rgba(95,124,146,0.12);
+      --state-risk-on: #3f7d5e;
+      --state-transition: #b38a3a;
+      --state-risk-off: #a24f4b;
+      --state-credit: #7d5d49;
+      --state-inflation: #c56d3d;
+      --state-recovery: #5f8792;
+      --state-neutral: #52606d;
+      --shadow: 0 18px 42px rgba(16,32,51,0.08);
+      --shadow-soft: 0 10px 24px rgba(16,32,51,0.05);
       --radius-xl: 28px;
       --radius-lg: 22px;
       --radius-md: 18px;
@@ -60,8 +68,8 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       font-family: 'Yu Gothic UI', 'Hiragino Sans', sans-serif;
       color: var(--ink);
       background:
-        radial-gradient(circle at top left, rgba(255,249,239,0.95) 0%, rgba(244,238,228,0.98) 42%, rgba(236,229,219,1) 100%),
-        linear-gradient(180deg, #f7f2ea 0%, #efe7db 100%);
+        radial-gradient(circle at top left, rgba(255,255,255,0.98) 0%, rgba(238,243,248,0.98) 46%, rgba(227,235,244,1) 100%),
+        linear-gradient(180deg, #f7faff 0%, #eaf0f7 100%);
     }
     .dashboard-shell {
       max-width: 1440px;
@@ -83,26 +91,26 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       box-shadow: var(--shadow-soft);
     }
     .hero {
-      padding: 28px;
+      padding: 22px 24px;
       border-radius: var(--radius-xl);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(12px);
+      box-shadow: none;
+      backdrop-filter: blur(10px);
     }
     .eyebrow {
       display: inline-flex;
       align-items: center;
-      padding: 8px 12px;
+      padding: 6px 10px;
       border-radius: 999px;
       background: var(--accent-soft);
-      color: #6b4d3f;
+      color: var(--accent-strong);
       font-size: 12px;
       font-weight: 700;
       letter-spacing: .04em;
     }
     h1 {
-      margin: 16px 0 10px;
-      font-size: clamp(28px, 5vw, 42px);
-      line-height: 1.08;
+      margin: 0;
+      font-size: clamp(26px, 4.4vw, 38px);
+      line-height: 1.1;
     }
     .hero-copy,
     .hero-subcopy,
@@ -142,8 +150,56 @@ DASHBOARD_TEMPLATE = """<!doctype html>
     .focus-card .value { margin-top: 4px; font-size: clamp(16px, 1.9vw, 20px); font-weight: 800; line-height: 1.35; word-break: break-word; }
     .stack { display: grid; gap: 18px; margin-top: 18px; }
     .panel { padding: 22px; }
-    .panel h2 { margin: 0; font-size: 24px; }
+    .panel h2 { margin: 0; font-size: 22px; }
     .section-copy { margin: 10px 0 0; font-size: 14px; }
+    .workspace-title-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: start;
+      margin-top: 12px;
+    }
+    .workspace-title-block {
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+    .workspace-copy {
+      margin: 0;
+      max-width: none;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+    .workspace-status-strip {
+      margin-top: 18px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .status-chip {
+      min-width: 180px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.72);
+      display: grid;
+      gap: 4px;
+      align-content: start;
+    }
+    .status-chip .k {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .03em;
+      text-transform: uppercase;
+    }
+    .status-chip .v {
+      font-size: 15px;
+      font-weight: 800;
+      line-height: 1.35;
+      color: var(--ink);
+    }
     .timeline-side {
       display: grid;
       gap: 12px;
@@ -247,9 +303,17 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       letter-spacing: .01em;
     }
     .badge-neutral { background: rgba(122,92,77,0.12); color: #6b4d3f; }
-    .badge-credit { background: rgba(123,52,30,0.12); color: #7b341e; }
-    .badge-inflation { background: rgba(192,86,33,0.12); color: #9c4221; }
-    .badge-relief { background: rgba(43,108,176,0.12); color: #2b6cb0; }
+    .badge-credit { background: color-mix(in srgb, var(--state-credit) 12%, white); color: var(--state-credit); }
+    .badge-inflation { background: color-mix(in srgb, var(--state-inflation) 12%, white); color: var(--state-inflation); }
+    .badge-relief { background: color-mix(in srgb, var(--state-recovery) 12%, white); color: var(--state-recovery); }
+    .risk-stage-inline { font-weight: 800; }
+    .risk-stage-inline.caution { color: #b7791f; }
+    .risk-stage-inline.danger { color: #c05621; }
+    .risk-stage-inline.extreme { color: #c53030; }
+    .severity-inline { font-weight: 800; }
+    .severity-inline.caution { color: #b7791f; }
+    .severity-inline.danger { color: #c05621; }
+    .severity-inline.extreme { color: #c53030; }
     .alert-stack { display: grid; gap: 10px; margin-top: 12px; }
     .alert-card {
       padding: 12px;
@@ -278,7 +342,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       margin: 0;
       font-size: 14px;
       font-weight: 700;
-      color: #5c6976;
+      color: var(--muted);
       line-height: 1.4;
     }
     .timeline-lead .section-copy {
@@ -289,7 +353,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       padding: 18px;
       border-radius: var(--radius-lg);
       border: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(248,243,236,0.96) 100%);
+      background: linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(247,250,253,0.98) 100%);
       overflow: hidden;
     }
     .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; font-size: 13px; }
@@ -302,12 +366,12 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       margin-right: 6px;
       vertical-align: middle;
     }
-    .legend .on::before { background: #2f855a; }
-    .legend .transition::before { background: #b7791f; }
-    .legend .off::before { background: #c53030; }
-    .legend .credit::before { background: #7b341e; }
-    .legend .inflation::before { background: #c05621; }
-    .legend .recovery::before { background: #2b6cb0; }
+    .legend .on::before { background: var(--state-risk-on); }
+    .legend .transition::before { background: var(--state-transition); }
+    .legend .off::before { background: var(--state-risk-off); }
+    .legend .credit::before { background: var(--state-credit); }
+    .legend .inflation::before { background: var(--state-inflation); }
+    .legend .recovery::before { background: var(--state-recovery); }
     svg { width: 100%; height: auto; display: block; }
     .chart-shell { transition: transform 220ms ease, opacity 220ms ease; }
     .chart-shell.is-refreshing { opacity: .8; transform: translateY(2px); }
@@ -326,12 +390,12 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       border: 0;
       padding: 10px 16px;
       border-radius: 999px;
-      background: linear-gradient(180deg, #8d6e63 0%, #74584a 100%);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 82%, white) 0%, var(--accent-strong) 100%);
       color: #fff;
       font-weight: 700;
       cursor: pointer;
       transition: transform 180ms ease, box-shadow 180ms ease;
-      box-shadow: 0 12px 24px rgba(122,92,77,0.18);
+      box-shadow: 0 10px 20px rgba(71,100,119,0.18);
     }
     button.secondary { background: linear-gradient(180deg, #e9ecef 0%, #dce4eb 100%); color: #243b53; box-shadow: none; }
     button:hover,
@@ -345,16 +409,16 @@ DASHBOARD_TEMPLATE = """<!doctype html>
     .summary-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; }
     .summary-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1.9fr) minmax(240px, 1fr);
-      gap: 12px;
+      grid-template-columns: minmax(0, 2fr) minmax(240px, 0.92fr);
+      gap: 14px;
       align-items: stretch;
     }
     .primary-metric {
       padding: 16px;
       border-radius: var(--radius-lg);
-      border: 1px solid rgba(122,92,77,0.22);
-      background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(244,234,225,0.98) 100%);
-      box-shadow: 0 20px 40px rgba(122,92,77,0.1);
+      border: 1px solid rgba(125,145,166,0.14);
+      background: rgba(255,255,255,0.78);
+      box-shadow: none;
       display: grid;
       gap: 8px;
       position: relative;
@@ -364,7 +428,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(122,92,77,0.12), transparent 48%);
+      background: linear-gradient(135deg, rgba(37,99,235,0.05), transparent 48%);
       pointer-events: none;
     }
     .primary-head {
@@ -378,7 +442,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       position: relative;
       z-index: 1;
       display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(220px, 0.85fr);
+      grid-template-columns: minmax(0, 1.32fr) minmax(200px, 0.78fr);
       gap: 12px;
       align-items: start;
       margin-top: 0;
@@ -405,7 +469,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       font-size: 13px;
       color: var(--muted);
       line-height: 1.55;
-      max-width: 28ch;
+      max-width: none;
       opacity: .88;
     }
     .primary-score-side {
@@ -417,8 +481,8 @@ DASHBOARD_TEMPLATE = """<!doctype html>
     .primary-score-block {
       padding: 12px 14px;
       border-radius: 16px;
-      border: 1px solid rgba(122,92,77,0.16);
-      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(125,145,166,0.14);
+      background: rgba(255,255,255,0.66);
       align-self: start;
       display: grid;
       align-content: center;
@@ -431,24 +495,25 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       z-index: 1;
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 8px;
-      margin-top: -10px;
+      gap: 10px;
+      margin-top: -2px;
     }
     .support-column {
       display: grid;
       grid-template-rows: repeat(3, auto);
-      gap: 12px;
+      gap: 10px;
       align-content: start;
     }
     .mini-stat {
       display: grid;
       align-content: center;
-      gap: 2px;
-      padding: 8px 12px;
-      min-height: 78px;
-      border-radius: 16px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,0.72);
+      gap: 3px;
+      padding: 10px 0 0;
+      min-height: 0;
+      border-radius: 0;
+      border: 0;
+      border-top: 1px solid rgba(125,145,166,0.18);
+      background: transparent;
     }
     .mini-stat .k { font-size: 12px; color: var(--muted); font-weight: 700; }
     .mini-stat .v { margin-top: 0; font-size: 24px; font-weight: 800; line-height: 1.12; color: #243b53; }
@@ -468,6 +533,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       border-radius: var(--radius-md);
       transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
       overflow: hidden;
+      background: rgba(255,255,255,0.72);
     }
     .metric::after {
       content: '';
@@ -478,72 +544,215 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       transition: opacity 220ms ease;
       pointer-events: none;
     }
-    .metric[data-flash=\"true\"] { border-color: rgba(122,92,77,0.34); box-shadow: 0 18px 32px rgba(122,92,77,0.12); transform: translateY(-2px); }
+    .metric[data-flash=\"true\"] { border-color: rgba(95,124,146,0.28); box-shadow: 0 16px 30px rgba(95,124,146,0.12); transform: translateY(-2px); }
     .metric[data-flash=\"true\"]::after { opacity: 1; }
     .metric h2 { margin: 0 0 8px; font-size: 13px; }
     .metric .value { font-size: clamp(22px, 3vw, 28px); font-weight: 800; line-height: 1.18; }
     .metric .sub { margin-top: 8px; font-size: 12px; color: var(--muted); line-height: 1.5; }
-    .map-grid { display: grid; grid-template-columns: minmax(0,0.9fr) minmax(460px,1.1fr); gap: 16px; align-items: start; }
+    .map-grid { display: grid; grid-template-columns: minmax(500px,0.9fr) minmax(480px,1.1fr); gap: 16px; align-items: start; }
     .relation-shell { display: grid; gap: 14px; }
     .relation-canvas {
-      position: relative;
-      min-height: 590px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
       border-radius: var(--radius-lg);
       border: 1px solid var(--line);
-      background: radial-gradient(circle at top center, rgba(122,92,77,0.08) 0%, transparent 34%), linear-gradient(180deg, rgba(255,255,255,0.82) 0%, rgba(247,242,235,0.96) 100%);
-      overflow: hidden;
+      background: linear-gradient(180deg, rgba(255,255,255,0.88) 0%, rgba(244,248,253,0.98) 100%);
+      padding: 16px;
     }
-    .relation-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .relation-row {
+      display: contents;
+    }
+    .relation-group {
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 6px;
+      padding-block: 12px;
+      padding-inline: 0;
+      border-radius: 18px;
+      border: 1px solid rgba(125,145,166,0.18);
+      background: rgba(255,255,255,0.58);
+      align-content: start;
+    }
+    .relation-group.full-span {
+      grid-column: 1 / -1;
+    }
+    .relation-group.candidates-span {
+      padding-inline: 0;
+      display: grid;
+      grid-template-columns: subgrid;
+    }
+    .relation-group.core-span {
+      padding-inline: 0;
+    }
+    .relation-group.col-1,
+    .relation-group.col-2,
+    .relation-group.col-3 {
+      padding-inline: 0;
+    }
+    .relation-group.core-span .relation-group-title,
+    .relation-group.core-span .relation-group-copy,
+    .relation-group.col-1 .relation-group-title,
+    .relation-group.col-1 .relation-group-copy,
+    .relation-group.col-2 .relation-group-title,
+    .relation-group.col-2 .relation-group-copy,
+    .relation-group.col-3 .relation-group-title,
+    .relation-group.col-3 .relation-group-copy,
+    .relation-group.candidates-span .relation-group-title,
+    .relation-group.candidates-span .relation-group-copy {
+      padding-inline: 12px;
+      grid-column: 1 / -1;
+    }
+    .relation-group.core-span {
+      grid-column: 1 / span 2;
+    }
+    .relation-group.col-1 {
+      grid-column: 1;
+    }
+    .relation-group.col-2 {
+      grid-column: 2;
+    }
+    .relation-group.col-3 {
+      grid-column: 3;
+    }
+    .relation-group-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      min-height: 14px;
+    }
+    .relation-group-copy {
+      margin: -2px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      min-height: 24px;
+    }
+    .node-grid {
+      display: grid;
+      gap: 10px;
+      align-items: stretch;
+    }
+    .node-grid.core {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .node-grid.single {
+      grid-template-columns: 1fr;
+    }
+    .node-grid.single.two-rows {
+      grid-template-columns: 1fr;
+      grid-template-rows: repeat(2, minmax(116px, 1fr));
+    }
+    .node-grid.triple {
+      grid-template-columns: repeat(3, minmax(180px, 1fr));
+      align-items: stretch;
+      gap: 14px;
+      grid-auto-rows: 1fr;
+    }
+    .node-grid.candidate-band {
+      display: contents;
+    }
     .map-node {
-      position: absolute;
-      width: 146px;
+      position: static;
+      width: calc(100% - 14px);
       min-height: 92px;
       padding: 12px 14px;
       border-radius: var(--radius-md);
       text-align: left;
       cursor: pointer;
       color: var(--ink);
-      transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease, background 220ms ease;
+      border: 1px solid rgba(125,145,166,0.18);
+      background: rgba(255,255,255,0.78);
+      display: grid;
+      align-content: start;
+      justify-self: center;
+      transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease, background 220ms ease, opacity 220ms ease;
     }
     .map-node .label { font-size: 12px; color: var(--muted); }
     .map-node .strong { margin-top: 6px; font-size: 19px; font-weight: 800; line-height: 1.24; color: #243b53; }
     .map-node .mini { margin-top: 6px; color: var(--muted); font-size: 12px; line-height: 1.45; }
-    .map-node[aria-pressed=\"true\"] { border-color: rgba(122,92,77,0.36); background: linear-gradient(180deg, rgba(255,255,255,0.97) 0%, rgba(244,234,225,0.98) 100%); box-shadow: 0 18px 34px rgba(122,92,77,0.16); }
+    .map-node.placeholder {
+      visibility: hidden;
+      pointer-events: none;
+      min-height: 110px;
+    }
+    .map-node[aria-pressed=\"true\"] { border-color: rgba(95,124,146,0.30); background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(243,247,249,0.98) 100%); box-shadow: 0 16px 30px rgba(95,124,146,0.12); }
     .map-node.is-dim { opacity: .55; filter: saturate(.82); box-shadow: 0 8px 16px rgba(29,41,53,0.04); }
-    .map-node.is-active { border-color: rgba(122,92,77,0.4); box-shadow: 0 22px 38px rgba(122,92,77,0.18); }
-    .relation-svg line { transition: stroke 180ms ease, stroke-width 180ms ease, opacity 180ms ease; opacity: .9; }
-    .relation-svg line.is-dim { opacity: .25; }
-    .relation-svg line.is-active { stroke: #8d6e63; stroke-width: 4; opacity: 1; }
-    .map-node.regime { left: calc(50% - 73px); top: 18px; }
-    .map-node.score { left: calc(50% - 73px); top: 148px; }
-    .map-node.cycle { left: 22px; top: 106px; }
-    .map-node.spot { right: 22px; top: 106px; }
-    .map-node.sector { left: 44px; top: 294px; }
-    .map-node.alerts { left: calc(50% - 73px); top: 294px; }
-    .map-node.asset { right: 44px; top: 294px; }
+    .map-node.is-active { border-color: rgba(95,124,146,0.34); box-shadow: 0 18px 32px rgba(95,124,146,0.14); }
     .map-node.candidates,
     .map-node.recovery-candidates,
     .map-node.regime-leading-candidates {
-      top: 442px;
-      width: 162px;
-      min-height: 132px;
-      height: 132px;
+      min-height: 0;
+      height: 100%;
+      align-self: stretch;
+      grid-template-rows: auto auto 1fr;
+      gap: 6px;
+      padding: 14px 16px;
     }
-    .map-node.candidates { left: 28px; }
-    .map-node.recovery-candidates { left: calc(50% - 81px); }
-    .map-node.regime-leading-candidates { right: 28px; }
+    .map-node.candidates .label,
+    .map-node.recovery-candidates .label,
+    .map-node.regime-leading-candidates .label {
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .map-node.candidates .strong,
+    .map-node.recovery-candidates .strong,
+    .map-node.regime-leading-candidates .strong {
+      margin-top: 0;
+      font-size: 19px;
+      line-height: 1.24;
+    }
     .map-node.candidates .mini,
     .map-node.recovery-candidates .mini,
     .map-node.regime-leading-candidates .mini {
       font-size: 11px;
-      line-height: 1.35;
+      line-height: 1.45;
+      writing-mode: horizontal-tb;
+      word-break: normal;
+      overflow-wrap: anywhere;
+      overflow: visible;
+      text-overflow: clip;
+      margin-top: 0;
     }
-    .detail-panel { display: grid; gap: 14px; align-self: stretch; }
-    .detail-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-    .detail-title { font-size: 24px; font-weight: 800; }
-    .detail-boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px,1fr)); gap: 10px; }
-    .detail-box { padding: 12px; border-radius: var(--radius-sm); }
+    .detail-panel { display: grid; gap: 0; align-content: start; align-self: stretch; background: rgba(255,255,255,0.84); }
+    .detail-head { display: block; }
+    .detail-title {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1.1;
+      margin: 0;
+    }
+    .detail-subtitle {
+      font-size: 14px;
+      line-height: 1.75;
+      min-height: 0;
+      margin-top: 10px;
+    }
+    .detail-copy {
+      min-height: calc(1.75em * 2);
+      align-content: start;
+      margin-top: 10px;
+      margin-bottom: calc(1.75em * 0.5);
+    }
+    .detail-boxes {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+    .detail-box {
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      min-height: 104px;
+      height: 100%;
+      display: grid;
+      align-content: start;
+      grid-template-rows: auto 1fr;
+    }
     .detail-box .v { margin-top: 6px; font-size: 18px; font-weight: 700; line-height: 1.3; }
+    .detail-panel .disclosure { margin-top: 12px; }
     details.disclosure { border-radius: var(--radius-md); overflow: clip; }
     details.disclosure summary { list-style: none; cursor: pointer; padding: 12px 14px; font-weight: 700; user-select: none; }
     details.disclosure summary::-webkit-details-marker { display: none; }
@@ -573,25 +782,40 @@ DASHBOARD_TEMPLATE = """<!doctype html>
     }
     .current-run-layout {
       display: grid;
-      grid-template-columns: minmax(260px, 1.1fr) minmax(0, 1.9fr);
-      gap: 12px;
+      grid-template-columns: minmax(320px, 1.05fr) minmax(0, 1.95fr);
+      gap: 14px;
       align-items: start;
     }
     .current-run-hero {
-      padding: 18px;
+      padding: 16px 18px;
       border-radius: var(--radius-lg);
-      border: 1px solid rgba(122,92,77,0.22);
-      background: linear-gradient(180deg, rgba(255,255,255,0.96) 0%, rgba(244,234,225,0.98) 100%);
-      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(37,99,235,0.12);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(244,248,253,0.98) 100%);
+      box-shadow: none;
       display: grid;
-      gap: 10px;
+      gap: 8px;
     }
     .current-run-hero .eyebrow-note { font-size: 12px; color: var(--muted); font-weight: 700; }
     .current-run-hero .hero-value { font-size: clamp(24px, 4vw, 34px); font-weight: 800; line-height: 1.12; color: #102a43; }
-    .current-run-status { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .current-run-status {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-content: start;
+    }
+    .current-run-status .metric {
+      min-height: 0;
+      padding: 14px 16px;
+      border-radius: 16px;
+      box-shadow: none;
+    }
+    .current-run-status .metric h2 {
+      margin-bottom: 6px;
+    }
     .run-alert.is-hidden { display: none; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
     @container (max-width: 1180px) {
+      .workspace-title-row { grid-template-columns: 1fr; }
       .summary-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
       .summary-layout { grid-template-columns: minmax(0, 1.45fr) minmax(220px, 1fr); }
       .primary-signal { grid-template-columns: 1fr; }
@@ -603,6 +827,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       .sector-visual { grid-template-columns: 1fr; }
       .current-run-layout { grid-template-columns: 1fr; }
       .current-run-status { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .detail-boxes { grid-template-columns: repeat(2, minmax(0,1fr)); }
     }
     @container (max-width: 760px) {
       .dashboard-shell { padding-inline: 12px; }
@@ -610,26 +835,17 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       .summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
       .summary-layout { grid-template-columns: 1fr; }
       .primary-meta { grid-template-columns: 1fr; }
-      .relation-canvas { min-height: 994px; }
-      .map-node.regime { left: calc(50% - 78px); top: 18px; }
-      .map-node.score { left: calc(50% - 78px); top: 132px; }
-      .map-node.cycle { left: calc(50% - 78px); top: 246px; }
-      .map-node.spot { left: calc(50% - 78px); top: 360px; right: auto; }
-      .map-node.sector { left: 8px; top: 520px; }
-      .map-node.alerts { left: calc(50% - 78px); top: 520px; }
-      .map-node.asset { right: 8px; top: 520px; }
-      .map-node.candidates,
-      .map-node.recovery-candidates,
-      .map-node.regime-leading-candidates {
-        width: 164px;
-        min-height: 128px;
-        height: 128px;
-      }
-      .map-node.candidates { left: calc(50% - 78px); top: 634px; right: auto; }
-      .map-node.recovery-candidates { left: calc(50% - 78px); top: 766px; right: auto; }
-      .map-node.regime-leading-candidates { left: calc(50% - 78px); top: 898px; right: auto; }
-      .current-run-status { grid-template-columns: 1fr 1fr; }
+      .relation-canvas { grid-template-columns: 1fr; }
+      .relation-group.core-span,
+      .relation-group.col-1,
+      .relation-group.col-2,
+      .relation-group.col-3,
+      .relation-group.full-span { grid-column: 1; }
+      .node-grid.core,
+      .node-grid.triple { grid-template-columns: 1fr; }
+      .current-run-status { grid-template-columns: 1fr; }
       .compare-strip.compact.triple { grid-template-columns: 1fr; }
+      .detail-boxes { grid-template-columns: 1fr; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
@@ -639,9 +855,31 @@ DASHBOARD_TEMPLATE = """<!doctype html>
 <body>
   <main class=\"dashboard-shell\">
     <section class=\"hero\">
-      <div class=\"eyebrow\">ダッシュボード概要</div>
-      <h1>市場状態と投資判断を確認するダッシュボード</h1>
-      <p class=\"hero-copy\">上段で今回の実行結果、下段で保存済み履歴を確認します。</p>
+      <div class=\"eyebrow\">Market Ops Workspace</div>
+      <div class=\"workspace-title-row\">
+        <div class=\"workspace-title-block\">
+          <h1>市場状態と投資判断を確認するダッシュボード</h1>
+          <p class=\"workspace-copy\">履歴ブラウズと今回の実行結果を分離し、時間差による見え方の違いを混同せずに判断できるようにした運用画面です。</p>
+        </div>
+        <div class=\"focus-card\">
+          <div class=\"label\">画面の役割</div>
+          <div class=\"value\">履歴比較と今回実行の切り分け</div>
+        </div>
+      </div>
+      <div class=\"workspace-status-strip\" aria-label=\"画面の使い分け\">
+        <div class=\"status-chip\">
+          <div class=\"k\">上段</div>
+          <div class=\"v\">今回の実行結果だけを確認</div>
+        </div>
+        <div class=\"status-chip\">
+          <div class=\"k\">中段</div>
+          <div class=\"v\">保存済み履歴を時系列で比較</div>
+        </div>
+        <div class=\"status-chip\">
+          <div class=\"k\">右側</div>
+          <div class=\"v\">選択ノードの解釈を固定表示</div>
+        </div>
+      </div>
     </section>
 
     <div class=\"stack\">
@@ -726,29 +964,58 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         <section class=\"panel relation-shell\" aria-labelledby=\"relationHeading\">
           <div>
             <h2 id=\"relationHeading\">関係マップ</h2>
-            <p class=\"section-copy\">中心の市場レジームと合成スコアから、サイクル、スポット判断、セクター、資産クラス、取得状況へどうつながるかを見るビューです。クリック結果は右側へ固定表示されます。</p>
+            <p class=\"section-copy\">全体判断、補助ドライバー、候補層を分けた操作パネルです。気になる項目を押すと、右側の解釈と明細が固定で切り替わります。</p>
           </div>
           <div class=\"relation-canvas\">
-            <svg class="relation-svg" aria-hidden="true">
-              <line id="lineRegime" data-target="regime" stroke="#d9e2ec" stroke-width="3" />
-              <line id="lineCycle" data-target="cycle" stroke="#d9e2ec" stroke-width="3" />
-              <line id="lineSpot" data-target="spot" stroke="#d9e2ec" stroke-width="3" />
-              <line id="lineSector" data-target="sector" stroke="#d9e2ec" stroke-width="3" />
-              <line id="lineAsset" data-target="asset" stroke="#d9e2ec" stroke-width="3" />
-              <line id="lineAlert" data-target="alerts" stroke="#d9e2ec" stroke-width="3" />
-            </svg>
-            <button class="map-node regime" data-node="regime" type="button" aria-pressed="true"><div class="label">市場レジーム</div><div id="nodeRegime" class="strong">-</div><div id="nodeRegimeSub" class="mini">地合いの大枠</div></button>
-            <button class="map-node score" data-node="score" type="button" aria-pressed="false"><div class="label">合成スコア</div><div id="nodeScore" class="strong">-</div><div id="nodeScoreSub" class="mini">押し目条件のまとまり</div></button>
-            <button class="map-node cycle" data-node="cycle" type="button" aria-pressed="false"><div class="label">サイクル判定</div><div id="nodeCycle" class="strong">-</div><div id="nodeCycleSub" class="mini">位相角 -</div></button>
-            <button class="map-node spot" data-node="spot" type="button" aria-pressed="false"><div class="label">スポット判断</div><div id="nodeSpot" class="strong">-</div><div id="nodeSpotSub" class="mini">二段下げリスク -</div></button>
-            <button class="map-node sector" data-node="sector" type="button" aria-pressed="false"><div class="label">先導セクター</div><div id="nodeSector" class="strong">-</div><div id="nodeSectorSub" class="mini">資金の向かい先</div></button>
-            <button class="map-node alerts" data-node="alerts" type="button" aria-pressed="false"><div class="label">警告レイヤー</div><div id="nodeAlerts" class="strong">-</div><div id="nodeAlertsSub" class="mini">市場と生活の警戒灯</div></button>
-            <button class="map-node asset" data-node="asset" type="button" aria-pressed="false"><div class="label">上位資産クラス</div><div id="nodeAsset" class="strong">-</div><div id="nodeAssetSub" class="mini">資産比較の先頭</div></button>
-            <button class="map-node candidates" data-node="candidates" type="button" aria-pressed="false"><div class="label">追随候補</div><div id="nodeCandidates" class="strong">-</div><div id="nodeCandidatesSub" class="mini">今強い流れを追う候補</div></button>
-            <button class="map-node recovery-candidates" data-node="recovery_candidates" type="button" aria-pressed="false"><div class="label">先回り候補</div><div id="nodeRecoveryCandidates" class="strong">-</div><div id="nodeRecoveryCandidatesSub" class="mini">底打ち初期を狙う候補</div></button>
-            <button class="map-node regime-leading-candidates" data-node="regime_leading_candidates" type="button" aria-pressed="false"><div class="label">レジーム先回り</div><div id="nodeRegimeLeadingCandidates" class="strong">-</div><div id="nodeRegimeLeadingCandidatesSub" class="mini">次の地合いで効きやすい候補</div></button>
+            <div class="relation-row core">
+              <div class="relation-group core-span">
+                <div class="relation-group-title">Core Signal</div>
+                <p class="relation-group-copy">まず全体判断の軸になる 2 項目から確認します。</p>
+                <div class="node-grid core">
+                  <button class="map-node regime" data-node="regime" type="button" aria-pressed="true"><div class="label">市場レジーム</div><div id="nodeRegime" class="strong">-</div><div id="nodeRegimeSub" class="mini">地合いの大枠</div></button>
+                  <button class="map-node score" data-node="score" type="button" aria-pressed="false"><div class="label">合成スコア</div><div id="nodeScore" class="strong">-</div><div id="nodeScoreSub" class="mini">押し目条件のまとまり</div></button>
+                </div>
+              </div>
+            </div>
+            <div class="relation-row drivers">
+              <div class="relation-group col-1">
+                <div class="relation-group-title">Timing</div>
+                <p class="relation-group-copy">入るか待つかの判断に効く時間軸の補助です。</p>
+                <div class="node-grid single two-rows">
+                  <button class="map-node cycle" data-node="cycle" type="button" aria-pressed="false"><div class="label">サイクル判定</div><div id="nodeCycle" class="strong">-</div><div id="nodeCycleSub" class="mini">位相角 -</div></button>
+                  <button class="map-node spot" data-node="spot" type="button" aria-pressed="false"><div class="label">スポット判断</div><div id="nodeSpot" class="strong">-</div><div id="nodeSpotSub" class="mini">二段下げリスク -</div></button>
+                </div>
+              </div>
+              <div class="relation-group col-2">
+                <div class="relation-group-title">Flow</div>
+                <p class="relation-group-copy">資金が向かっている先と比較上位を確認します。</p>
+                <div class="node-grid single two-rows">
+                  <button class="map-node sector" data-node="sector" type="button" aria-pressed="false"><div class="label">先導セクター</div><div id="nodeSector" class="strong">-</div><div id="nodeSectorSub" class="mini">資金の向かい先</div></button>
+                  <button class="map-node asset" data-node="asset" type="button" aria-pressed="false"><div class="label">上位資産クラス</div><div id="nodeAsset" class="strong">-</div><div id="nodeAssetSub" class="mini">資産比較の先頭</div></button>
+                </div>
+              </div>
+              <div class="relation-group col-3">
+                <div class="relation-group-title">Risk</div>
+                <p class="relation-group-copy">警告の発火状況を市場判断と切り分けて確認します。</p>
+                <div class="node-grid single two-rows">
+                  <button class="map-node alerts" data-node="alerts" type="button" aria-pressed="false"><div class="label">警告レイヤー</div><div id="nodeAlerts" class="strong">-</div><div id="nodeAlertsSub" class="mini">市場と生活の警戒灯</div></button>
+                  <div class="map-node placeholder" aria-hidden="true"></div>
+                </div>
+              </div>
+            </div>
+            <div class="relation-row candidates">
+              <div class="relation-group full-span candidates-span">
+                <div class="relation-group-title">Candidates</div>
+                <p class="relation-group-copy">今の強さ、反転初期、次レジーム適性の 3 系統で候補を分けています。</p>
+                <div class="node-grid candidate-band">
+                  <button class="map-node candidates" data-node="candidates" type="button" aria-pressed="false"><div class="label">追随候補</div><div id="nodeCandidates" class="strong">-</div><div id="nodeCandidatesSub" class="mini">今強い流れを追う候補</div></button>
+                  <button class="map-node recovery-candidates" data-node="recovery_candidates" type="button" aria-pressed="false"><div class="label">先回り候補</div><div id="nodeRecoveryCandidates" class="strong">-</div><div id="nodeRecoveryCandidatesSub" class="mini">底打ち初期を狙う候補</div></button>
+                  <button class="map-node regime-leading-candidates" data-node="regime_leading_candidates" type="button" aria-pressed="false"><div class="label">レジーム先回り</div><div id="nodeRegimeLeadingCandidates" class="strong">-</div><div id="nodeRegimeLeadingCandidatesSub" class="mini">次の地合いで効きやすい候補</div></button>
+                </div>
+              </div>
+            </div>
           </div>
-          <details class=\"disclosure\"><summary>このマップの読み方</summary><div class=\"guide-body\">中央に近いほど全体判断に直結する要素です。左下や右下の個別項目を押しても、説明は右側に固定されるので視線が上に飛びません。まず市場レジーム、次に合成スコア、最後に個別要素の順で見ると理解しやすくなります。</div></details>
+          <details class=\"disclosure\"><summary>このパネルの読み方</summary><div class=\"guide-body\">まず Core Signal で全体判断を確認し、次に Timing / Flow / Risk の補助要素へ進みます。候補群は最後に見る前提なので、候補の強さだけで全体判断を上書きしないように分けています。</div></details>
         </section>
 
         <aside class=\"panel detail-panel\" aria-live=\"polite\">
@@ -775,6 +1042,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
           <div id=\"currentRunTimestamp\" class=\"hero-value\">-</div>
           <div id=\"currentRunDataSource\" class=\"value\">-</div>
           <div id=\"currentRunDataSourceSub\" class=\"sub\">今回の取得方式</div>
+          <p class=\"section-copy\" style=\"margin:2px 0 0;\">判断に使うときはこの枠を優先し、上の履歴ビューは比較用として扱います。</p>
         </article>
         <div class=\"current-run-status\">
           <article class=\"metric\"><h2>取得成功</h2><div id=\"currentRunOkCount\" class=\"value\">-</div><div class=\"sub\">今回の実行だけの成功数</div></article>
@@ -799,14 +1067,14 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       secondary_label: '参考: all_history'
     };
     const regimeColors = {
-      risk_on: '#2f855a',
-      transition: '#b7791f',
-      risk_off: '#c53030',
-      credit_stress: '#7b341e',
-      inflation_shock: '#c05621',
-      stagflation_warning: '#9c4221',
+      risk_on: '#3f7d5e',
+      transition: '#b38a3a',
+      risk_off: '#a24f4b',
+      credit_stress: '#7d5d49',
+      inflation_shock: '#c56d3d',
+      stagflation_warning: '#b15b42',
       data_unavailable: '#52606d',
-      early_recovery: '#2b6cb0',
+      early_recovery: '#5f8792',
       default: '#7a5c4d'
     };
     const detailState = { currentIndex: Math.max(dashboardData.length - 1, 0), selectedNode: 'regime', timer: null };
@@ -865,7 +1133,113 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       if (value === 'low') return '低い';
       if (value === 'moderate') return '中程度';
       if (value === 'high') return '高い';
+      if (value === 'extreme') return '非常に高い';
       return value || '-';
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '-')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function severityTone(value) {
+      if (value === 'extreme') return 'extreme';
+      if (value === 'high') return 'danger';
+      if (value === 'moderate') return 'caution';
+      return 'normal';
+    }
+
+    function formatSeverityInline(label, tone) {
+      if (!label) return '-';
+      if (tone === 'normal') return label;
+      return `<span class="severity-inline ${tone}">${label}</span>`;
+    }
+
+    function actionTone(value) {
+      if (value === 'wait') return 'danger';
+      if (value === 'watch') return 'caution';
+      return 'normal';
+    }
+
+    function formatActionInline(value, label) {
+      return formatSeverityInline(label || value || '-', actionTone(value));
+    }
+
+    function formatRiskInline(value) {
+      const label = formatRisk(value);
+      return formatSeverityInline(label, severityTone(value));
+    }
+
+    function alertSeverityTone(value) {
+      if (value === 'high') return 'danger';
+      if (value === 'moderate') return 'caution';
+      return 'normal';
+    }
+
+    function formatAlertSeverityInline(alert) {
+      return formatSeverityInline(alert?.severity_label || '-', alertSeverityTone(alert?.severity || 'low'));
+    }
+
+    function emphasizeRiskText(value) {
+      const escaped = escapeHtml(value);
+      const protectedTerms = [
+        { pattern: /危険ライン/g, token: '__KEEP_RISK_LINE__' },
+        { pattern: /警戒ライン/g, token: '__KEEP_CAUTION_LINE__' },
+      ];
+      const protectedText = protectedTerms.reduce(
+        (current, { pattern, token }) => current.replace(pattern, token),
+        escaped,
+      );
+      const replacements = [
+        { pattern: /非常に危険/g, tone: 'extreme' },
+        { pattern: /危険/g, tone: 'danger' },
+        { pattern: /警戒/g, tone: 'caution' },
+        { pattern: /注意/g, tone: 'caution' },
+        { pattern: /重要/g, tone: 'danger' },
+        { pattern: /中程度/g, tone: 'caution' },
+        { pattern: /過熱/g, tone: 'danger' },
+      ];
+      const emphasized = replacements.reduce(
+        (current, { pattern, tone }) => current.replace(pattern, (match) => `<span class="severity-inline ${tone}">${match}</span>`),
+        protectedText,
+      );
+      return emphasized
+        .replace(/__KEEP_RISK_LINE__/g, '危険ライン')
+        .replace(/__KEEP_CAUTION_LINE__/g, '警戒ライン');
+    }
+
+    function setDetailCopy(value, emphasize = true) {
+      el('detailCopy').innerHTML = emphasize ? emphasizeRiskText(value || '-') : escapeHtml(value || '-');
+    }
+
+    function decorateAttentionValue(value, emphasize = true) {
+      const raw = value ?? '-';
+      const text = typeof raw === 'string' ? raw : String(raw);
+      if (!emphasize) return escapeHtml(text);
+      if (text.includes('<')) return text;
+      return emphasizeRiskText(text);
+    }
+
+    function riskStageTone(stageKey) {
+      if (stageKey === 'extreme_danger_line_reached') return 'extreme';
+      if (stageKey === 'danger_line_reached') return 'danger';
+      if (stageKey === 'credit_spillover_initial' || stageKey === 'caution') return 'caution';
+      return 'normal';
+    }
+
+    function formatRiskStageInline(riskLines) {
+      const label = riskLines?.stage_label || '-';
+      const tone = riskStageTone(riskLines?.stage_key || 'normal');
+      if (tone === 'normal') return label;
+      return `<span class="risk-stage-inline ${tone}">${label}</span>`;
+    }
+
+    function internalWarningLabel(entry) {
+      return `${(entry.warnings || []).length}件 (内部警告)`;
     }
 
     function formatTimestampInline(value) {
@@ -996,6 +1370,10 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       return `${value || '-'}${sub ? `<small>${sub}</small>` : ''}`;
     }
 
+    function plainInline(value) {
+      return `<span class="plain-inline">${escapeHtml(value || '-')}</span>`;
+    }
+
     function pulseMetric(name) {
       const target = document.querySelector(`[data-metric=\"${name}\"]`);
       if (!target) return;
@@ -1007,7 +1385,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
     }
 
     function renderBoxes(boxes) {
-      el('detailBoxes').innerHTML = boxes.map((box) => `<div class=\"detail-box\"><div class=\"k\">${box.key}</div><div class=\"v\">${box.value}</div></div>`).join('');
+      el('detailBoxes').innerHTML = boxes.map((box) => `<div class=\"detail-box\"><div class=\"k\">${escapeHtml(box.key)}</div><div class=\"v\">${decorateAttentionValue(box.value, box.emphasize !== false)}</div></div>`).join('');
     }
 
     function renderTable(title, headers, rows) {
@@ -1020,7 +1398,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         return;
       }
       const head = headers.map((header) => `<th>${header}</th>`).join('');
-      const body = rows.map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join('')}</tr>`).join('');
+      const body = rows.map((row) => `<tr>${row.map((cell) => `<td>${decorateAttentionValue(cell)}</td>`).join('')}</tr>`).join('');
       wrap.innerHTML = `<table class=\"list-table\"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
     }
 
@@ -1033,7 +1411,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
           <h4>${alert.title || '-'}</h4>
           <div class="badge-row">
             <span class="badge badge-neutral">${alert.category_label || '-'}</span>
-            <span class="badge badge-${alert.severity === 'high' ? 'inflation' : alert.severity === 'moderate' ? 'credit' : 'neutral'}">${alert.severity_label || '-'}</span>
+            <span class="badge badge-${alert.severity === 'high' ? 'inflation' : alert.severity === 'moderate' ? 'credit' : 'neutral'}">${formatAlertSeverityInline(alert)}</span>
           </div>
           <p>${alert.message || '-'}</p>
         </article>
@@ -1197,7 +1575,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       if (!entry) {
         el('detailTitle').textContent = '詳細';
         el('detailSubtitle').textContent = '履歴データがありません。';
-        el('detailCopy').textContent = 'まずレポートを生成して履歴 JSON を作成してください。';
+        setDetailCopy('まずレポートを生成して履歴 JSON を作成してください。', false);
         renderBoxes([]);
         renderBadgeRow('flowBadges', []);
         renderTable('明細を表示', [], []);
@@ -1208,7 +1586,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       if (node === 'regime') {
         el('detailTitle').textContent = '市場レジーム';
         el('detailSubtitle').textContent = `${entry.generated_at} の地合い判定`;
-        el('detailCopy').textContent = '市場レジームは相場全体の強弱を大づかみに見る中心指標です。ここで大枠を見たあとに、サイクルやスポット判断へ進むと判断の順番が安定します。';
+        setDetailCopy('市場レジームは相場全体の強弱を大づかみに見る中心指標です。ここで大枠を見たあとに、サイクルやスポット判断へ進むと判断の順番が安定します。');
         renderBoxes([{ key: '判定', value: entry.regime.label }, { key: 'レジームスコア', value: formatSigned(entry.regime.score, 3) }, { key: 'データソース', value: entry.data_source }]);
         renderTable('市場レジームの補助情報', ['項目', '内容'], [['合成スコア', formatScore(entry.score)], ['判定用スコア', formatScore(entry.adjusted_score)], ['スポット判断', entry.spot_signal.label], ['先導セクター', entry.top_sector?.label || '-']]);
         return;
@@ -1216,15 +1594,17 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       if (node === 'score') {
         el('detailTitle').textContent = '合成スコア';
         el('detailSubtitle').textContent = '押し目条件のまとまり';
-        el('detailCopy').textContent = '合成スコアは 0 から 1 の範囲で、市場レジームやモメンタム環境をまとめた要約です。高いほど押し目検討の条件が揃っています。';
+        setDetailCopy('合成スコアは 0 から 1 の範囲で、市場レジームやモメンタム環境をまとめた要約です。高いほど押し目検討の条件が揃っています。');
         renderBoxes([{ key: '合成スコア', value: formatScore(entry.score) }, { key: '判定用スコア', value: formatScore(entry.adjusted_score) }, { key: 'レジーム減点', value: formatScore(entry.regime_penalty) }, { key: 'スポット判断', value: entry.spot_signal.label }]);
-        renderTable('合成スコアの確認項目', ['項目', '内容'], [['市場レジーム', entry.regime.label], ['サイクル判定', entry.cycle.label], ['二段下げリスク', formatRisk(entry.spot_signal.risk)], ['警告件数', String(entry.warnings.length)]]);
+        setDetailCopy('合成スコアは押し目条件の要約です。ここでの内部警告件数は alerts/warnings の件数で、危険ライン段階とは別の判定です。危険ライン段階は下の表で独立して確認します。');
+        renderBoxes([{ key: '合成スコア', value: formatScore(entry.score) }, { key: '判定用スコア', value: formatScore(entry.adjusted_score) }, { key: 'レジーム減点', value: formatScore(entry.regime_penalty) }, { key: '危険ライン段階', value: formatRiskStageInline(entry.risk_lines) }]);
+        renderTable('合成スコアの確認項目', ['項目', '内容'], [['市場レジーム', entry.regime.label], ['サイクル判定', entry.cycle.label], ['二段下げリスク', formatRiskInline(entry.spot_signal.risk)], ['危険ライン段階', formatRiskStageInline(entry.risk_lines)], ['危険ライン件数', emphasizeRiskText(`危険 ${entry.risk_lines?.danger_count || 0} / 非常に危険 ${entry.risk_lines?.extreme_count || 0}`)], ['内部警告件数', internalWarningLabel(entry)], ['内部警告と危険ラインの違い', emphasizeRiskText('内部警告は alerts/warnings の件数、危険ラインは market stress の段階判定です。')]]);
         return;
       }
       if (node === 'cycle') {
         el('detailTitle').textContent = 'サイクル判定';
         el('detailSubtitle').textContent = '位相ベースの相場位置';
-        el('detailCopy').textContent = 'サイクル判定は、上昇・終盤・回復・下降のどこに近いかを補助的に見る項目です。レジームより時間の流れを読み取りやすくします。';
+        setDetailCopy('サイクル判定は、上昇・終盤・回復・下降のどこに近いかを補助的に見る項目です。レジームより時間の流れを読み取りやすくします。');
         renderBoxes([{ key: '判定', value: entry.cycle.label }, { key: '位相角', value: entry.cycle.angle ?? '-' }, { key: '市場レジーム', value: entry.regime.label }]);
         renderTable('サイクル判定の関連項目', ['項目', '内容'], [['合成スコア', formatScore(entry.score)], ['スポット判断', entry.spot_signal.label], ['先導セクター', entry.top_sector?.label || '-']]);
         return;
@@ -1232,15 +1612,15 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       if (node === 'spot') {
         el('detailTitle').textContent = 'スポット投資判断';
         el('detailSubtitle').textContent = '運用向けの要約';
-        el('detailCopy').textContent = 'スポット投資判断は、地合いとサイクルとドローダウン状態をまとめた短い結論です。買い検討・監視継続・待機のどこにいるかを確認できます。';
-        renderBoxes([{ key: '判断', value: entry.spot_signal.label }, { key: '二段下げリスク', value: formatRisk(entry.spot_signal.risk) }, { key: '合成スコア', value: formatScore(entry.score) }, { key: '判定用スコア', value: formatScore(entry.adjusted_score) }]);
-        renderTable('スポット判断の根拠', ['順番', '内容'], (entry.spot_signal.rationale || []).map((reason, idx) => [String(idx + 1), reason]));
+        setDetailCopy('スポット投資判断は、地合いとサイクルとドローダウン状態をまとめた短い結論です。買い検討・監視継続・待機のどこにいるかを確認できます。');
+        renderBoxes([{ key: '判断', value: formatActionInline(entry.spot_signal.action, entry.spot_signal.label) }, { key: '二段下げリスク', value: formatRiskInline(entry.spot_signal.risk) }, { key: '合成スコア', value: formatScore(entry.score) }, { key: '判定用スコア', value: formatScore(entry.adjusted_score) }]);
+        renderTable('スポット判断の根拠', ['順番', '内容'], (entry.spot_signal.rationale || []).map((reason, idx) => [String(idx + 1), emphasizeRiskText(reason)]));
         return;
       }
       if (node === 'sector') {
         el('detailTitle').textContent = 'セクターローテーション';
         el('detailSubtitle').textContent = '上位セクターの流れ';
-        el('detailCopy').textContent = 'その時点で資金がどのセクターへ向かっていたかを確認します。順位と位置をあわせて見ると、単なる騰落率より流れが追いやすくなります。';
+        setDetailCopy('その時点で資金がどのセクターへ向かっていたかを確認します。順位と位置をあわせて見ると、単なる騰落率より流れが追いやすくなります。');
         renderBoxes([{ key: '先導セクター', value: entry.top_sector?.label || '-' }, { key: 'ティッカー', value: entry.top_sector?.ticker || '-' }, { key: '12週騰落率', value: formatSigned(entry.top_sector?.return_12w, 4) }]);
         renderSectorRotationDetail(entry.sector_table || []);
         return;
@@ -1252,7 +1632,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         const memoCount = alerts.filter((alert) => alert.category === 'memo').length;
         el('detailTitle').textContent = '警告レイヤー';
         el('detailSubtitle').textContent = '市場と生活の警戒灯';
-        el('detailCopy').textContent = '警告レイヤーは、既存の判定ロジックがどこで警戒を発火しているかを示す補助ビューです。売買判断を直接上書きせず、市場警告、生活影響警告、補足メモに分けて現在の内部状態を見やすくします。';
+        setDetailCopy('警告レイヤーは、既存の判定ロジックがどこで警戒を発火しているかを示す補助ビューです。売買判断を直接上書きせず、市場警告、生活影響警告、補足メモに分けて現在の内部状態を見やすくします。', false);
         renderBoxes([
           { key: '市場警告', value: String(marketCount) },
           { key: '生活影響警告', value: String(lifeCount) },
@@ -1260,16 +1640,16 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         ]);
         renderTable('警告一覧', ['区分', '重要度', 'タイトル', '内容'], alerts.map((alert) => [
           alert.category_label || '-',
-          alert.severity_label || '-',
-          alert.title || '-',
-          alert.message || '-',
+          formatAlertSeverityInline(alert),
+          plainInline(alert.title || '-'),
+          emphasizeRiskText(alert.message || '-'),
         ]));
         return;
       }
       if (node === 'asset') {
         el('detailTitle').textContent = '資産クラス比較';
         el('detailSubtitle').textContent = '相対優位の確認';
-        el('detailCopy').textContent = '株式、債券、金、不動産などの相対強弱を並べて確認するセクションです。セクターの流れと合わせると、資金の向かう方向を広い粒度で把握できます。';
+        setDetailCopy('株式、債券、金、不動産などの相対強弱を並べて確認するセクションです。セクターの流れと合わせると、資金の向かう方向を広い粒度で把握できます。');
         renderBoxes([
           { key: '上位資産', value: entry.top_asset?.label || '-' },
           { key: 'ティッカー', value: entry.top_asset?.ticker || '-' },
@@ -1293,7 +1673,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         const candidate = entry.investment_candidates || {};
         el('detailTitle').textContent = '追随候補';
         el('detailSubtitle').textContent = '今強い流れを追う候補';
-        el('detailCopy').textContent = 'ここでは相対強度が高く、今すでに資金が向かっている候補を見ます。先回り候補とは意味が逆なので、このノードでは追随側だけを表示します。';
+        setDetailCopy('ここでは相対強度が高く、今すでに資金が向かっている候補を見ます。先回り候補とは意味が逆なので、このノードでは追随側だけを表示します。');
         renderBoxes([
           { key: '候補判定', value: candidate.label || '候補なし' },
           { key: '候補数', value: String((candidate.candidate_tickers || []).length) },
@@ -1315,7 +1695,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         const recovery = entry.recovery_candidates || {};
         el('detailTitle').textContent = '先回り候補';
         el('detailSubtitle').textContent = '底打ち初期を狙う候補';
-        el('detailCopy').textContent = 'ここでは今はまだ強すぎないものの、深い下落のあとで改善し始めた候補を見ます。追随候補より時間軸が長く、安く仕込む前提の補助ビューです。';
+        setDetailCopy('ここでは今はまだ強すぎないものの、深い下落のあとで改善し始めた候補を見ます。追随候補より時間軸が長く、安く仕込む前提の補助ビューです。');
         renderBoxes([
           { key: '候補判定', value: recovery.label || '候補なし' },
           { key: '候補数', value: String((recovery.candidate_tickers || []).length) },
@@ -1337,7 +1717,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         const regimeLeading = entry.regime_leading_candidates || {};
         el('detailTitle').textContent = 'レジーム先回り候補';
         el('detailSubtitle').textContent = '次の地合いで効きやすい資産・地域・セクター';
-        el('detailCopy').textContent = 'ここでは大きく下げた反転銘柄ではなく、次のレジームで効きやすい資産・地域・セクターを見ます。価格の底打ちそのものより、現レジームとの相性と直近の改善兆候を重視する補助ビューです。';
+        setDetailCopy('ここでは大きく下げた反転銘柄ではなく、次のレジームで効きやすい資産・地域・セクターを見ます。価格の底打ちそのものより、現レジームとの相性と直近の改善兆候を重視する補助ビューです。');
         renderBoxes([
           { key: '候補判定', value: regimeLeading.label || '候補なし' },
           { key: '候補数', value: String((regimeLeading.candidate_tickers || []).length) },
@@ -1360,7 +1740,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       }
       el('detailTitle').textContent = 'データ取得状況';
       el('detailSubtitle').textContent = '代替取得や欠損の監査';
-      el('detailCopy').textContent = 'ここで見ているのは履歴時点の取得状況です。上段の「今回の実行結果」とは独立しているため、値が違う場合は過去履歴との差です。';
+      setDetailCopy('ここで見ているのは履歴時点の取得状況です。上段の「今回の実行結果」とは独立しているため、値が違う場合は過去履歴との差です。', false);
       const counts = formatStatusCounts(entry.availability_summary);
       renderBoxes([{ key: '問題件数', value: `${entry.availability_summary.issues} / ${entry.availability_summary.total}` }, ...counts.slice(0, 2).map((item) => ({ key: item.label, value: String(item.count) }))]);
       renderTable('取得状況の明細', ['要求系列', '状態', '実使用系列', '説明'], (entry.availability || []).slice(0, 10).map((row) => [cellWithSub(row.requested_ticker || '-', row.requested_ticker_name_ja), row.status === 'ok' ? '取得成功' : row.status === 'proxy_fallback' ? '代替ティッカーで取得' : row.status === 'sample_fallback' ? 'サンプル代替' : '未取得', cellWithSub(row.used_ticker || '-', row.used_ticker_name_ja), row.message || '-']));
@@ -1395,7 +1775,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       renderBadgeRow('metricRegimeBadges', stageBadges(entry));
       pulseMetric('primary');
       el('metricScore').textContent = formatScore(entry.score);
-      el('metricScoreSub').textContent = `判定用 ${formatScore(entry.adjusted_score)} / 減点 ${formatScore(entry.regime_penalty)}`;
+      el('metricScoreSub').innerHTML = `判定用 ${formatScore(entry.adjusted_score)} / 減点 ${formatScore(entry.regime_penalty)} / ${formatRiskStageInline(entry.risk_lines)}`;
       el('metricScoreDelta').textContent = formatDelta(scoreDelta);
       el('metricScoreDelta').className = `v ${deltaClass(scoreDelta)}`;
       el('metricAdjusted').textContent = formatScore(entry.adjusted_score);
@@ -1403,10 +1783,10 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       el('metricCycle').textContent = entry.cycle.label;
       el('metricCycleSub').textContent = `位相角 ${entry.cycle.angle ?? '-'} 度`;
       pulseMetric('cycle');
-      el('metricSpot').textContent = entry.spot_signal.label;
-      el('metricSpotSub').textContent = entry.data_reliability?.decision_allowed
-        ? `二段下げリスク: ${formatRisk(entry.spot_signal.risk)}`
-        : 'データ不足のため参考値ではなく保留扱い';
+      el('metricSpot').innerHTML = formatActionInline(entry.spot_signal.action, entry.spot_signal.label);
+      el('metricSpotSub').innerHTML = entry.data_reliability?.decision_allowed
+        ? emphasizeRiskText(`二段下げリスク: ${formatRisk(entry.spot_signal.risk)}`)
+        : emphasizeRiskText('データ不足のため参考値ではなく保留扱い');
       pulseMetric('spot');
       const okCount = entry.availability_summary?.status_counts?.ok || 0;
       el('metricAvailability').textContent = `${okCount} / ${entry.availability_summary.total}`;
@@ -1419,27 +1799,29 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       el('nodeRegime').style.color = regimeColors[entry.regime.key] || regimeColors.default;
       el('nodeRegimeSub').textContent = `source: ${entry.data_source}`;
       el('nodeScore').textContent = formatScore(entry.score);
-      el('nodeScoreSub').textContent = `判定用 ${formatScore(entry.adjusted_score)} / ${entry.regime.label}`;
+      el('nodeScoreSub').innerHTML = `判定用 ${formatScore(entry.adjusted_score)} / ${entry.regime.label} / ${formatRiskStageInline(entry.risk_lines)}`;
       el('nodeCycle').textContent = entry.cycle.label;
       el('nodeCycleSub').textContent = `位相角 ${entry.cycle.angle ?? '-'} 度`;
-      el('nodeSpot').textContent = entry.spot_signal.label;
-      el('nodeSpotSub').textContent = entry.data_reliability?.decision_allowed
-        ? `二段下げリスク ${formatRisk(entry.spot_signal.risk)}`
-        : 'live 取得不足で判定保留';
+      el('nodeSpot').innerHTML = formatActionInline(entry.spot_signal.action, entry.spot_signal.label);
+      el('nodeSpotSub').innerHTML = entry.data_reliability?.decision_allowed
+        ? emphasizeRiskText(`二段下げリスク ${formatRisk(entry.spot_signal.risk)}`)
+        : emphasizeRiskText('live 取得不足で判定保留');
       el('nodeSector').textContent = entry.top_sector?.label || '-';
       el('nodeSectorSub').textContent = entry.top_sector ? `${entry.top_sector.ticker} / 12週 ${formatSigned(entry.top_sector.return_12w, 4)}` : 'データなし';
       const alerts = entry.alerts || [];
       const highAlert = alerts.find((alert) => alert.severity === 'high') || alerts[0];
-      el('nodeAlerts').textContent = highAlert ? highAlert.title : '追加警告なし';
-      el('nodeAlertsSub').textContent = highAlert ? `${highAlert.category_label} / ${highAlert.severity_label}` : '内部警告は静穏';
+      el('nodeAlerts').innerHTML = highAlert ? escapeHtml(highAlert.title) : '追加警告なし';
+      el('nodeAlertsSub').innerHTML = highAlert
+        ? `${escapeHtml(highAlert.category_label)} / ${formatAlertSeverityInline(highAlert)}`
+        : '内部警告は静穏';
       el('nodeAsset').textContent = entry.top_asset?.label || '-';
       el('nodeAssetSub').textContent = entry.top_asset ? `${entry.top_asset.ticker} / 12週 ${formatSigned(entry.top_asset.momentum_12w, 4)}` : 'データなし';
-      el('nodeCandidates').textContent = entry.investment_candidates?.label || '候補なし';
-      el('nodeCandidatesSub').textContent = entry.investment_candidates?.summary || '今強い流れを追う候補';
-      el('nodeRecoveryCandidates').textContent = entry.recovery_candidates?.label || '候補なし';
-      el('nodeRecoveryCandidatesSub').textContent = entry.recovery_candidates?.summary || '底打ち初期を狙う候補';
-      el('nodeRegimeLeadingCandidates').textContent = entry.regime_leading_candidates?.label || '候補なし';
-      el('nodeRegimeLeadingCandidatesSub').textContent = entry.regime_leading_candidates?.summary || '次の地合いで効きやすい候補';
+      el('nodeCandidates').innerHTML = decorateAttentionValue(entry.investment_candidates?.label || '候補なし');
+      el('nodeCandidatesSub').innerHTML = decorateAttentionValue(entry.investment_candidates?.summary || '今強い流れを追う候補');
+      el('nodeRecoveryCandidates').innerHTML = decorateAttentionValue(entry.recovery_candidates?.label || '候補なし');
+      el('nodeRecoveryCandidatesSub').innerHTML = decorateAttentionValue(entry.recovery_candidates?.summary || '底打ち初期を狙う候補');
+      el('nodeRegimeLeadingCandidates').innerHTML = decorateAttentionValue(entry.regime_leading_candidates?.label || '候補なし');
+      el('nodeRegimeLeadingCandidatesSub').innerHTML = decorateAttentionValue(entry.regime_leading_candidates?.summary || '次の地合いで効きやすい候補');
       syncRelationState();
       window.requestAnimationFrame(updateRelationLines);
     }
@@ -1611,6 +1993,14 @@ def _normalize_dashboard_entry(data: dict[str, Any]) -> dict[str, Any]:
             "risk_off_relief_applied": bool(data.get("spot_signal", {}).get("risk_off_relief_applied", False)),
         },
         "alerts": _normalize_alerts(data.get("alerts", [])),
+        "risk_lines": {
+            "stage_key": data.get("risk_lines", {}).get("stage_key", "normal"),
+            "stage_label": data.get("risk_lines", {}).get("stage_label", "通常"),
+            "danger_count": data.get("risk_lines", {}).get("danger_count", 0),
+            "extreme_count": data.get("risk_lines", {}).get("extreme_count", 0),
+            "summary": data.get("risk_lines", {}).get("summary", "-"),
+            "precision_label": data.get("risk_lines", {}).get("precision_label", "-"),
+        },
         "investment_candidates": data.get("investment_candidates", {"label": "候補なし", "summary": "-", "candidate_tickers": [], "rationale": []}),
         "recovery_candidates": data.get("recovery_candidates", {"label": "候補なし", "summary": "-", "candidate_tickers": [], "rationale": []}),
         "regime_leading_candidates": data.get("regime_leading_candidates", {"label": "候補なし", "summary": "-", "candidate_tickers": [], "rationale": [], "preferred_sector": None, "preferred_region": None, "preferred_asset_class": None}),

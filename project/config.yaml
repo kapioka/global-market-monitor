@@ -59,6 +59,16 @@ tickers:
     Corn: ZC=F
     Mortgage_30Y: FRED:MORTGAGE30US
     US10Y: ^TNX
+  risk_indicators:
+    SPY: SPY
+    HYG: HYG
+    LQD: LQD
+    VIX: ^VIX
+    MOVE: ^MOVE
+    WTI: CL=F
+    Brent: BZ=F
+    DXY: DX-Y.NYB
+    US10Y: ^TNX
   japan:
     usd_jpy: USDJPY=X
     topix_proxy: 1306.T
@@ -95,6 +105,7 @@ weights:
   volatility: 0.14
   macro_proxy: 0.1
   credit_stress: 0.1
+  stress: 0.08
 
 scheduler:
   enabled: false

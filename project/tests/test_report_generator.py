@@ -32,6 +32,30 @@ def _report() -> dict:
         },
         "cycle": {"phase_label": "upswing", "phase_angle_deg": 10},
         "score": {"total_score": 0.7, "credit_stress_component": 0.62},
+        "risk_lines": {
+            "stage_key": "credit_spillover_initial",
+            "stage_label": "信用波及初期",
+            "summary": "かなり悪化したが、まだ全面的な信用危機本番ではなく、金利・原油ショックが信用へ波及し始めた段階です。",
+            "composite_risk_score": 48.2,
+            "danger_count": 1,
+            "extreme_count": 0,
+            "reasons": ["インフレショック、金利上昇、株安の組み合わせが同時進行しています。"],
+            "indicators": [
+                {
+                    "ticker": "^VIX",
+                    "ticker_name_ja": "VIX指数",
+                    "current": 29.9,
+                    "change_1w": 0.08,
+                    "change_4w": 0.12,
+                    "zscore": 1.4,
+                    "line_level_label": "警戒ライン接近",
+                    "warning_line": 25.0,
+                    "danger_line": 30.0,
+                    "extreme_line": 35.0,
+                    "line_reason": "現在値 29.90 を基準ラインと比較した判定です。",
+                }
+            ],
+        },
         "spot_signal": {
             "action": "buy_window",
             "second_leg_risk": "low",
@@ -227,11 +251,17 @@ def test_render_markdown_uses_real_newlines():
     assert "公益事業セクターETF" in text
     assert "日本株ETF" in text
     assert "金ETF" in text
+    assert "危険ライン監視" in text
+    assert "信用波及初期" in text
+    assert "VIX指数" in text
     assert "警告レイヤー" in text
     assert "生活影響警告 / 注意" in text
     assert "信用環境は持ち直し寄りです。" in text
     assert "判定用スコアは 0.70" in text
     assert "- 判定用スコア: 0.7" in text
+    assert "内部警告件数" in text
+    assert "危険ライン段階とは別の判定" in text
+    assert '<span style="color:#1f2933;"><strong>信用波及初期</strong></span>' in text
 
 
 def test_render_html_contains_japanese_explanations():
@@ -259,8 +289,14 @@ def test_render_html_contains_japanese_explanations():
     assert "公益事業セクターETF" in html
     assert "日本株ETF" in html
     assert "金ETF" in html
+    assert "危険ライン監視" in html
+    assert "信用波及初期" in html
+    assert "VIX指数" in html
     assert "警告レイヤー" in html
     assert "生活コスト上昇警戒" in html
     assert "信用ストレス補助 0.62" in html
     assert "判定用スコアは 0.70" in html
     assert "レジーム減点 0.0" in html
+    assert "内部警告件数" in html
+    assert "危険ライン段階とは別の判定" in html
+    assert "risk-badge caution" in html
