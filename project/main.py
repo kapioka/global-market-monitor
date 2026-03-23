@@ -22,6 +22,7 @@ from project.data_fetcher import FetchResult, fetch_market_data
 from project.history_dashboard import write_dashboard
 from project.inflation_monitor import build_inflation_monitor
 from project.investment_candidates import build_investment_candidates
+from project.risk_lines import evaluate_risk_lines
 from project.preprocess import compute_returns, preprocess_prices
 from project.recovery_candidates import build_recovery_candidates
 from project.regime_leading_candidates import build_regime_leading_candidates
@@ -32,6 +33,7 @@ from project.scheduler import run_scheduler
 from project.scoring import score_market
 from project.sector_rotation import analyze_sector_rotation
 from project.spot_signal import evaluate_spot_signal
+from project.stress_monitor import build_stress_monitor, default_risk_indicator_map
 
 HISTORY_FILENAME_RE = re.compile(r"report_(\d{4}-\d{2}-\d{2})_\d{6}\.json$")
 
@@ -172,17 +174,25 @@ def build_report(
         config["data"].get("monitor_windows_weeks", {"short": 1, "medium": 4, "long": 12}),
         int(config["data"].get("zscore_window_weeks", 52)),
     )
+    risk_monitor = build_stress_monitor(
+        prices,
+        default_risk_indicator_map(config),
+        config["data"].get("monitor_windows_weeks", {"short": 1, "medium": 4, "long": 12}),
+        int(config["data"].get("zscore_window_weeks", 52)),
+    )
     usable_credit_monitor = _filter_live_monitor_rows(credit_monitor, availability_map)
     usable_inflation_monitor = _filter_live_monitor_rows(inflation_monitor, availability_map)
+    usable_risk_monitor = _filter_live_monitor_rows(risk_monitor, availability_map)
     reliability = _assess_data_reliability(config, fetch)
     regime = analyze_market_regime(prices, returns, usable_credit_monitor, usable_inflation_monitor, config["thresholds"])
     cycle_ticker = regime["benchmark"]
     cycle = analyze_cycle(prices[cycle_ticker])
-    score = score_market(regime, cycle, usable_credit_monitor, config["weights"], config["thresholds"])
+    risk_lines = evaluate_risk_lines(regime, cycle, usable_credit_monitor, usable_inflation_monitor, usable_risk_monitor)
+    score = score_market(regime, cycle, usable_credit_monitor, config["weights"], config["thresholds"], risk_monitor=usable_risk_monitor)
     sector_rotation = analyze_sector_rotation(prices, config["tickers"]["sector_etfs"])
     asset_compare = compare_asset_classes(prices, config["tickers"]["asset_classes"])
-    spot_signal = evaluate_spot_signal(score, regime, cycle, usable_credit_monitor, usable_inflation_monitor, config["thresholds"])
-    alerts = build_alerts(regime, spot_signal, usable_credit_monitor, usable_inflation_monitor)
+    spot_signal = evaluate_spot_signal(score, regime, cycle, usable_credit_monitor, usable_inflation_monitor, config["thresholds"], risk_lines=risk_lines)
+    alerts = build_alerts(regime, spot_signal, usable_credit_monitor, usable_inflation_monitor, risk_lines=risk_lines)
     analogues = find_analogues(
         prices[cycle_ticker], max_results=config["data"]["max_analogue_results"]
     )
@@ -192,12 +202,15 @@ def build_report(
         regime = _guarded_regime(regime, reliability)
         cycle = _guarded_cycle(cycle)
         score = _guarded_score(score)
+        risk_lines = _guarded_risk_lines(reliability)
         spot_signal = _guarded_spot_signal(reliability)
         alerts = [_data_quality_alert(reliability)]
         sector_rotation = {"table": [], "chart": {}}
         asset_compare = []
         analogues = []
         warnings.append(reliability["reason"])
+    elif risk_lines.get("strict_missing_indicators"):
+        warnings.append(risk_lines["summary"])
     investment_candidates = build_investment_candidates(
         {
             "regime": regime,
@@ -243,6 +256,8 @@ def build_report(
         "asset_compare": asset_compare,
         "credit_monitor": usable_credit_monitor,
         "inflation_monitor": usable_inflation_monitor,
+        "risk_monitor": usable_risk_monitor,
+        "risk_lines": risk_lines,
         "spot_signal": spot_signal,
         "investment_candidates": investment_candidates,
         "recovery_candidates": recovery_candidates,
@@ -286,16 +301,20 @@ def _assess_data_reliability(config: dict[str, Any], fetch: FetchResult) -> dict
         for item in fetch.acquisition_log
         if item.get("requested_ticker") in critical_tickers and item.get("status") in {"sample_fallback", "unavailable"}
     ]
-    decision_allowed = not critical_failures and live_ratio >= 0.75
-    if decision_allowed:
-        level = "high" if sample_count == 0 and unavailable_count == 0 and fetch.source in {"yfinance", "mixed"} else "medium"
-        reason = "重要系列の live 取得は概ね維持できているため、通常の判定ロジックを継続します。"
-    else:
+    decision_allowed = live_ratio >= 0.4
+    if live_ratio < 0.4:
         level = "low"
-        if critical_failures:
-            reason = f"重要系列の live 取得に失敗したため、通常の判定ロジックを保留しました。対象: {', '.join(critical_failures)}"
-        else:
-            reason = f"live 取得率が不足しているため、通常の判定ロジックを保留しました。取得率: {live_ratio:.0%}"
+        reason = f"live 取得率が不足しているため、厳密な判断はできません。取得率: {live_ratio:.0%}"
+    elif critical_failures:
+        decision_allowed = True
+        level = "low"
+        reason = f"重要系列 {', '.join(critical_failures)} が不足しているため、厳密な判断はできていません。利用可能データでの暫定判定です。"
+    elif sample_count == 0 and unavailable_count == 0 and fetch.source in {"yfinance", "mixed"}:
+        level = "high"
+        reason = "主要系列の live 取得は概ね維持できているため、厳密判定に近い状態です。"
+    else:
+        level = "medium"
+        reason = "一部系列に欠損や代替取得があるため、利用可能データで判定しています。"
     return {
         "level": level,
         "decision_allowed": decision_allowed,
@@ -306,7 +325,7 @@ def _assess_data_reliability(config: dict[str, Any], fetch: FetchResult) -> dict
 
 
 def _critical_tickers(config: dict[str, Any]) -> set[str]:
-    critical = {"ACWI", "HYG", "LQD", "CL=F", "DX-Y.NYB", "GC=F"}
+    critical = {"ACWI", "SPY"}
     global_equities = list(config.get("tickers", {}).get("global_equities", {}).values())
     if global_equities:
         critical.add(global_equities[0])
@@ -335,6 +354,25 @@ def _guarded_score(score: dict[str, Any]) -> dict[str, Any]:
     guarded["raw_total_score"] = score.get("total_score")
     guarded["total_score"] = None
     return guarded
+
+
+def _guarded_risk_lines(reliability: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "stage_key": "data_unavailable",
+        "stage_label": "判定保留",
+        "summary": reliability["reason"],
+        "reasons": [reliability["reason"]],
+        "composite_risk_score": None,
+        "warning_count": 0,
+        "danger_count": 0,
+        "extreme_count": 0,
+        "danger_lines": [],
+        "extreme_lines": [],
+        "penalty_hint": 0.0,
+        "indicators": [],
+        "coverage_ratio": 0.0,
+        "missing_indicators": [],
+    }
 
 
 def _guarded_spot_signal(reliability: dict[str, Any]) -> dict[str, Any]:
