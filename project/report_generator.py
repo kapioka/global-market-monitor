@@ -5,6 +5,11 @@ import math
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
+
+from project.sector_labeling import classify_sector_candidate
+from project.sector_vector_analysis import calculate_sector_vectors
+
 
 STATUS_LABELS = {
     "ok": "取得成功",
@@ -149,6 +154,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     risk_stage_badge_html = _risk_badge_html(risk_lines.get("stage_label", "-"), _risk_stage_tone(risk_lines.get("stage_key")))
     risk_stage_badge = _risk_badge_markdown(risk_lines.get("stage_label", "-"), _risk_stage_tone(risk_lines.get("stage_key")))
     internal_warning_count = len(report.get("warnings", []))
+    sector_context = _build_sector_rotation_context(report.get("sector_rotation", {}))
 
     lines = [
         f"# {report['title']}",
@@ -177,9 +183,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append(f"- {reason}")
 
     lines.extend(["", "## セクターローテーション", f"- {SECTION_EXPLANATIONS['sector']}"])
-    for row in report["sector_rotation"]["table"]:
+    for row in sector_context["rows"]:
+        candidate_suffix = f" / ラベル {row['candidate_label']}" if row.get("candidate_label") else ""
         lines.append(
-            f"- {row['ticker']} ({row['sector_name_ja']}): 12週騰落率 {row['return_12w']} / 順位 {row['rank']}位 / 位置 {row['rotation_phase_ja']}"
+            f"- {row['ticker']} ({row['sector_name_ja']}): 12週騰落率 {row['return_12w']} / 順位 {row['rank']}位 / 位置 {row['rotation_phase_ja']}{candidate_suffix}"
         )
 
     lines.extend(["", "## 資産クラス比較", f"- {SECTION_EXPLANATIONS['asset']}"])
@@ -347,13 +354,20 @@ def render_html(report: dict[str, Any]) -> str:
     action_label = _jp_action(report["spot_signal"]["action"])
     risk_label = _jp_risk(report["spot_signal"]["second_leg_risk"])
     internal_warning_count = len(report.get("warnings", []))
+    sector_context = _build_sector_rotation_context(report.get("sector_rotation", {}))
 
     warning_items = "".join(
         f"<li>{html.escape(warning)}</li>" for warning in report["warnings"]
     ) or "<li>重要な警告はありません。</li>"
     sector_rows = "".join(
-        f"<tr><td>{html.escape(row['ticker'])}</td><td>{html.escape(row['sector_name_ja'])}</td><td>{row['return_12w']}</td><td>{row['rank']}</td><td>{html.escape(row['rotation_phase_ja'])}</td></tr>"
-        for row in report["sector_rotation"]["table"]
+        "<tr>"
+        f"<td>{html.escape(row['ticker'])}</td>"
+        f"<td>{html.escape(row['sector_name_ja'])}{_sector_label_badge_html(row.get('candidate_label'))}</td>"
+        f"<td>{row['return_12w']}</td>"
+        f"<td>{row['rank']}</td>"
+        f"<td>{html.escape(row['rotation_phase_ja'])}</td>"
+        "</tr>"
+        for row in sector_context["rows"]
     ) or "<tr><td colspan='5'>有効データなし</td></tr>"
     asset_rows = "".join(
         "<tr>"
@@ -475,7 +489,7 @@ def render_html(report: dict[str, Any]) -> str:
     diagnostic_error_items = "".join(
         f"<li>{html.escape(item)}</li>" for item in diagnostics.get("failure_samples", [])
     ) or "<li>代表エラーは記録されていません。</li>"
-    sector_svg = _render_sector_rotation_svg(report["sector_rotation"].get("table", []))
+    sector_svg = _render_sector_rotation_svg(report.get("sector_rotation", {}), sector_context)
 
     return f"""<!doctype html>
 <html lang=\"ja\">
@@ -540,6 +554,7 @@ def render_html(report: dict[str, Any]) -> str:
     .inline-note {{ margin-top: 8px; font-size: 13px; color: var(--muted); line-height: 1.6; }}
     .sector-visual {{ display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 18px; align-items: start; }}
     .sector-caption {{ font-size: 13px; color: var(--muted); }}
+    .sector-label-badge {{ display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: rgba(16,32,51,0.08); color: #1f2933; }}
     ul {{ margin: 0; padding-left: 20px; }}
     @media (max-width: 860px) {{
       .grid {{ grid-template-columns: 1fr; }}
@@ -766,7 +781,146 @@ def render_html(report: dict[str, Any]) -> str:
 """
 
 
-def _render_sector_rotation_svg(rows: list[dict[str, Any]]) -> str:
+def _build_sector_rotation_context(sector_rotation: dict[str, Any]) -> dict[str, Any]:
+    rows = [dict(row) for row in sector_rotation.get("table", [])]
+    history_rows = sector_rotation.get("history") or sector_rotation.get("history_points") or []
+    if not rows or not history_rows:
+        return {"rows": rows, "analysis": {}}
+
+    normalized_history: list[dict[str, Any]] = []
+    for item in history_rows:
+        ticker = str(item.get("sector") or item.get("ticker") or "").strip()
+        if not ticker:
+            continue
+        normalized_item = dict(item)
+        normalized_item["sector"] = ticker
+        normalized_history.append(normalized_item)
+
+    if not normalized_history:
+        return {"rows": rows, "analysis": {}}
+
+    try:
+        analysis_map = calculate_sector_vectors(pd.DataFrame(normalized_history))
+    except Exception:
+        return {"rows": rows, "analysis": {}}
+
+    enriched_rows: list[dict[str, Any]] = []
+    enriched_analysis: dict[str, Any] = {}
+    for row in rows:
+        ticker = str(row.get("ticker", ""))
+        analysis = analysis_map.get(ticker)
+        if not analysis:
+            enriched_rows.append(row)
+            continue
+        candidate_label = classify_sector_candidate(
+            current_quadrant=str(analysis.get("current_quadrant", "center")),
+            vec1=analysis.get("vectors", {}).get("previous", {}),
+            vec2=analysis.get("vectors", {}).get("current", {}),
+            normalized_length=float(analysis.get("normalized_length", 0.0) or 0.0),
+            consistency=analysis.get("consistency", {}),
+            radius=float(analysis.get("radius", 0.0) or 0.0),
+        )
+        enriched = dict(row)
+        enriched["candidate_label"] = candidate_label
+        enriched_rows.append(enriched)
+        enriched_analysis[ticker] = {
+            **analysis,
+            "candidate_label": candidate_label,
+            "candidate_reason": _sector_candidate_reason(analysis, candidate_label),
+        }
+    return {"rows": enriched_rows, "analysis": enriched_analysis}
+
+
+def _render_sector_rotation_svg(sector_rotation: dict[str, Any], sector_context: dict[str, Any] | None = None) -> str:
+    rows = sector_rotation.get("table", []) if isinstance(sector_rotation, dict) else []
+    if not rows:
+        return "<div>有効データなし</div>"
+
+    sector_context = sector_context or _build_sector_rotation_context(sector_rotation if isinstance(sector_rotation, dict) else {})
+    analysis_map = sector_context.get("analysis", {}) if isinstance(sector_context, dict) else {}
+    if not analysis_map:
+        return _render_sector_rotation_svg_legacy(rows)
+
+    width = 320
+    height = 320
+    padding = 34
+    plot_min = padding
+    plot_max = width - padding
+    current_points: list[tuple[float, float]] = []
+    for analysis in analysis_map.values():
+        points = analysis.get("points", {})
+        for key in ("two_weeks_ago", "one_week_ago", "current"):
+            point = points.get(key)
+            if point:
+                current_points.append((float(point.get("x", 0.0) or 0.0), float(point.get("y", 0.0) or 0.0)))
+
+    xs = [point[0] for point in current_points] or [0.0]
+    ys = [point[1] for point in current_points] or [0.0]
+    min_x = min(xs)
+    max_x = max(xs)
+    min_y = min(ys)
+    max_y = max(ys)
+    span_x = max(max_x - min_x, 0.0001)
+    span_y = max(max_y - min_y, 0.0001)
+
+    def scale_point(point: dict[str, Any]) -> tuple[float, float]:
+        px = float(point.get("x", 0.0) or 0.0)
+        py = float(point.get("y", 0.0) or 0.0)
+        sx = plot_min + ((px - min_x) / span_x) * (plot_max - plot_min)
+        sy = plot_max - ((py - min_y) / span_y) * (plot_max - plot_min)
+        return sx, sy
+
+    parts = [
+        f"<svg viewBox='0 0 {width} {height}' width='{width}' height='{height}' role='img' aria-label='セクターローテーション図'>",
+        "<defs><marker id='sector-arrow' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='5' markerHeight='5' orient='auto-start-reverse'><path d='M 0 0 L 10 5 L 0 10 z' fill='currentColor'></path></marker></defs>",
+        f"<rect x='{padding}' y='{padding}' width='{plot_max - plot_min}' height='{plot_max - plot_min}' fill='none' stroke='#d9e2ec' stroke-width='1' rx='16' />",
+        f"<line x1='{(plot_min + plot_max) / 2:.1f}' y1='{plot_min}' x2='{(plot_min + plot_max) / 2:.1f}' y2='{plot_max}' stroke='#d9e2ec' stroke-width='1' />",
+        f"<line x1='{plot_min}' y1='{(plot_min + plot_max) / 2:.1f}' x2='{plot_max}' y2='{(plot_min + plot_max) / 2:.1f}' stroke='#d9e2ec' stroke-width='1' />",
+        f"<text x='{(plot_min + plot_max) / 2:.1f}' y='24' text-anchor='middle' font-size='12' fill='#52606d'>先導</text>",
+        f"<text x='{width - 32}' y='{(plot_min + plot_max) / 2 + 4:.1f}' text-anchor='middle' font-size='12' fill='#52606d'>改善</text>",
+        f"<text x='{(plot_min + plot_max) / 2:.1f}' y='{height - 18}' text-anchor='middle' font-size='12' fill='#52606d'>鈍化</text>",
+        f"<text x='28' y='{(plot_min + plot_max) / 2 + 4:.1f}' text-anchor='middle' font-size='12' fill='#52606d'>出遅れ</text>",
+    ]
+
+    for row in sector_context.get("rows", []):
+        ticker = str(row.get("ticker", ""))
+        analysis = analysis_map.get(ticker)
+        if not analysis:
+            continue
+        points = analysis.get("points", {})
+        point_old = points.get("two_weeks_ago")
+        point_mid = points.get("one_week_ago")
+        point_cur = points.get("current")
+        if not point_old or not point_mid or not point_cur:
+            continue
+        x_old, y_old = scale_point(point_old)
+        x_mid, y_mid = scale_point(point_mid)
+        x_cur, y_cur = scale_point(point_cur)
+        base_color = _sector_base_color(ticker)
+        middle_color = _blend_hex_color(base_color, '#cbd5e0', 0.45)
+        previous_vector = analysis.get("vectors", {}).get("previous", {})
+        current_vector = analysis.get("vectors", {}).get("current", {})
+        previous_color = _vector_display_color(float(previous_vector.get("dx", 0.0) or 0.0), float(previous_vector.get("dy", 0.0) or 0.0))
+        current_color = _vector_display_color(float(current_vector.get("dx", 0.0) or 0.0), float(current_vector.get("dy", 0.0) or 0.0))
+        tooltip = html.escape(_sector_tooltip(ticker, row, analysis))
+        label = html.escape(ticker)
+        candidate_label = html.escape(str(analysis.get("candidate_label", "")))
+        show_label = candidate_label and candidate_label != "様子見"
+
+        parts.append(f"<g style='color:{previous_color};'><line x1='{x_old:.1f}' y1='{y_old:.1f}' x2='{x_mid:.1f}' y2='{y_mid:.1f}' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' marker-end='url(#sector-arrow)'><title>{tooltip}</title></line></g>")
+        parts.append(f"<g style='color:{current_color};'><line x1='{x_mid:.1f}' y1='{y_mid:.1f}' x2='{x_cur:.1f}' y2='{y_cur:.1f}' stroke='currentColor' stroke-width='2.8' stroke-linecap='round' marker-end='url(#sector-arrow)'><title>{tooltip}</title></line></g>")
+        parts.append(f"<circle cx='{x_old:.1f}' cy='{y_old:.1f}' r='4.2' fill='#d4d8dd'><title>{tooltip}</title></circle>")
+        parts.append(f"<circle cx='{x_mid:.1f}' cy='{y_mid:.1f}' r='5' fill='{middle_color}' stroke='#ffffff' stroke-width='1.2'><title>{tooltip}</title></circle>")
+        parts.append(f"<circle cx='{x_cur:.1f}' cy='{y_cur:.1f}' r='6.2' fill='{base_color}' stroke='#102a43' stroke-width='1.4'><title>{tooltip}</title></circle>")
+        parts.append(f"<text x='{x_cur + 8:.1f}' y='{y_cur - 8:.1f}' font-size='11' font-weight='700' fill='#1f2933'>{label}</text>")
+        if show_label:
+            parts.append(f"<text x='{x_cur + 8:.1f}' y='{y_cur + 6:.1f}' font-size='10' fill='#52606d'>{candidate_label}</text>")
+
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _render_sector_rotation_svg_legacy(rows: list[dict[str, Any]]) -> str:
     if not rows:
         return "<div>有効データなし</div>"
 
@@ -813,6 +967,66 @@ def _render_sector_rotation_svg(rows: list[dict[str, Any]]) -> str:
 
     parts.append("</svg>")
     return "".join(parts)
+
+
+def _sector_tooltip(ticker: str, row: dict[str, Any], analysis: dict[str, Any]) -> str:
+    consistency = analysis.get("consistency", {})
+    return (
+        f"{ticker} {row.get('sector_name_ja', '')} | 象限 {analysis.get('current_quadrant', '-')} | "
+        f"前ベクトル {analysis.get('vectors', {}).get('previous', {}).get('direction', '-')} | "
+        f"現ベクトル {analysis.get('vectors', {}).get('current', {}).get('direction', '-')} | "
+        f"正規化長 {float(analysis.get('normalized_length', 0.0) or 0.0):.2f} | "
+        f"一貫性 {float(consistency.get('consistency_score', 0.0) or 0.0):.2f} | "
+        f"判定 {analysis.get('candidate_label', '-')}: {analysis.get('candidate_reason', '-')}"
+    )
+
+
+def _sector_candidate_reason(analysis: dict[str, Any], candidate_label: str) -> str:
+    direction = str(analysis.get("vectors", {}).get("current", {}).get("direction", "-"))
+    normalized_length = float(analysis.get("normalized_length", 0.0) or 0.0)
+    consistency = float(analysis.get("consistency", {}).get("consistency_score", 0.0) or 0.0)
+    if candidate_label == "有望":
+        return f"方向 {direction} が続き、正規化長 {normalized_length:.2f} と一貫性 {consistency:.2f} が十分です。"
+    if candidate_label == "監視":
+        return f"改善の兆しはありますが、正規化長 {normalized_length:.2f} か一貫性 {consistency:.2f} はまだ過熱前です。"
+    if candidate_label == "失速警戒":
+        return f"直近方向 {direction} が弱く、伸びの鈍化を警戒する局面です。"
+    return "中心近傍または方向感不足のため、まだ様子見です。"
+
+
+def _sector_label_badge_html(label: Any) -> str:
+    if not label:
+        return ""
+    return f"<br><span class='sector-label-badge'>{html.escape(str(label))}</span>"
+
+
+def _sector_base_color(ticker: str) -> str:
+    colors = {
+        "XLK": "#2563eb",
+        "XLF": "#0f766e",
+        "XLE": "#b45309",
+        "XLI": "#475569",
+        "XLP": "#2f855a",
+        "XLU": "#7c3aed",
+        "XLV": "#0ea5a4",
+        "XLY": "#db2777",
+        "XLB": "#ca8a04",
+    }
+    return colors.get(ticker, "#5b6c7d")
+
+
+def _blend_hex_color(base_hex: str, mix_hex: str, mix_ratio: float) -> str:
+    ratio = min(max(float(mix_ratio), 0.0), 1.0)
+    base = [int(base_hex[index:index + 2], 16) for index in (1, 3, 5)]
+    mix = [int(mix_hex[index:index + 2], 16) for index in (1, 3, 5)]
+    blended = [round((base_value * (1.0 - ratio)) + (mix_value * ratio)) for base_value, mix_value in zip(base, mix)]
+    return "#" + "".join(f"{value:02x}" for value in blended)
+
+
+def _vector_display_color(dx: float, dy: float) -> str:
+    if abs(dy) >= abs(dx):
+        return "#2f855a" if dy >= 0 else "#d69e2e"
+    return "#3182ce" if dx >= 0 else "#c53030"
 
 
 def _timestamp_slug(generated_at: str) -> str:

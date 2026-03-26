@@ -81,7 +81,19 @@ def _report() -> dict:
                     "rotation_phase": "leading",
                     "rotation_phase_ja": "先導",
                 }
-            ]
+            ],
+            "history": [
+                {
+                    "sector": "XLP",
+                    "x_2w_ago": -0.3,
+                    "y_2w_ago": 0.2,
+                    "x_1w_ago": 0.1,
+                    "y_1w_ago": 0.6,
+                    "x_current": 0.55,
+                    "y_current": 1.0,
+                    "avg_length_12w": 0.45,
+                }
+            ],
         },
         "asset_compare": [
             {
@@ -236,6 +248,7 @@ def test_render_markdown_uses_real_newlines():
     assert "接続診断" in text
     assert "fc.yahoo.com" in text
     assert "生活必需品" in text
+    assert "ラベル 有望" in text
     assert "米国大型株ETF" in text
     assert "信用監視" in text
     assert "インフレ監視" in text
@@ -273,6 +286,9 @@ def test_render_html_contains_japanese_explanations():
     assert "代替ティッカーで取得" in html
     assert "生活必需品" in html
     assert "簡易ローテーション図" in html
+    assert "sector-arrow" in html
+    assert "正規化長" in html
+    assert "有望" in html
     assert "米国大型株ETF" in html
     assert "S&amp;P500連動ETF" in html
     assert "信用監視" in html
