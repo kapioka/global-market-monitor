@@ -13,6 +13,8 @@ DEFAULT_CANDIDATE_CONFIG: dict[str, float] = {
     "angle_consistency_threshold": 35.0,
     "single_week_spike_ratio": 1.8,
     "warning_normalized_length_min": 0.95,
+    "acceleration_positive_threshold": 0.08,
+    "acceleration_negative_threshold": -0.08,
 }
 
 
@@ -37,7 +39,9 @@ def classify_sector_candidate(
     curr_length = calculate_vector_length(curr_dx, curr_dy)
     current_direction = classify_vector_direction(curr_dx, curr_dy)
     consistency_score = _consistency_score(consistency)
+    is_three_week_continuous = _three_week_continuous(consistency)
     min_consistency = max(0.0, 1.0 - (merged["angle_consistency_threshold"] / 180.0))
+    acceleration_state = _acceleration_state(consistency)
 
     single_week_spike = (
         prev_length > 0
@@ -48,7 +52,7 @@ def classify_sector_candidate(
         return "監視"
 
     if current_quadrant == "weakening" and current_direction in {"weakening", "defensive"}:
-        if normalized_length >= merged["warning_normalized_length_min"]:
+        if normalized_length >= merged["warning_normalized_length_min"] or acceleration_state == "decelerating":
             return "失速警戒"
         return "様子見"
 
@@ -57,6 +61,8 @@ def classify_sector_candidate(
             current_direction in {"improving", "cyclical"}
             and merged["promising_length_min"] <= normalized_length <= merged["promising_length_max"]
             and consistency_score >= min_consistency
+            and is_three_week_continuous
+            and acceleration_state != "decelerating"
         ):
             return "有望"
         if normalized_length >= merged["normalized_length_min"]:
@@ -80,6 +86,19 @@ def _consistency_score(consistency: float | Mapping[str, Any]) -> float:
     if isinstance(consistency, Mapping):
         return float(consistency.get("consistency_score", 0.0) or 0.0)
     return float(consistency)
+
+
+def _three_week_continuous(consistency: float | Mapping[str, Any]) -> bool:
+    if isinstance(consistency, Mapping):
+        return bool(consistency.get("is_three_week_continuous", False))
+    return False
+
+
+
+def _acceleration_state(consistency: float | Mapping[str, Any]) -> str:
+    if isinstance(consistency, Mapping):
+        return str(consistency.get("acceleration_state", consistency.get("acceleration", {}).get("state", "stable")))
+    return "stable"
 
 
 def _merge_config(config: Mapping[str, float] | None) -> dict[str, float]:

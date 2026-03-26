@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from typing import Any, Mapping
+
 import pandas as pd
 
 from project.indicators import adx_from_closes, max_drawdown, momentum, volatility_compression
+
+
+DEFAULT_SECTOR_REGIME_WEIGHT = 0.03
 
 
 def analyze_market_regime(
@@ -11,6 +16,8 @@ def analyze_market_regime(
     credit_monitor: list[dict[str, object]] | None,
     inflation_monitor: list[dict[str, object]] | None,
     thresholds: dict[str, float],
+    sector_rotation: Mapping[str, Any] | None = None,
+    sector_config: Mapping[str, float] | None = None,
 ) -> dict[str, object]:
     benchmark = "ACWI" if "ACWI" in prices.columns else prices.columns[0]
     series = prices[benchmark]
@@ -27,9 +34,11 @@ def analyze_market_regime(
     regime_score += 0.25 if dd > thresholds["drawdown_alert"] else -0.25
     regime_score += 0.15 if compression < thresholds["volatility_compression_ratio"] else -0.1
 
-    if regime_score >= thresholds["regime_risk_on_score"]:
+    provisional_adjustment, _ = _sector_regime_adjustment(sector_rotation, sector_config, inferred_regime=None)
+    adjusted_regime_score = regime_score + provisional_adjustment
+    if adjusted_regime_score >= thresholds["regime_risk_on_score"]:
         label = "risk_on"
-    elif regime_score <= thresholds["regime_risk_off_score"]:
+    elif adjusted_regime_score <= thresholds["regime_risk_off_score"]:
         label = "risk_off"
     else:
         label = "transition"
@@ -51,10 +60,17 @@ def analyze_market_regime(
     ):
         label = "early_recovery"
 
+    sector_adjustment, sector_adjustment_explain = _sector_regime_adjustment(sector_rotation, sector_config, inferred_regime=label)
+    adjusted_regime_score = regime_score + sector_adjustment
+
     return {
         "benchmark": benchmark,
         "regime_label": label,
         "regime_score": round(regime_score, 4),
+        "sector_vector_adjustment": round(sector_adjustment, 4),
+        "adjusted_regime_score": round(adjusted_regime_score, 4),
+        "sector_internal_structure": str((sector_rotation or {}).get("internal_structure", {}).get("structure_label", "Noisy / Unclear")),
+        "sector_adjustment_explain": sector_adjustment_explain,
         "trend_strength": round(trend_strength, 4),
         "momentum_12w": round(mom, 4),
         "max_drawdown": round(dd, 4),
@@ -62,6 +78,75 @@ def analyze_market_regime(
         "credit_regime_flag": credit_context["flag"],
         "inflation_regime_flag": inflation_context["flag"],
     }
+
+
+def _sector_regime_adjustment(
+    sector_rotation: Mapping[str, Any] | None,
+    sector_config: Mapping[str, float] | None,
+    inferred_regime: str | None = None,
+) -> tuple[float, list[dict[str, Any]]]:
+    signals = dict((sector_rotation or {}).get("integration_signals", {}))
+    if not signals:
+        return 0.0, []
+    weight = float((sector_config or {}).get("regime_bonus_weight", DEFAULT_SECTOR_REGIME_WEIGHT))
+    adjustment = 0.0
+    explain: list[dict[str, Any]] = []
+    if signals.get("defensive_leadership"):
+        delta = -weight
+        adjustment += delta
+        explain.append({"signal": "defensive_leadership", "delta": round(delta, 4)})
+    if signals.get("peakout_warning"):
+        delta = -(weight * 0.6)
+        adjustment += delta
+        explain.append({"signal": "peakout_warning", "delta": round(delta, 4)})
+    if signals.get("cyclical_improving"):
+        delta = weight
+        adjustment += delta
+        explain.append({"signal": "cyclical_improving", "delta": round(delta, 4)})
+    if signals.get("broad_improvement"):
+        delta = weight * 0.5
+        adjustment += delta
+        explain.append({"signal": "broad_improvement", "delta": round(delta, 4)})
+    dominance_penalty = _dominance_penalty_multiplier(inferred_regime)
+    dominance_strength = _dominance_strength(signals)
+    if signals.get("single_sector_dominance_warning"):
+        delta = -(weight * dominance_penalty * _dominance_strength_multiplier(dominance_strength))
+        adjustment += delta
+        explain.append({"signal": "single_sector_dominance_warning", "delta": round(delta, 4), "regime": inferred_regime, "strength": dominance_strength})
+    if signals.get("energy_dominance_warning"):
+        delta = -(weight * 0.05)
+        adjustment += delta
+        explain.append({"signal": "energy_dominance_warning", "delta": round(delta, 4)})
+    max_adjustment = float((sector_config or {}).get("max_sector_adjustment", 0.1))
+    capped = max(min(adjustment, max_adjustment), -max_adjustment)
+    if capped != adjustment:
+        explain.append({"signal": "cap", "delta": round(capped - adjustment, 4)})
+    return capped, explain
+
+
+
+def _dominance_strength(signals: Mapping[str, Any]) -> str:
+    normalized = str(signals.get("dominance_strength") or "").strip().lower()
+    if normalized in {"weak", "medium", "strong"}:
+        return normalized
+    return "medium"
+
+
+def _dominance_strength_multiplier(strength: str) -> float:
+    if strength == "strong":
+        return 1.3
+    if strength == "weak":
+        return 0.7
+    return 1.0
+
+
+def _dominance_penalty_multiplier(regime_label: str | None) -> float:
+    normalized = str(regime_label or "").strip().lower()
+    if normalized in {"risk_on", "early_recovery"}:
+        return 0.18
+    if normalized in {"risk_off", "credit_stress", "inflation_shock", "stagflation_warning"}:
+        return 0.45
+    return 0.35
 
 
 def _credit_context(credit_monitor: list[dict[str, object]]) -> dict[str, object]:

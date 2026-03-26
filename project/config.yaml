@@ -116,7 +116,13 @@ startup:
   max_backfill_days: 14
 
 sector_vector_analysis:
+  spot_signal_integration_weight: 0.02
+  ranking_integration_weight: 0.02
+  regime_bonus_weight: 0.03
+  max_sector_adjustment: 0.1
   flat_threshold: 0.000001
+  acceleration_positive_threshold: 0.08
+  acceleration_negative_threshold: -0.08
   angle_consistency_threshold: 35
   center_radius_threshold: 0.35
   normalized_length_min: 0.85
@@ -127,6 +133,14 @@ sector_vector_analysis:
   broad_count_threshold: 4
   narrow_leadership_max_count: 2
   peakout_warning_count: 3
+  energy_dominance_rank_max: 1
+  energy_dominance_active_max: 2
+  dispersion_low_threshold: 0.34
+  dispersion_high_threshold: 0.5
+  broad_watch_ratio_threshold: 0.45
+  broad_promising_ratio_threshold: 0.22
+  narrow_promising_ratio_threshold: 0.22
+  dominance_active_ratio_max: 0.25
   sector_groups:
     defensive:
       - XLP

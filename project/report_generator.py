@@ -189,6 +189,27 @@ def render_markdown(report: dict[str, Any]) -> str:
             f"- {row['ticker']} ({row['sector_name_ja']}): 12週騰落率 {row['return_12w']} / 順位 {row['rank']}位 / 位置 {row['rotation_phase_ja']}{candidate_suffix}"
         )
 
+    sector_payload = report.get("sector_rotation", {})
+    structure = sector_payload.get("internal_structure") or report.get("internal_structure", {})
+    next_candidates = sector_payload.get("next_candidates") or report.get("next_candidates", [])
+    peakout_sectors = sector_payload.get("peakout_sectors") or report.get("peakout_sectors", [])
+    market_structure_comment = sector_payload.get("market_structure_comment") or report.get("market_structure_comment", "-")
+    lines.extend(["", "## セクターローテーション内部構造"])
+    lines.append(f"- 内部構造ラベル: {structure.get('structure_label', 'Noisy / Unclear')}")
+    lines.append(f"- 市場内部構造コメント: {market_structure_comment}")
+    lines.append(f"- セクター分散指標: {structure.get('dispersion_score', 0.0)}")
+    structure_dims = structure.get('structure', {})
+    if structure_dims:
+        lines.append(f"- 内部構造3層: breadth={structure_dims.get('breadth', '-')} / leadership={structure_dims.get('leadership', '-')} / stability={structure_dims.get('stability', '-')}")
+    if structure.get('dominant_sector'):
+        lines.append(f"- 単独主導セクター: {structure.get('dominant_sector')}")
+        if structure.get('dominance_strength'):
+            lines.append(f"- 単独主導強度: {structure.get('dominance_strength')}")
+    lines.append("- 次候補セクター: " + (", ".join(f"{row.get('ticker', '-')}({row.get('sector_name_ja', '-')})" for row in next_candidates) if next_candidates else "なし"))
+    lines.append("- 失速警戒セクター: " + (", ".join(f"{row.get('ticker', '-')}({row.get('sector_name_ja', '-')})" for row in peakout_sectors) if peakout_sectors else "なし"))
+    sector_explain_lines = _sector_adjustment_summary_lines(report)
+    lines.extend(sector_explain_lines)
+
     lines.extend(["", "## 資産クラス比較", f"- {SECTION_EXPLANATIONS['asset']}"])
     for row in report["asset_compare"]:
         lines.append(
@@ -348,6 +369,78 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+EXPLAIN_SIGNAL_LABELS = {
+    "single_sector_dominance_warning": "単独主導警戒",
+    "energy_dominance_warning": "エネルギー単独主導警戒",
+    "peakout_warning": "失速警戒",
+    "broad_improvement": "広がり改善",
+    "cyclical_improving": "景気敏感改善",
+    "defensive_leadership": "ディフェンシブ優位",
+    "narrow_leadership": "物色集中",
+    "cap": "上限制御",
+}
+
+EXPLAIN_STRENGTH_LABELS = {
+    "weak": "弱",
+    "medium": "中",
+    "strong": "強",
+}
+
+
+def _format_explain_entry(entry: dict[str, Any]) -> str:
+    raw_signal = str(entry.get("signal", "-")).strip().lower()
+    signal = EXPLAIN_SIGNAL_LABELS.get(raw_signal, raw_signal.replace("_", " "))
+    delta = entry.get("delta")
+    strength = str(entry.get("strength") or "").strip().lower()
+    parts = [signal]
+    if strength:
+        parts.append(f"強度={EXPLAIN_STRENGTH_LABELS.get(strength, strength)}")
+    if delta is not None:
+        try:
+            delta_value = float(delta)
+            parts.append(f"変化={delta_value:+.2f}")
+        except (TypeError, ValueError):
+            parts.append(f"変化={delta}")
+    return " / ".join(parts)
+
+
+def _explain_priority(entry: dict[str, Any]) -> tuple[int, float]:
+    signal = str(entry.get("signal", "")).strip().lower()
+    delta = abs(float(entry.get("delta", 0.0) or 0.0))
+    if signal == "cap":
+        return (99, -delta)
+    if signal in {"single_sector_dominance_warning", "energy_dominance_warning", "peakout_warning"}:
+        return (0, -delta)
+    if signal in {"broad_improvement", "cyclical_improving", "defensive_leadership", "narrow_leadership"}:
+        return (1, -delta)
+    return (2, -delta)
+
+
+def _select_primary_explain_entry(entries: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not entries:
+        return None
+    return sorted(entries, key=_explain_priority)[0]
+
+
+def _sector_adjustment_summary_lines(report: dict[str, Any]) -> list[str]:
+    regime_explain = report.get("regime", {}).get("sector_adjustment_explain", [])
+    score_explain = report.get("score", {}).get("sector_integration_explain", [])
+    spot_explain = report.get("spot_signal", {}).get("sector_adjustment_explain", [])
+    lines: list[str] = []
+    if regime_explain or score_explain or spot_explain:
+        lines.append("- 補助反映要約:")
+    regime_primary = _select_primary_explain_entry(regime_explain)
+    score_primary = _select_primary_explain_entry(score_explain)
+    spot_primary = _select_primary_explain_entry(spot_explain)
+    if regime_primary:
+        lines.append(f"- レジーム: {_format_explain_entry(regime_primary)}")
+    if score_primary:
+        lines.append(f"- 総合評価: {_format_explain_entry(score_primary)}")
+    if spot_primary:
+        lines.append(f"- スポット判定: {_format_explain_entry(spot_primary)}")
+    return lines
+
+
 def render_html(report: dict[str, Any]) -> str:
     regime_label = _jp_regime(report["regime"]["regime_label"])
     cycle_label = _jp_cycle(report["cycle"]["phase_label"])
@@ -489,7 +582,12 @@ def render_html(report: dict[str, Any]) -> str:
     diagnostic_error_items = "".join(
         f"<li>{html.escape(item)}</li>" for item in diagnostics.get("failure_samples", [])
     ) or "<li>代表エラーは記録されていません。</li>"
-    sector_svg = _render_sector_rotation_svg(report.get("sector_rotation", {}), sector_context)
+    sector_payload = report.get("sector_rotation", {})
+    sector_structure = sector_payload.get("internal_structure") or report.get("internal_structure", {})
+    sector_next_candidates = sector_payload.get("next_candidates") or report.get("next_candidates", [])
+    sector_peakout_sectors = sector_payload.get("peakout_sectors") or report.get("peakout_sectors", [])
+    sector_market_structure_comment = sector_payload.get("market_structure_comment") or report.get("market_structure_comment", "-")
+    sector_svg = _render_sector_rotation_svg(sector_payload, sector_context)
 
     return f"""<!doctype html>
 <html lang=\"ja\">
@@ -707,6 +805,22 @@ def render_html(report: dict[str, Any]) -> str:
           </table>
         </div>
       </div>
+    </section>
+
+    <section class="section">
+      <h2>セクターローテーション内部構造</h2>
+      <p>Phase 2 のベクトル分析を補助入力として要約した内部構造です。主判定を上書きせず、レジーム・ランキング・Spot 判定の補助材料としてのみ使います。</p>
+      <ul>
+        <li>内部構造ラベル: {html.escape(str(sector_structure.get('structure_label', 'Noisy / Unclear')))}</li>
+        <li>市場内部構造コメント: {html.escape(str(sector_market_structure_comment))}</li>
+        <li>セクター分散指標: {html.escape(str(sector_structure.get('dispersion_score', 0.0)))}</li>
+        <li>内部構造3層: {html.escape(f"breadth={sector_structure.get('structure', {}).get('breadth', '-')} / leadership={sector_structure.get('structure', {}).get('leadership', '-')} / stability={sector_structure.get('structure', {}).get('stability', '-')}")}</li>
+        <li>単独主導セクター: {html.escape(str(sector_structure.get('dominant_sector') or '-'))}</li>
+        <li>単独主導強度: {html.escape(str(sector_structure.get('dominance_strength') or '-'))}</li>
+        <li>次候補セクター: {html.escape(', '.join(f"{row.get('ticker', '-')}({row.get('sector_name_ja', '-')})" for row in sector_next_candidates) or 'なし')}</li>
+        <li>失速警戒セクター: {html.escape(', '.join(f"{row.get('ticker', '-')}({row.get('sector_name_ja', '-')})" for row in sector_peakout_sectors) or 'なし')}</li>
+        {''.join(f'<li>{html.escape(line.lstrip('- ').strip())}</li>' for line in _sector_adjustment_summary_lines(report))}
+      </ul>
     </section>
 
     <section class=\"section\">

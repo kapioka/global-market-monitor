@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping
 
 
 def score_market(
@@ -10,6 +10,8 @@ def score_market(
     weights: dict[str, float],
     thresholds: dict[str, float],
     risk_monitor: list[dict[str, Any]] | None = None,
+    sector_rotation: Mapping[str, Any] | None = None,
+    sector_config: Mapping[str, float] | None = None,
 ) -> dict[str, float]:
     trend_component = 1.0 if regime["trend_strength"] >= thresholds["adx_trend_strong"] else 0.45
     momentum_component = min(max((regime["momentum_12w"] + 0.1) / 0.2, 0.0), 1.0)
@@ -19,6 +21,7 @@ def score_market(
     macro_proxy_component = 0.7 if cycle["phase_label"] in {"recovery", "upswing"} else 0.3
     credit_stress_component = _credit_stress_component(credit_monitor)
     stress_component = _stress_component(risk_monitor or [])
+    sector_integration_component, sector_integration_explain = _sector_integration_component(sector_rotation, regime.get("regime_label"))
 
     components = {
         "trend_component": trend_component,
@@ -29,6 +32,7 @@ def score_market(
         "macro_proxy_component": macro_proxy_component,
         "credit_stress_component": credit_stress_component,
         "stress_component": stress_component,
+        "sector_integration_component": sector_integration_component,
     }
     weight_map = {
         "trend_component": weights.get("trend", 0.0),
@@ -39,6 +43,7 @@ def score_market(
         "macro_proxy_component": weights.get("macro_proxy", 0.0),
         "credit_stress_component": weights.get("credit_stress", 0.0),
         "stress_component": weights.get("stress", 0.08),
+        "sector_integration_component": float((sector_config or {}).get("ranking_integration_weight", 0.02)),
     }
     total_weight = sum(weight for weight in weight_map.values() if weight > 0)
     total = sum(components[key] * weight_map[key] for key in components) / total_weight if total_weight else sum(components.values()) / len(components)
@@ -52,8 +57,69 @@ def score_market(
         "macro_proxy_component": round(macro_proxy_component, 4),
         "credit_stress_component": round(credit_stress_component, 4),
         "stress_component": round(stress_component, 4),
+        "sector_integration_component": round(sector_integration_component, 4),
+        "sector_integration_explain": sector_integration_explain,
         "total_score": round(total, 4),
     }
+
+
+def _sector_integration_component(sector_rotation: Mapping[str, Any] | None, regime_label: str | None = None) -> tuple[float, list[dict[str, Any]]]:
+    signals = dict((sector_rotation or {}).get("integration_signals", {}))
+    if not signals:
+        return 0.5, []
+
+    score = 0.5
+    explain: list[dict[str, Any]] = []
+    if signals.get("cyclical_improving"):
+        score += 0.18
+        explain.append({"signal": "cyclical_improving", "delta": 0.18})
+    if signals.get("broad_improvement"):
+        score += 0.14
+        explain.append({"signal": "broad_improvement", "delta": 0.14})
+    if signals.get("defensive_leadership"):
+        score -= 0.14
+        explain.append({"signal": "defensive_leadership", "delta": -0.14})
+    if signals.get("peakout_warning"):
+        score -= 0.2
+        explain.append({"signal": "peakout_warning", "delta": -0.2})
+    if signals.get("narrow_leadership"):
+        score -= 0.1
+        explain.append({"signal": "narrow_leadership", "delta": -0.1})
+    dominance_strength = _dominance_strength(signals)
+    if signals.get("single_sector_dominance_warning"):
+        delta = -(_dominance_component_penalty(regime_label) * _dominance_strength_multiplier(dominance_strength))
+        score += delta
+        explain.append({"signal": "single_sector_dominance_warning", "delta": round(delta, 4), "regime": regime_label, "strength": dominance_strength})
+    if signals.get("energy_dominance_warning"):
+        score -= 0.01
+        explain.append({"signal": "energy_dominance_warning", "delta": -0.01})
+    bounded = min(max(score, 0.0), 1.0)
+    return bounded, explain
+
+
+
+def _dominance_strength(signals: Mapping[str, Any]) -> str:
+    normalized = str(signals.get("dominance_strength") or "").strip().lower()
+    if normalized in {"weak", "medium", "strong"}:
+        return normalized
+    return "medium"
+
+
+def _dominance_strength_multiplier(strength: str) -> float:
+    if strength == "strong":
+        return 1.3
+    if strength == "weak":
+        return 0.7
+    return 1.0
+
+
+def _dominance_component_penalty(regime_label: str | None) -> float:
+    normalized = str(regime_label or "").strip().lower()
+    if normalized in {"risk_on", "early_recovery"}:
+        return 0.03
+    if normalized in {"risk_off", "credit_stress", "inflation_shock", "stagflation_warning"}:
+        return 0.1
+    return 0.07
 
 
 def _credit_stress_component(credit_monitor: list[dict[str, Any]]) -> float:

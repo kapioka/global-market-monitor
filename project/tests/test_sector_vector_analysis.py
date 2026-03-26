@@ -39,6 +39,7 @@ def test_calculate_direction_consistency_reports_angle_gap():
 
 def test_classify_sector_candidate_marks_promising_when_move_is_consistent():
     consistency = calculate_direction_consistency((0.7, 0.6), (0.8, 0.7))
+    consistency["is_three_week_continuous"] = True
     label = classify_sector_candidate(
         current_quadrant="improving",
         vec1=(0.7, 0.6),
@@ -111,3 +112,181 @@ def test_calculate_sector_vectors_builds_expected_metadata():
     assert result["XLK"]["current_quadrant"] == "leading"
     assert result["XLK"]["vectors"]["current"]["direction"] == "improving"
     assert result["XLK"]["normalized_length"] > 1.0
+
+
+def test_promising_requires_three_week_direction_continuity():
+    consistency = calculate_direction_consistency((0.6, 0.6), (0.8, -0.3))
+    label = classify_sector_candidate(
+        current_quadrant="leading",
+        vec1=(0.6, 0.6),
+        vec2=(0.8, -0.3),
+        normalized_length=1.4,
+        consistency=consistency,
+        radius=1.1,
+    )
+    assert label == "監視"
+
+
+def test_calculate_sector_vectors_marks_three_week_continuity():
+    history_df = pd.DataFrame([
+        {
+            "sector": "XLK",
+            "x_2w_ago": 0.1,
+            "y_2w_ago": 0.2,
+            "x_1w_ago": 0.5,
+            "y_1w_ago": 0.6,
+            "x_current": 0.9,
+            "y_current": 1.0,
+            "avg_length_12w": 0.5,
+        }
+    ])
+    result = calculate_sector_vectors(history_df)
+    assert result["XLK"]["consistency"]["is_three_week_continuous"] is True
+    assert result["XLK"]["consistency"]["direction_sequence"] == ["improving", "improving"]
+
+
+def test_summarize_sector_structure_detects_energy_dominance_warning():
+    summary = summarize_sector_structure(
+        {
+            "XLE": {"ticker": "XLE", "candidate_label": "有望", "rank": 1},
+            "XLK": {"ticker": "XLK", "candidate_label": "様子見", "rank": 4},
+            "XLF": {"ticker": "XLF", "candidate_label": "様子見", "rank": 5},
+        }
+    )
+    assert summary["energy_dominance"] is True
+
+
+def test_summarize_sector_structure_reports_dispersion_score():
+    summary = summarize_sector_structure(
+        {
+            "XLE": {"ticker": "XLE", "candidate_label": "有望"},
+            "XLK": {"ticker": "XLK", "candidate_label": "監視"},
+            "XLF": {"ticker": "XLF", "candidate_label": "様子見"},
+            "XLI": {"ticker": "XLI", "candidate_label": "様子見"},
+        }
+    )
+    assert summary["dispersion_score"] == 0.5
+
+
+def test_summarize_sector_structure_avoids_narrow_label_when_dispersion_is_broad():
+    summary = summarize_sector_structure(
+        {
+            "XLE": {"ticker": "XLE", "candidate_label": "有望"},
+            "XLK": {"ticker": "XLK", "candidate_label": "監視"},
+            "XLF": {"ticker": "XLF", "candidate_label": "監視"},
+            "XLI": {"ticker": "XLI", "candidate_label": "監視"},
+        }
+    )
+    assert summary["structure_label"] != "Narrow Leadership"
+
+
+def test_energy_dominance_requires_top_rank_energy():
+    summary = summarize_sector_structure(
+        {
+            "XLE": {"ticker": "XLE", "candidate_label": "有望", "rank": 3},
+            "XLK": {"ticker": "XLK", "candidate_label": "様子見", "rank": 1},
+            "XLF": {"ticker": "XLF", "candidate_label": "様子見", "rank": 2},
+        }
+    )
+    assert summary["energy_dominance"] is False
+
+
+def test_summarize_sector_structure_detects_non_energy_single_sector_dominance():
+    summary = summarize_sector_structure(
+        {
+            "XLK": {"ticker": "XLK", "candidate_label": "有望", "rank": 1},
+            "XLF": {"ticker": "XLF", "candidate_label": "様子見", "rank": 4},
+            "XLI": {"ticker": "XLI", "candidate_label": "様子見", "rank": 5},
+        }
+    )
+    assert summary["single_sector_dominance"] is True
+    assert summary["dominant_sector"] == "XLK"
+    assert summary["dominance_strength"] == "strong"
+    assert summary["energy_dominance"] is False
+
+
+
+
+def test_dominance_strength_weakens_when_breadth_is_less_extreme():
+    summary = summarize_sector_structure(
+        {
+            "XLK": {"ticker": "XLK", "candidate_label": "有望", "rank": 1},
+            "XLF": {"ticker": "XLF", "candidate_label": "監視", "rank": 2},
+            "XLI": {"ticker": "XLI", "candidate_label": "様子見", "rank": 6},
+            "XLP": {"ticker": "XLP", "candidate_label": "様子見", "rank": 7},
+            "XLV": {"ticker": "XLV", "candidate_label": "様子見", "rank": 8},
+            "XLU": {"ticker": "XLU", "candidate_label": "様子見", "rank": 9},
+        }
+    )
+    assert summary["single_sector_dominance"] is True
+    assert summary["dominance_strength"] in {"weak", "medium"}
+
+def test_calculate_sector_vectors_reports_acceleration():
+    history_df = pd.DataFrame([
+        {
+            "sector": "XLK",
+            "x_2w_ago": 0.0,
+            "y_2w_ago": 0.0,
+            "x_1w_ago": 0.2,
+            "y_1w_ago": 0.2,
+            "x_current": 0.8,
+            "y_current": 0.8,
+            "avg_length_12w": 0.4,
+        }
+    ])
+    result = calculate_sector_vectors(history_df)
+    assert result["XLK"]["acceleration"]["state"] == "accelerating"
+
+
+def test_decelerating_move_does_not_remain_promising():
+    consistency = calculate_direction_consistency((0.8, 0.8), (0.2, 0.2))
+    consistency["is_three_week_continuous"] = True
+    consistency["acceleration_state"] = "decelerating"
+    label = classify_sector_candidate(
+        current_quadrant="leading",
+        vec1=(0.8, 0.8),
+        vec2=(0.2, 0.2),
+        normalized_length=1.4,
+        consistency=consistency,
+        radius=1.1,
+    )
+    assert label == "監視"
+
+
+def test_summarize_sector_structure_adds_three_layer_structure():
+    summary = summarize_sector_structure(
+        {
+            "XLK": {"ticker": "XLK", "candidate_label": "有望", "rank": 1, "acceleration_state": "accelerating"},
+            "XLF": {"ticker": "XLF", "candidate_label": "監視", "rank": 2, "acceleration_state": "accelerating"},
+            "XLI": {"ticker": "XLI", "candidate_label": "監視", "rank": 3, "acceleration_state": "stable"},
+            "XLP": {"ticker": "XLP", "candidate_label": "様子見", "rank": 6, "acceleration_state": "stable"},
+        }
+    )
+    assert summary["structure"]["breadth"] in {"mixed", "broad"}
+    assert summary["structure"]["leadership"] == "cyclical"
+    assert summary["structure"]["stability"] == "accelerating"
+
+
+def test_relative_thresholds_allow_broad_improvement_with_small_sample():
+    summary = summarize_sector_structure(
+        {
+            "XLK": {"ticker": "XLK", "candidate_label": "有望", "rank": 1},
+            "XLF": {"ticker": "XLF", "candidate_label": "有望", "rank": 2},
+            "XLP": {"ticker": "XLP", "candidate_label": "監視", "rank": 3},
+            "XLV": {"ticker": "XLV", "candidate_label": "監視", "rank": 4},
+        }
+    )
+    assert summary["structure_label"] == "Broad Improvement"
+
+
+def test_relative_thresholds_keep_single_sector_dominance_available_with_small_sample():
+    summary = summarize_sector_structure(
+        {
+            "XLK": {"ticker": "XLK", "candidate_label": "有望", "rank": 1},
+            "XLF": {"ticker": "XLF", "candidate_label": "監視", "rank": 2},
+            "XLI": {"ticker": "XLI", "candidate_label": "様子見", "rank": 4},
+            "XLP": {"ticker": "XLP", "candidate_label": "様子見", "rank": 5},
+        }
+    )
+    assert summary["single_sector_dominance"] is True
+    assert summary["dominant_sector"] == "XLK"

@@ -29,9 +29,10 @@ def _report() -> dict:
             "momentum_12w": 0.12,
             "max_drawdown": -0.05,
             "credit_regime_flag": "neutral",
+            "sector_adjustment_explain": [{"signal": "cap", "delta": 0.02}, {"signal": "single_sector_dominance_warning", "delta": -0.01, "strength": "weak"}],
         },
         "cycle": {"phase_label": "upswing", "phase_angle_deg": 10},
-        "score": {"total_score": 0.7, "credit_stress_component": 0.62},
+        "score": {"total_score": 0.7, "credit_stress_component": 0.62, "sector_integration_explain": [{"signal": "cap", "delta": -0.03}, {"signal": "broad_improvement", "delta": 0.14}]},
         "risk_lines": {
             "stage_key": "credit_spillover_initial",
             "stage_label": "信用波及初期",
@@ -62,6 +63,7 @@ def _report() -> dict:
             "adjusted_score": 0.7,
             "regime_penalty": 0.0,
             "risk_off_relief_applied": False,
+            "sector_adjustment_explain": [{"signal": "cap", "delta": -0.01}, {"signal": "cyclical_improving", "delta": 0.01}],
             "rationale": [
                 "市場レジームは risk_on です。",
                 "サイクル位相は upswing です。",
@@ -95,6 +97,10 @@ def _report() -> dict:
                 }
             ],
         },
+        "internal_structure": {"structure_label": "Broad Improvement", "reason": "複数セクターで改善が広がっています。", "dominant_sector": "XLP", "dominance_strength": "weak", "single_sector_dominance": True, "dispersion_score": 0.56, "counts": {"promising": 1, "watch": 0, "wait": 0, "peakout": 0}},
+        "next_candidates": [{"ticker": "XLP", "sector_name_ja": "生活必需品", "candidate_label": "有望"}],
+        "peakout_sectors": [{"ticker": "XLE", "sector_name_ja": "エネルギー", "candidate_label": "失速警戒"}],
+        "market_structure_comment": "複数セクターで改善が広がっており、内部の裾野が広がっています。",
         "asset_compare": [
             {
                 "asset_class": "US_Stocks",
@@ -249,6 +255,14 @@ def test_render_markdown_uses_real_newlines():
     assert "fc.yahoo.com" in text
     assert "生活必需品" in text
     assert "ラベル 有望" in text
+    assert "セクターローテーション内部構造" in text
+    assert "市場内部構造コメント" in text
+    assert "次候補セクター" in text
+    assert "失速警戒セクター" in text
+    assert "補助反映要約" in text
+    assert "レジーム: 単独主導警戒 / 強度=弱 / 変化=-0.01" in text
+    assert "総合評価: 広がり改善 / 変化=+0.14" in text
+    assert "スポット判定: 景気敏感改善 / 変化=+0.01" in text
     assert "米国大型株ETF" in text
     assert "信用監視" in text
     assert "インフレ監視" in text
@@ -289,6 +303,17 @@ def test_render_html_contains_japanese_explanations():
     assert "sector-arrow" in html
     assert "正規化長" in html
     assert "有望" in html
+    assert "セクターローテーション内部構造" in html
+    assert "Broad Improvement" in html
+    assert "失速警戒セクター" in html
+    assert "セクター分散指標" in html
+    assert "内部構造3層" in html
+    assert "単独主導セクター" in html
+    assert "単独主導強度" in html
+    assert "補助反映要約" in html
+    assert "レジーム: 単独主導警戒 / 強度=弱 / 変化=-0.01" in html
+    assert "総合評価: 広がり改善 / 変化=+0.14" in html
+    assert "スポット判定: 景気敏感改善 / 変化=+0.01" in html
     assert "米国大型株ETF" in html
     assert "S&amp;P500連動ETF" in html
     assert "信用監視" in html

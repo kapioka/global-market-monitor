@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Mapping
+
+
+DEFAULT_SPOT_WEIGHT = 0.02
 
 
 def evaluate_spot_signal(
@@ -11,11 +14,14 @@ def evaluate_spot_signal(
     inflation_monitor: list[dict[str, Any]],
     thresholds: dict[str, float],
     risk_lines: dict[str, Any] | None = None,
+    sector_rotation: Mapping[str, Any] | None = None,
+    sector_config: Mapping[str, float] | None = None,
 ) -> dict[str, object]:
     total = score["total_score"]
     risk_off_relief_applied = _risk_off_relief_applied(regime, total, thresholds)
     regime_penalty = _regime_penalty(regime, total, thresholds, risk_lines)
-    adjusted_score = max(total - regime_penalty, 0.0)
+    sector_adjustment, sector_adjustment_explain = _sector_spot_adjustment(sector_rotation, sector_config, regime.get("regime_label"))
+    adjusted_score = min(max(total - regime_penalty + sector_adjustment, 0.0), 1.0)
     action = _action_for_state(adjusted_score, regime, thresholds, risk_lines)
     second_leg_risk = _second_leg_risk(regime, cycle, risk_lines)
     credit_summary = summarize_credit_monitor(credit_monitor)
@@ -28,20 +34,98 @@ def evaluate_spot_signal(
         credit_summary,
         inflation_summary,
     ]
+    if abs(sector_adjustment) > 0:
+        rationale.append(_sector_adjustment_summary(sector_rotation, sector_adjustment))
     if risk_lines:
-        rationale.append(f"危険ライン判定は {risk_lines.get('stage_label', '-')} で、{risk_lines.get('summary', '-')}")
+        rationale.append(f"危険ライン判定は {risk_lines.get('stage_label', '-')} で、{risk_lines.get('summary', '-')}" )
         rationale.extend(str(reason) for reason in risk_lines.get("reasons", [])[:3])
     return {
         "action": action,
         "score": total,
         "adjusted_score": round(adjusted_score, 4),
         "regime_penalty": round(regime_penalty, 4),
+        "sector_adjustment": round(sector_adjustment, 4),
+        "sector_adjustment_explain": sector_adjustment_explain,
         "risk_off_relief_applied": risk_off_relief_applied,
         "credit_stress_score": score.get("credit_stress_component"),
         "credit_summary": credit_summary,
         "second_leg_risk": second_leg_risk,
         "rationale": rationale,
     }
+
+
+def _sector_spot_adjustment(
+    sector_rotation: Mapping[str, Any] | None,
+    sector_config: Mapping[str, float] | None,
+    regime_label: str | None = None,
+) -> tuple[float, list[dict[str, Any]]]:
+    signals = dict((sector_rotation or {}).get("integration_signals", {}))
+    if not signals:
+        return 0.0, []
+    weight = float((sector_config or {}).get("spot_signal_integration_weight", DEFAULT_SPOT_WEIGHT))
+    adjustment = 0.0
+    explain: list[dict[str, Any]] = []
+    if signals.get("peakout_warning"):
+        delta = -weight
+        adjustment += delta
+        explain.append({"signal": "peakout_warning", "delta": round(delta, 4)})
+    if signals.get("defensive_leadership"):
+        delta = -(weight * 0.5)
+        adjustment += delta
+        explain.append({"signal": "defensive_leadership", "delta": round(delta, 4)})
+    if signals.get("broad_improvement"):
+        delta = weight
+        adjustment += delta
+        explain.append({"signal": "broad_improvement", "delta": round(delta, 4)})
+    if signals.get("cyclical_improving"):
+        delta = weight * 0.5
+        adjustment += delta
+        explain.append({"signal": "cyclical_improving", "delta": round(delta, 4)})
+    dominance_strength = _dominance_strength(signals)
+    if signals.get("single_sector_dominance_warning"):
+        delta = -(weight * _dominance_spot_penalty(regime_label) * _dominance_strength_multiplier(dominance_strength))
+        adjustment += delta
+        explain.append({"signal": "single_sector_dominance_warning", "delta": round(delta, 4), "regime": regime_label, "strength": dominance_strength})
+    if signals.get("energy_dominance_warning"):
+        delta = -(weight * 0.05)
+        adjustment += delta
+        explain.append({"signal": "energy_dominance_warning", "delta": round(delta, 4)})
+    max_adjustment = float((sector_config or {}).get("max_sector_adjustment", 0.1))
+    capped = max(min(adjustment, max_adjustment), -max_adjustment)
+    if capped != adjustment:
+        explain.append({"signal": "cap", "delta": round(capped - adjustment, 4)})
+    return capped, explain
+
+
+
+def _dominance_strength(signals: Mapping[str, Any]) -> str:
+    normalized = str(signals.get("dominance_strength") or "").strip().lower()
+    if normalized in {"weak", "medium", "strong"}:
+        return normalized
+    return "medium"
+
+
+def _dominance_strength_multiplier(strength: str) -> float:
+    if strength == "strong":
+        return 1.3
+    if strength == "weak":
+        return 0.7
+    return 1.0
+
+
+def _dominance_spot_penalty(regime_label: str | None) -> float:
+    normalized = str(regime_label or "").strip().lower()
+    if normalized in {"risk_on", "early_recovery"}:
+        return 0.2
+    if normalized in {"risk_off", "credit_stress", "inflation_shock", "stagflation_warning"}:
+        return 0.55
+    return 0.45
+
+
+def _sector_adjustment_summary(sector_rotation: Mapping[str, Any] | None, adjustment: float) -> str:
+    structure_label = str((sector_rotation or {}).get("internal_structure", {}).get("structure_label", "Noisy / Unclear"))
+    direction = "強めています" if adjustment > 0 else "弱めています"
+    return f"セクター内部構造 {structure_label} を補助反映し、Spot Investment Window を {abs(adjustment):.2f} 点 {direction}。"
 
 
 def _action_for_state(adjusted_score: float, regime: dict[str, Any], thresholds: dict[str, float], risk_lines: dict[str, Any] | None) -> str:

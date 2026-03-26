@@ -184,14 +184,42 @@ def build_report(
     usable_inflation_monitor = _filter_live_monitor_rows(inflation_monitor, availability_map)
     usable_risk_monitor = _filter_live_monitor_rows(risk_monitor, availability_map)
     reliability = _assess_data_reliability(config, fetch)
-    regime = analyze_market_regime(prices, returns, usable_credit_monitor, usable_inflation_monitor, config["thresholds"])
+    sector_vector_config = config.get("sector_vector_analysis", {})
+    sector_rotation = analyze_sector_rotation(prices, config["tickers"]["sector_etfs"], vector_config=sector_vector_config)
+    regime = analyze_market_regime(
+        prices,
+        returns,
+        usable_credit_monitor,
+        usable_inflation_monitor,
+        config["thresholds"],
+        sector_rotation=sector_rotation,
+        sector_config=sector_vector_config,
+    )
     cycle_ticker = regime["benchmark"]
     cycle = analyze_cycle(prices[cycle_ticker])
     risk_lines = evaluate_risk_lines(regime, cycle, usable_credit_monitor, usable_inflation_monitor, usable_risk_monitor)
-    score = score_market(regime, cycle, usable_credit_monitor, config["weights"], config["thresholds"], risk_monitor=usable_risk_monitor)
-    sector_rotation = analyze_sector_rotation(prices, config["tickers"]["sector_etfs"])
+    score = score_market(
+        regime,
+        cycle,
+        usable_credit_monitor,
+        config["weights"],
+        config["thresholds"],
+        risk_monitor=usable_risk_monitor,
+        sector_rotation=sector_rotation,
+        sector_config=sector_vector_config,
+    )
     asset_compare = compare_asset_classes(prices, config["tickers"]["asset_classes"])
-    spot_signal = evaluate_spot_signal(score, regime, cycle, usable_credit_monitor, usable_inflation_monitor, config["thresholds"], risk_lines=risk_lines)
+    spot_signal = evaluate_spot_signal(
+        score,
+        regime,
+        cycle,
+        usable_credit_monitor,
+        usable_inflation_monitor,
+        config["thresholds"],
+        risk_lines=risk_lines,
+        sector_rotation=sector_rotation,
+        sector_config=sector_vector_config,
+    )
     alerts = build_alerts(regime, spot_signal, usable_credit_monitor, usable_inflation_monitor, risk_lines=risk_lines)
     analogues = find_analogues(
         prices[cycle_ticker], max_results=config["data"]["max_analogue_results"]
@@ -205,7 +233,7 @@ def build_report(
         risk_lines = _guarded_risk_lines(reliability)
         spot_signal = _guarded_spot_signal(reliability)
         alerts = [_data_quality_alert(reliability)]
-        sector_rotation = {"table": [], "chart": {}}
+        sector_rotation = {"table": [], "chart": {}, "history": [], "integration_signals": {}, "internal_structure": {}}
         asset_compare = []
         analogues = []
         warnings.append(reliability["reason"])
@@ -241,6 +269,7 @@ def build_report(
         regime=regime,
         reliability=reliability,
         alerts=alerts,
+        integration_settings=sector_vector_config,
     )
     return {
         "title": config["app"]["report_title"],

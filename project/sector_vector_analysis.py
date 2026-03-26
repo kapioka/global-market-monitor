@@ -8,6 +8,8 @@ import pandas as pd
 
 DEFAULT_VECTOR_CONFIG: dict[str, float] = {
     "flat_threshold": 1e-9,
+    "acceleration_positive_threshold": 0.08,
+    "acceleration_negative_threshold": -0.08,
 }
 
 
@@ -52,7 +54,15 @@ def calculate_sector_vectors(
         curr_length = calculate_vector_length(curr_dx, curr_dy)
         avg_length_12w = _resolve_avg_length_12w(row, fallback=prev_length)
         normalized_length = normalize_vector_length(curr_length, [avg_length_12w])
+        acceleration = curr_length - prev_length
+        normalized_acceleration = normalize_vector_length(acceleration, [avg_length_12w]) if acceleration > 0 else -normalize_vector_length(abs(acceleration), [avg_length_12w])
         consistency = calculate_direction_consistency((prev_dx, prev_dy), (curr_dx, curr_dy))
+        previous_direction = classify_vector_direction(prev_dx, prev_dy, merged["flat_threshold"])
+        current_direction = classify_vector_direction(curr_dx, curr_dy, merged["flat_threshold"])
+        consistency["is_three_week_continuous"] = bool(
+            previous_direction == current_direction and previous_direction != "flat"
+        )
+        consistency["direction_sequence"] = [previous_direction, current_direction]
 
         results[sector] = {
             "sector": sector,
@@ -66,19 +76,24 @@ def calculate_sector_vectors(
                     "dx": round(prev_dx, 6),
                     "dy": round(prev_dy, 6),
                     "length": round(prev_length, 6),
-                    "direction": classify_vector_direction(prev_dx, prev_dy, merged["flat_threshold"]),
+                    "direction": previous_direction,
                 },
                 "current": {
                     "dx": round(curr_dx, 6),
                     "dy": round(curr_dy, 6),
                     "length": round(curr_length, 6),
-                    "direction": classify_vector_direction(curr_dx, curr_dy, merged["flat_threshold"]),
+                    "direction": current_direction,
                 },
             },
             "current_quadrant": _classify_quadrant(x0, y0, merged["flat_threshold"]),
             "radius": round(calculate_vector_length(x0, y0), 6),
             "normalized_length": round(normalized_length, 6),
             "avg_length_12w": round(avg_length_12w, 6),
+            "acceleration": {
+                "raw": round(acceleration, 6),
+                "normalized": round(normalized_acceleration, 6),
+                "state": _classify_acceleration(normalized_acceleration, merged),
+            },
             "consistency": consistency,
         }
     return results
@@ -119,7 +134,7 @@ def normalize_vector_length(length: float, history_lengths: list[float]) -> floa
 def calculate_direction_consistency(
     vec1: tuple[float, float] | Mapping[str, float],
     vec2: tuple[float, float] | Mapping[str, float],
-) -> dict[str, float | bool]:
+) -> dict[str, float | bool | list[str]]:
     """Compare two vectors and return angular consistency metadata."""
 
     dx1, dy1 = _vector_xy(vec1)
@@ -131,6 +146,8 @@ def calculate_direction_consistency(
             "angle_diff_deg": 180.0,
             "consistency_score": 0.0,
             "is_consistent": False,
+            "is_three_week_continuous": False,
+            "direction_sequence": [classify_vector_direction(dx1, dy1), classify_vector_direction(dx2, dy2)],
         }
 
     angle1 = math.degrees(math.atan2(dy1, dx1))
@@ -143,7 +160,18 @@ def calculate_direction_consistency(
         "angle_diff_deg": round(diff, 6),
         "consistency_score": round(score, 6),
         "is_consistent": bool(diff <= 45.0),
+        "is_three_week_continuous": False,
+        "direction_sequence": [classify_vector_direction(dx1, dy1), classify_vector_direction(dx2, dy2)],
     }
+
+
+
+def _classify_acceleration(normalized_acceleration: float, config: Mapping[str, float]) -> str:
+    if normalized_acceleration >= float(config["acceleration_positive_threshold"]):
+        return "accelerating"
+    if normalized_acceleration <= float(config["acceleration_negative_threshold"]):
+        return "decelerating"
+    return "stable"
 
 
 def _resolve_avg_length_12w(row: dict[str, Any], fallback: float) -> float:

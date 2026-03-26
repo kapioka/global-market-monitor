@@ -99,6 +99,7 @@ def build_regime_leading_candidates(
     regime: dict[str, Any],
     reliability: dict[str, Any],
     alerts: list[dict[str, Any]],
+    integration_settings: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     if not reliability.get("decision_allowed", False):
         return _none("重要系列の live 取得不足により、レジーム先回り候補は保留しています。")
@@ -121,6 +122,7 @@ def build_regime_leading_candidates(
         theme=theme.get("sector", {}),
         kind="sector",
         sector_rotation=sector_rotation,
+        integration_settings=integration_settings,
     )
     region_rows = _build_rows(
         prices=prices,
@@ -128,7 +130,8 @@ def build_regime_leading_candidates(
         availability_map=availability_map,
         theme=theme.get("region", {}),
         kind="region",
-        sector_rotation=None,
+        sector_rotation=sector_rotation,
+        integration_settings=integration_settings,
     )
     asset_rows = _build_rows(
         prices=prices,
@@ -136,7 +139,8 @@ def build_regime_leading_candidates(
         availability_map=availability_map,
         theme=theme.get("asset", {}),
         kind="asset",
-        sector_rotation=None,
+        sector_rotation=sector_rotation,
+        integration_settings=integration_settings,
     )
 
     best_sector = sector_rows[0] if sector_rows else None
@@ -186,6 +190,7 @@ def _build_rows(
     theme: dict[str, float],
     kind: str,
     sector_rotation: dict[str, Any] | None,
+    integration_settings: dict[str, float] | None,
 ) -> list[dict[str, Any]]:
     if not theme:
         return []
@@ -225,6 +230,8 @@ def _build_rows(
             momentum_12w=float(mom_12w),
             phase=phase,
             rank=rank,
+            integration_settings=integration_settings,
+            sector_rotation=sector_rotation,
         )
         if score < 0.95:
             continue
@@ -262,6 +269,8 @@ def _score_row(
     momentum_12w: float,
     phase: str,
     rank: int,
+    integration_settings: dict[str, float] | None,
+    sector_rotation: dict[str, Any] | None,
 ) -> float:
     score = theme_weight
 
@@ -309,8 +318,33 @@ def _score_row(
     if ticker in {"XLU", "XLB", "EWJ", "GLD", "TIP"} and momentum_4w > 0:
         score += 0.15
 
+    if kind == "region":
+        score += _region_integration_adjustment(ticker, sector_rotation, integration_settings)
+
     return score
 
+
+
+def _region_integration_adjustment(
+    ticker: str,
+    sector_rotation: dict[str, Any] | None,
+    integration_settings: dict[str, float] | None,
+) -> float:
+    signals = dict((sector_rotation or {}).get("integration_signals", {}))
+    if not signals:
+        return 0.0
+    weight = float((integration_settings or {}).get("ranking_integration_weight", 0.02))
+    adjustment = 0.0
+    if signals.get("broad_improvement"):
+        adjustment += weight
+    if signals.get("cyclical_improving") and ticker in {"VWO", "VEA", "SPY"}:
+        adjustment += weight * 0.6
+    if signals.get("narrow_leadership"):
+        adjustment -= weight
+    if signals.get("defensive_leadership") and ticker in {"VWO", "SPY"}:
+        adjustment -= weight * 0.4
+    max_adjustment = float((integration_settings or {}).get("max_sector_adjustment", 0.1))
+    return max(min(adjustment, max_adjustment), -max_adjustment)
 
 def _short_reason(
     *,
