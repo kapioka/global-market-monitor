@@ -97,7 +97,7 @@ def _report() -> dict:
                 }
             ],
         },
-        "internal_structure": {"structure_label": "Broad Improvement", "reason": "複数セクターで改善が広がっています。", "dominant_sector": "XLP", "dominance_strength": "weak", "single_sector_dominance": True, "dispersion_score": 0.56, "counts": {"promising": 1, "watch": 0, "wait": 0, "peakout": 0}},
+        "internal_structure": {"structure_label": "Broad Improvement", "reason": "複数セクターで改善が広がっています。", "structure": {"breadth": "broad", "leadership": "balanced", "stability": "stable"}, "structure_detail": {"consistency": "aligned", "momentum_quality": "stable"}, "dominant_sector": "XLP", "dominance_strength": "weak", "dominance_components": {"concentration": "medium", "breadth_deficit": "medium", "top_gap": "high"}, "dominance_reason_short": "少数セクターへ資金が集まっています、裾野の広がりはやや不足しています、先頭セクターの優位が明確です", "single_sector_dominance": True, "dispersion_score": 0.56, "watch_share": 0.75, "promising_share": 0.25, "counts": {"promising": 1, "watch": 0, "wait": 0, "peakout": 0}},
         "next_candidates": [{"ticker": "XLP", "sector_name_ja": "生活必需品", "candidate_label": "有望"}],
         "peakout_sectors": [{"ticker": "XLE", "sector_name_ja": "エネルギー", "candidate_label": "失速警戒"}],
         "market_structure_comment": "複数セクターで改善が広がっており、内部の裾野が広がっています。",
@@ -260,9 +260,14 @@ def test_render_markdown_uses_real_newlines():
     assert "次候補セクター" in text
     assert "失速警戒セクター" in text
     assert "補助反映要約" in text
-    assert "レジーム: 単独主導警戒 / 強度=弱 / 変化=-0.01" in text
-    assert "総合評価: 広がり改善 / 変化=+0.14" in text
-    assert "スポット判定: 景気敏感改善 / 変化=+0.01" in text
+    assert "レジーム: 単独主導警戒 / 強度=弱 / 減点=-0.01" in text
+    assert "総合評価: 広がり改善 / 加点=+0.14" in text
+    assert "スポット判定: 景気敏感改善 / 加点=+0.01" in text
+    assert "内部構造要約: 裾野は広い / 主導は分散 / 動きは継続" in text
+    assert "単独主導理由: 少数セクターへ資金が集まっています、裾野の広がりはやや不足しています、先頭セクターの優位が明確です" in text
+    assert "相対広がり指標: watch_share=0.75 / promising_share=0.25" in text
+    assert "相対広がり要約: 裾野は十分 / 有望比率は中程度" in text
+    assert "単独主導内訳: 集中=中 / 裾野不足=中 / 先頭優位=高" in text
     assert "米国大型株ETF" in text
     assert "信用監視" in text
     assert "インフレ監視" in text
@@ -307,13 +312,25 @@ def test_render_html_contains_japanese_explanations():
     assert "Broad Improvement" in html
     assert "失速警戒セクター" in html
     assert "セクター分散指標" in html
+    assert "相対広がり指標" in html
+    assert "相対広がり要約" in html
     assert "内部構造3層" in html
+    assert "内部構造要約" in html
+    assert "stability内訳" in html
     assert "単独主導セクター" in html
     assert "単独主導強度" in html
+    assert "単独主導理由" in html
+    assert "単独主導内訳" in html
     assert "補助反映要約" in html
-    assert "レジーム: 単独主導警戒 / 強度=弱 / 変化=-0.01" in html
-    assert "総合評価: 広がり改善 / 変化=+0.14" in html
-    assert "スポット判定: 景気敏感改善 / 変化=+0.01" in html
+    assert "レジーム: 単独主導警戒 / 強度=弱 / 減点=-0.01" in html
+    assert "総合評価: 広がり改善 / 加点=+0.14" in html
+    assert "スポット判定: 景気敏感改善 / 加点=+0.01" in html
+    assert "裾野は広い / 主導は分散 / 動きは継続" in html
+    assert "少数セクターへ資金が集まっています、裾野の広がりはやや不足しています、先頭セクターの優位が明確です" in html
+    assert "watch_share=0.75 / promising_share=0.25" in html
+    assert "裾野は十分 / 有望比率は中程度" in html
+    assert "方向は揃っています / 勢いは安定しています" in html
+    assert "集中=中 / 裾野不足=中 / 先頭優位=高" in html
     assert "米国大型株ETF" in html
     assert "S&amp;P500連動ETF" in html
     assert "信用監視" in html

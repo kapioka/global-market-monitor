@@ -198,13 +198,24 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.append(f"- 内部構造ラベル: {structure.get('structure_label', 'Noisy / Unclear')}")
     lines.append(f"- 市場内部構造コメント: {market_structure_comment}")
     lines.append(f"- セクター分散指標: {structure.get('dispersion_score', 0.0)}")
+    if 'watch_share' in structure or 'promising_share' in structure:
+        lines.append(f"- 相対広がり指標: watch_share={structure.get('watch_share', 0.0)} / promising_share={structure.get('promising_share', 0.0)}")
+        lines.append(f"- 相対広がり要約: {_share_summary_ja(structure)}")
     structure_dims = structure.get('structure', {})
     if structure_dims:
         lines.append(f"- 内部構造3層: breadth={structure_dims.get('breadth', '-')} / leadership={structure_dims.get('leadership', '-')} / stability={structure_dims.get('stability', '-')}")
+        lines.append(f"- 内部構造要約: {_structure_summary_ja(structure)}")
+    structure_detail = structure.get('structure_detail', {})
+    if structure_detail:
+        lines.append(f"- stability内訳: {_stability_detail_summary_ja(structure)}")
     if structure.get('dominant_sector'):
         lines.append(f"- 単独主導セクター: {structure.get('dominant_sector')}")
         if structure.get('dominance_strength'):
             lines.append(f"- 単独主導強度: {structure.get('dominance_strength')}")
+        if structure.get('dominance_reason_short'):
+            lines.append(f"- 単独主導理由: {structure.get('dominance_reason_short')}")
+        if structure.get('dominance_components'):
+            lines.append(f"- 単独主導内訳: {_dominance_components_ja(structure)}")
     lines.append("- 次候補セクター: " + (", ".join(f"{row.get('ticker', '-')}({row.get('sector_name_ja', '-')})" for row in next_candidates) if next_candidates else "なし"))
     lines.append("- 失速警戒セクター: " + (", ".join(f"{row.get('ticker', '-')}({row.get('sector_name_ja', '-')})" for row in peakout_sectors) if peakout_sectors else "なし"))
     sector_explain_lines = _sector_adjustment_summary_lines(report)
@@ -386,6 +397,38 @@ EXPLAIN_STRENGTH_LABELS = {
     "strong": "強",
 }
 
+STRUCTURE_BREADTH_LABELS = {
+    "broad": "裾野は広い",
+    "mixed": "裾野は中立",
+    "narrow": "裾野は狭い",
+}
+
+STRUCTURE_LEADERSHIP_LABELS = {
+    "cyclical": "景気敏感が主導",
+    "defensive": "ディフェンシブが主導",
+    "balanced": "主導は分散",
+    "energy-led": "エネルギーが主導",
+}
+
+STRUCTURE_STABILITY_LABELS = {
+    "accelerating": "動きは加速",
+    "stable": "動きは継続",
+    "decelerating": "動きは減速",
+    "unclear": "動きは不明瞭",
+}
+
+DOMINANCE_COMPONENT_LABELS = {
+    "concentration": "集中",
+    "breadth_deficit": "裾野不足",
+    "top_gap": "先頭優位",
+}
+
+DOMINANCE_LEVEL_LABELS = {
+    "high": "高",
+    "medium": "中",
+    "low": "低",
+}
+
 
 def _format_explain_entry(entry: dict[str, Any]) -> str:
     raw_signal = str(entry.get("signal", "-")).strip().lower()
@@ -398,7 +441,8 @@ def _format_explain_entry(entry: dict[str, Any]) -> str:
     if delta is not None:
         try:
             delta_value = float(delta)
-            parts.append(f"変化={delta_value:+.2f}")
+            label = "加点" if delta_value > 0 else "減点" if delta_value < 0 else "変化"
+            parts.append(f"{label}={delta_value:+.2f}")
         except (TypeError, ValueError):
             parts.append(f"変化={delta}")
     return " / ".join(parts)
@@ -439,6 +483,73 @@ def _sector_adjustment_summary_lines(report: dict[str, Any]) -> list[str]:
     if spot_primary:
         lines.append(f"- スポット判定: {_format_explain_entry(spot_primary)}")
     return lines
+
+
+def _structure_summary_ja(structure: dict[str, Any]) -> str:
+    dims = structure.get("structure", {}) if isinstance(structure, dict) else {}
+    if not dims:
+        return "-"
+    breadth = STRUCTURE_BREADTH_LABELS.get(str(dims.get("breadth", "")), str(dims.get("breadth", "-")))
+    leadership_raw = str(dims.get("leadership", "-"))
+    leadership = STRUCTURE_LEADERSHIP_LABELS.get(leadership_raw, f"主導={leadership_raw}")
+    stability = STRUCTURE_STABILITY_LABELS.get(str(dims.get("stability", "")), str(dims.get("stability", "-")))
+    return f"{breadth} / {leadership} / {stability}"
+
+
+def _dominance_components_ja(structure: dict[str, Any]) -> str:
+    components = structure.get("dominance_components", {}) if isinstance(structure, dict) else {}
+    if not components:
+        return "-"
+    parts: list[str] = []
+    for key in ("concentration", "breadth_deficit", "top_gap"):
+        value = str(components.get(key, "")).strip().lower()
+        if not value:
+            continue
+        parts.append(f"{DOMINANCE_COMPONENT_LABELS.get(key, key)}={DOMINANCE_LEVEL_LABELS.get(value, value)}")
+    return " / ".join(parts) if parts else "-"
+
+
+def _share_summary_ja(structure: dict[str, Any]) -> str:
+    watch_share = float(structure.get("watch_share", 0.0) or 0.0)
+    promising_share = float(structure.get("promising_share", 0.0) or 0.0)
+    if watch_share >= 0.65:
+        breadth = "裾野は十分"
+    elif watch_share >= 0.4:
+        breadth = "裾野は中程度"
+    else:
+        breadth = "裾野は限定的"
+
+    if promising_share >= 0.35:
+        promising = "有望比率は高い"
+    elif promising_share >= 0.18:
+        promising = "有望比率は中程度"
+    else:
+        promising = "有望比率は控えめ"
+    return f"{breadth} / {promising}"
+
+
+def _stability_detail_summary_ja(structure: dict[str, Any]) -> str:
+    detail = structure.get("structure_detail", {}) if isinstance(structure, dict) else {}
+    if not detail:
+        return "-"
+    consistency = str(detail.get("consistency", "-"))
+    momentum_quality = str(detail.get("momentum_quality", "-"))
+
+    consistency_label = {
+        "aligned": "方向は揃っています",
+        "mixed": "方向は混在しています",
+        "fragile": "方向は崩れ気味です",
+        "unclear": "方向は不明瞭です",
+    }.get(consistency, f"方向={consistency}")
+
+    momentum_label = {
+        "accelerating": "勢いは加速しています",
+        "stable": "勢いは安定しています",
+        "decelerating": "勢いは減速しています",
+        "unclear": "勢いは不明瞭です",
+    }.get(momentum_quality, f"勢い={momentum_quality}")
+
+    return f"{consistency_label} / {momentum_label}"
 
 
 def render_html(report: dict[str, Any]) -> str:
@@ -814,9 +925,15 @@ def render_html(report: dict[str, Any]) -> str:
         <li>内部構造ラベル: {html.escape(str(sector_structure.get('structure_label', 'Noisy / Unclear')))}</li>
         <li>市場内部構造コメント: {html.escape(str(sector_market_structure_comment))}</li>
         <li>セクター分散指標: {html.escape(str(sector_structure.get('dispersion_score', 0.0)))}</li>
+        <li>相対広がり指標: {html.escape(f"watch_share={sector_structure.get('watch_share', 0.0)} / promising_share={sector_structure.get('promising_share', 0.0)}")}</li>
+        <li>相対広がり要約: {html.escape(_share_summary_ja(sector_structure))}</li>
         <li>内部構造3層: {html.escape(f"breadth={sector_structure.get('structure', {}).get('breadth', '-')} / leadership={sector_structure.get('structure', {}).get('leadership', '-')} / stability={sector_structure.get('structure', {}).get('stability', '-')}")}</li>
+        <li>内部構造要約: {html.escape(_structure_summary_ja(sector_structure))}</li>
+        <li>stability内訳: {html.escape(_stability_detail_summary_ja(sector_structure))}</li>
         <li>単独主導セクター: {html.escape(str(sector_structure.get('dominant_sector') or '-'))}</li>
         <li>単独主導強度: {html.escape(str(sector_structure.get('dominance_strength') or '-'))}</li>
+        <li>単独主導理由: {html.escape(str(sector_structure.get('dominance_reason_short') or '-'))}</li>
+        <li>単独主導内訳: {html.escape(_dominance_components_ja(sector_structure))}</li>
         <li>次候補セクター: {html.escape(', '.join(f"{row.get('ticker', '-')}({row.get('sector_name_ja', '-')})" for row in sector_next_candidates) or 'なし')}</li>
         <li>失速警戒セクター: {html.escape(', '.join(f"{row.get('ticker', '-')}({row.get('sector_name_ja', '-')})" for row in sector_peakout_sectors) or 'なし')}</li>
         {''.join(f'<li>{html.escape(line.lstrip('- ').strip())}</li>' for line in _sector_adjustment_summary_lines(report))}

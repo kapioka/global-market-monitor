@@ -227,3 +227,77 @@
 - 次に `dominance_strength` の理由を1行で返し、レポートに短く表示してください。
 - 可能なら `breadth / leadership / stability` を短い日本語へ変換してください。
 - 既存機能を壊さないことを最優先にしてください。
+
+## 2026-03-27 説明性強化の進捗
+- `補助反映要約` の delta 表示を `加点 / 減点 / 変化` に変更。
+- `project/sector_structure_summary.py` に `dominance_reason_short` を追加。
+- `project/report_generator.py` で以下を追加。
+  - `内部構造要約`
+  - `単独主導理由`
+- `breadth / leadership / stability` を短い日本語文へ変換する表示関数を追加。
+- focused regression:
+  - `project/tests/test_report_generator.py`
+  - `project/tests/test_sector_vector_analysis.py`
+  - `project/tests/test_main.py`
+  - 33 passed
+- `dominance_components` を追加。
+  - concentration
+  - breadth_deficit
+  - top_gap
+- `dominance_reason_short` はこの内部要素を使って生成する形へ整理。
+- focused regression: 33 passed
+- `dominance_strength` の境界を config 化。
+  - dominance_strong_active_max
+  - dominance_strong_rank_max
+  - dominance_medium_active_max
+  - dominance_medium_dispersion_buffer_per_sector
+- focused regression: 34 passed
+- broad / narrow 判定へ top share 補助指標を追加。
+  - watch_share
+  - promising_share
+  - broad_watch_share_threshold
+  - broad_promising_share_threshold
+  - narrow_promising_share_max
+- focused regression: 35 passed
+
+## 2026-03-27 説明性強化の追加進捗
+- `補助反映要約` の delta 表示を `加点 / 減点 / 変化` に変更。
+- `dominance_reason_short` を追加し、単独主導理由を 1 行で返すようにした。
+- `breadth / leadership / stability` を短い日本語へ変換する表示を追加。
+- `dominance_components` を追加。
+  - concentration
+  - breadth_deficit
+  - top_gap
+- `dominance_reason_short` は component ベースで生成する形へ整理。
+- `dominance_strength` の境界を config 化。
+  - dominance_strong_active_max
+  - dominance_strong_rank_max
+  - dominance_medium_active_max
+  - dominance_medium_dispersion_buffer_per_sector
+- broad / narrow 判定へ top share 補助指標を追加。
+  - watch_share
+  - promising_share
+  - broad_watch_share_threshold
+  - broad_promising_share_threshold
+  - narrow_promising_share_max
+- report の内部構造節に以下を追加・改善。
+  - 内部構造要約
+  - 単独主導理由
+  - 単独主導内訳
+  - 相対広がり指標
+  - 相対広がり要約
+  - stability内訳
+- `internal_structure.reason` を自然文中心へ改善。
+- `dominance_reason_short` を自然文中心へ改善。
+- `stability内訳` も自然文中心へ改善。
+
+### 現時点の次の候補
+1. ここまでの変更をまとめて ChatGPT 再評価用の要約を更新する
+2. focused regression だけでなく、広めの回帰を再実行する
+3. 必要ならコミットを作る
+
+### 現時点の確認テスト
+- `project/tests/test_sector_vector_analysis.py`
+- `project/tests/test_report_generator.py`
+- `project/tests/test_main.py`
+- focused regression は直近すべて pass

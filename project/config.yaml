@@ -141,6 +141,13 @@ sector_vector_analysis:
   broad_promising_ratio_threshold: 0.22
   narrow_promising_ratio_threshold: 0.22
   dominance_active_ratio_max: 0.25
+  dominance_strong_active_max: 1
+  dominance_strong_rank_max: 1
+  dominance_medium_active_max: 1
+  dominance_medium_dispersion_buffer_per_sector: 1.0
+  broad_watch_share_threshold: 0.45
+  broad_promising_share_threshold: 0.2
+  narrow_promising_share_max: 0.22
   sector_groups:
     defensive:
       - XLP

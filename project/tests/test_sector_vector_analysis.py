@@ -88,6 +88,10 @@ def test_summarize_sector_structure_generates_market_internal_label():
         }
     )
     assert summary["structure_label"] == "Cyclical Recovery"
+    assert summary["watch_share"] == 0.75
+    assert summary["promising_share"] == 0.5
+    assert "裾野は十分に広がっています。" in summary["reason"]
+    assert "有望セクター比率は高めです。" in summary["reason"]
 
 
 def test_calculate_sector_vectors_builds_expected_metadata():
@@ -202,6 +206,7 @@ def test_summarize_sector_structure_detects_non_energy_single_sector_dominance()
     assert summary["single_sector_dominance"] is True
     assert summary["dominant_sector"] == "XLK"
     assert summary["dominance_strength"] == "strong"
+    assert summary["dominance_components"] == {"concentration": "high", "breadth_deficit": "high", "top_gap": "high"}
     assert summary["energy_dominance"] is False
 
 
@@ -220,6 +225,28 @@ def test_dominance_strength_weakens_when_breadth_is_less_extreme():
     )
     assert summary["single_sector_dominance"] is True
     assert summary["dominance_strength"] in {"weak", "medium"}
+    assert summary["dominance_components"]["concentration"] in {"medium", "low"}
+    assert summary["dominance_components"]["breadth_deficit"] in {"medium", "high"}
+
+
+def test_dominance_strength_can_be_tuned_by_config():
+    candidate_map = {
+        "XLK": {"ticker": "XLK", "candidate_label": "有望", "rank": 2},
+        "XLF": {"ticker": "XLF", "candidate_label": "様子見", "rank": 5},
+        "XLI": {"ticker": "XLI", "candidate_label": "様子見", "rank": 6},
+    }
+    baseline = summarize_sector_structure(candidate_map)
+    tuned = summarize_sector_structure(
+        candidate_map,
+        config={
+            "energy_dominance_rank_max": 2,
+            "dominance_strong_rank_max": 2,
+            "dominance_medium_active_max": 1,
+            "dominance_medium_dispersion_buffer_per_sector": 1.5,
+        },
+    )
+    assert baseline["dominance_strength"] is None
+    assert tuned["dominance_strength"] == "strong"
 
 def test_calculate_sector_vectors_reports_acceleration():
     history_df = pd.DataFrame([
@@ -265,6 +292,8 @@ def test_summarize_sector_structure_adds_three_layer_structure():
     assert summary["structure"]["breadth"] in {"mixed", "broad"}
     assert summary["structure"]["leadership"] == "cyclical"
     assert summary["structure"]["stability"] == "accelerating"
+    assert summary["structure_detail"]["consistency"] == "aligned"
+    assert summary["structure_detail"]["momentum_quality"] == "accelerating"
 
 
 def test_relative_thresholds_allow_broad_improvement_with_small_sample():
@@ -277,6 +306,20 @@ def test_relative_thresholds_allow_broad_improvement_with_small_sample():
         }
     )
     assert summary["structure_label"] == "Broad Improvement"
+    assert "改善は比較的分散しています。" in summary["reason"]
+
+
+def test_top_share_thresholds_can_block_broad_improvement():
+    summary = summarize_sector_structure(
+        {
+            "XLK": {"ticker": "XLK", "candidate_label": "有望", "rank": 1},
+            "XLF": {"ticker": "XLF", "candidate_label": "有望", "rank": 2},
+            "XLP": {"ticker": "XLP", "candidate_label": "監視", "rank": 3},
+            "XLV": {"ticker": "XLV", "candidate_label": "監視", "rank": 4},
+        },
+        config={"broad_watch_share_threshold": 1.1},
+    )
+    assert summary["structure_label"] != "Broad Improvement"
 
 
 def test_relative_thresholds_keep_single_sector_dominance_available_with_small_sample():
