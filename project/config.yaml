@@ -124,10 +124,10 @@ sector_vector_analysis:
   acceleration_positive_threshold: 0.08
   acceleration_negative_threshold: -0.08
   angle_consistency_threshold: 35
-  center_radius_threshold: 0.35
-  normalized_length_min: 0.85
-  warning_normalized_length_min: 0.95
-  promising_length_min: 1.15
+  center_radius_threshold: 0.30
+  normalized_length_min: 0.04
+  warning_normalized_length_min: 0.80
+  promising_length_min: 1.05
   promising_length_max: 2.75
   single_week_spike_ratio: 1.8
   broad_count_threshold: 4

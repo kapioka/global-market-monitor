@@ -762,10 +762,15 @@ def render_html(report: dict[str, Any]) -> str:
     .risk-badge.danger {{ background: rgba(192,86,33,0.14); color: var(--danger); }}
     .risk-badge.extreme {{ background: rgba(197,48,48,0.14); color: var(--bad); }}
     .inline-note {{ margin-top: 8px; font-size: 13px; color: var(--muted); line-height: 1.6; }}
-    .sector-visual {{ display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }}
-    .sector-visual > div:first-child {{ max-width: 760px; }}
-    .sector-visual svg {{ width: min(100%, 640px); height: auto; display: block; }}
-    .sector-visual > div:last-child {{ width: 100%; }}
+    .sector-visual {{ display: grid; grid-template-columns: 1fr; gap: 0; align-items: start; }}
+    .sector-top {{ display: grid; grid-template-columns: minmax(0, 720px) minmax(420px, 1fr); gap: 10px; align-items: start; }}
+    .sector-visual > h3 {{ margin: 0 0 4px; }}
+    .sector-chart {{ min-width: 0; }}
+    .sector-chart svg {{ width: min(100%, 640px); height: auto; display: block; }}
+    .sector-guide {{ margin-top: 68px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 16px; background: rgba(255,255,255,0.72); }}
+    .sector-guide h4 {{ margin: 0 0 8px; font-size: 14px; color: #243b53; }}
+    .guide-key {{ font-weight: 700; color: #243b53; }}
+    .sector-table {{ width: 100%; }}
     .sector-caption {{ font-size: 13px; color: var(--muted); }}
     .sector-label-badge {{ display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: rgba(16,32,51,0.08); color: #1f2933; }}
     ul {{ margin: 0; padding-left: 20px; }}
@@ -775,6 +780,8 @@ def render_html(report: dict[str, Any]) -> str:
       .summary-metrics {{ grid-template-columns: 1fr; }}
       .hero-top {{ flex-direction: column; }}
       .hero-link-card {{ width: 100%; }}
+      .sector-top {{ grid-template-columns: 1fr; }}
+      .sector-guide {{ margin-top: 0; }}
     }}
   </style>
 </head>
@@ -909,12 +916,23 @@ def render_html(report: dict[str, Any]) -> str:
       <h2>セクターローテーション</h2>
       <p>{html.escape(SECTION_EXPLANATIONS['sector'])}</p>
       <div class=\"sector-visual\">
-        <div>
-          <h3>簡易ローテーション図</h3>
-          {sector_svg}
-          <div class=\"sector-caption\">外側ほど 12 週騰落率が強く、上側ほど順位が高いセクターです。一般的な厳密な RRG ではなく、順位と騰落率を見やすく配置した補助図です。</div>
+        <h3>簡易ローテーション図</h3>
+        <div class=\"sector-top\">
+          <div class=\"sector-chart\">
+            {sector_svg}
+            <div class=\"sector-caption\">外側ほど 12 週騰落率が強く、上側ほど順位が高いセクターです。各週のセクター間の相対位置を見やすく置いた補助図で、絶対差そのものを距離で表したものではありません。</div>
+          </div>
+          <div class=\"sector-guide\">
+            <h4>図の読み方</h4>
+            <ul class=\"inline-note\">
+              <li><span class="guide-key">出遅れ</span>から<span class="guide-key">改善</span>を経て<span class="guide-key">先導</span>へ向かう流れは、全体として上向きです。</li>
+              <li><span class="guide-key">先導</span>から<span class="guide-key">鈍化</span>へ向かう動きは、強さを保ちながら勢いが落ちる失速警戒です。</li>
+              <li><span class="guide-key">改善</span>は、まだ主役ではないものの持ち直しが見える領域です。</li>
+              <li><span class="guide-key">鈍化</span>は、順位が保たれていても相対的な強さが弱くなる局面です。</li>
+            </ul>
+          </div>
         </div>
-        <div>
+        <div class=\"sector-table\">
           <table>
             <tr><th>ティッカー</th><th>日本語</th><th>12週騰落率</th><th>順位</th><th>位置</th></tr>
             {sector_rows}
@@ -1036,26 +1054,43 @@ def _build_sector_rotation_context(sector_rotation: dict[str, Any]) -> dict[str,
         return {"rows": rows, "analysis": {}}
 
     try:
-        analysis_map = calculate_sector_vectors(pd.DataFrame(normalized_history))
+        fallback_analysis_map = calculate_sector_vectors(pd.DataFrame(normalized_history))
     except Exception:
-        return {"rows": rows, "analysis": {}}
+        fallback_analysis_map = {}
+
+    raw_candidate_map = sector_rotation.get("candidate_map") if isinstance(sector_rotation, dict) else None
+    candidate_map = raw_candidate_map if isinstance(raw_candidate_map, dict) else {}
+    raw_vector_analysis = sector_rotation.get("vector_analysis") if isinstance(sector_rotation, dict) else None
+    vector_analysis = raw_vector_analysis if isinstance(raw_vector_analysis, dict) else {}
 
     enriched_rows: list[dict[str, Any]] = []
     enriched_analysis: dict[str, Any] = {}
     for row in rows:
-        ticker = str(row.get("ticker", ""))
-        analysis = analysis_map.get(ticker)
+        ticker = str(row.get("ticker", "")).strip()
+        if not ticker:
+            enriched_rows.append(row)
+            continue
+
+        analysis = dict(fallback_analysis_map.get(ticker, {}))
+        server_analysis = vector_analysis.get(ticker)
+        if isinstance(server_analysis, dict):
+            analysis.update(server_analysis)
         if not analysis:
             enriched_rows.append(row)
             continue
-        candidate_label = classify_sector_candidate(
-            current_quadrant=str(analysis.get("current_quadrant", "center")),
-            vec1=analysis.get("vectors", {}).get("previous", {}),
-            vec2=analysis.get("vectors", {}).get("current", {}),
-            normalized_length=float(analysis.get("normalized_length", 0.0) or 0.0),
-            consistency=analysis.get("consistency", {}),
-            radius=float(analysis.get("radius", 0.0) or 0.0),
-        )
+
+        server_candidate = candidate_map.get(ticker) if isinstance(candidate_map.get(ticker), dict) else {}
+        candidate_label = str(server_candidate.get("candidate_label") or analysis.get("candidate_label") or "")
+        if not candidate_label:
+            candidate_label = classify_sector_candidate(
+                current_quadrant=str(analysis.get("current_quadrant", "center")),
+                vec1=analysis.get("vectors", {}).get("previous", {}),
+                vec2=analysis.get("vectors", {}).get("current", {}),
+                normalized_length=float(analysis.get("normalized_length", 0.0) or 0.0),
+                consistency=analysis.get("consistency", {}),
+                radius=float(analysis.get("radius", 0.0) or 0.0),
+            )
+
         enriched = dict(row)
         enriched["candidate_label"] = candidate_label
         enriched_rows.append(enriched)
@@ -1078,10 +1113,11 @@ def _render_sector_rotation_svg(sector_rotation: dict[str, Any], sector_context:
         return _render_sector_rotation_svg_legacy(rows)
 
     width = 640
-    height = 640
-    padding = 68
-    plot_min = padding
-    plot_max = width - padding
+    height = 600
+    plot_min_x = 68
+    plot_max_x = width - 68
+    plot_min_y = 44
+    plot_max_y = plot_min_y + (plot_max_x - plot_min_x)
     current_points: list[tuple[float, float]] = []
     for analysis in analysis_map.values():
         points = analysis.get("points", {})
@@ -1102,19 +1138,19 @@ def _render_sector_rotation_svg(sector_rotation: dict[str, Any], sector_context:
     def scale_point(point: dict[str, Any]) -> tuple[float, float]:
         px = float(point.get("x", 0.0) or 0.0)
         py = float(point.get("y", 0.0) or 0.0)
-        sx = plot_min + ((px - min_x) / span_x) * (plot_max - plot_min)
-        sy = plot_max - ((py - min_y) / span_y) * (plot_max - plot_min)
+        sx = plot_min_x + ((px - min_x) / span_x) * (plot_max_x - plot_min_x)
+        sy = plot_max_y - ((py - min_y) / span_y) * (plot_max_y - plot_min_y)
         return sx, sy
 
     parts = [
         f"<svg viewBox='0 0 {width} {height}' width='{width}' height='{height}' role='img' aria-label='セクターローテーション図'>",
-        f"<rect x='{padding}' y='{padding}' width='{plot_max - plot_min}' height='{plot_max - plot_min}' fill='none' stroke='#d9e2ec' stroke-width='1' rx='16' />",
-        f"<line x1='{(plot_min + plot_max) / 2:.1f}' y1='{plot_min}' x2='{(plot_min + plot_max) / 2:.1f}' y2='{plot_max}' stroke='#d9e2ec' stroke-width='1' />",
-        f"<line x1='{plot_min}' y1='{(plot_min + plot_max) / 2:.1f}' x2='{plot_max}' y2='{(plot_min + plot_max) / 2:.1f}' stroke='#d9e2ec' stroke-width='1' />",
-        f"<text x='{(plot_min + plot_max) / 2:.1f}' y='24' text-anchor='middle' font-size='12' fill='#52606d'>先導</text>",
-        f"<text x='{width - 32}' y='{(plot_min + plot_max) / 2 + 4:.1f}' text-anchor='middle' font-size='12' fill='#52606d'>改善</text>",
-        f"<text x='{(plot_min + plot_max) / 2:.1f}' y='{height - 18}' text-anchor='middle' font-size='12' fill='#52606d'>鈍化</text>",
-        f"<text x='28' y='{(plot_min + plot_max) / 2 + 4:.1f}' text-anchor='middle' font-size='12' fill='#52606d'>出遅れ</text>",
+        f"<rect x='{plot_min_x}' y='{plot_min_y}' width='{plot_max_x - plot_min_x}' height='{plot_max_y - plot_min_y}' fill='none' stroke='#d9e2ec' stroke-width='1' rx='16' />",
+        f"<line x1='{(plot_min_x + plot_max_x) / 2:.1f}' y1='{plot_min_y}' x2='{(plot_min_x + plot_max_x) / 2:.1f}' y2='{plot_max_y}' stroke='#d9e2ec' stroke-width='1' />",
+        f"<line x1='{plot_min_x}' y1='{(plot_min_y + plot_max_y) / 2:.1f}' x2='{plot_max_x}' y2='{(plot_min_y + plot_max_y) / 2:.1f}' stroke='#d9e2ec' stroke-width='1' />",
+        f"<text x='{width - 52}' y='{plot_min_y - 10:.1f}' text-anchor='middle' font-size='12' fill='#52606d'>先導</text>",
+        f"<text x='{plot_min_x + 26:.1f}' y='{plot_min_y - 10:.1f}' text-anchor='middle' font-size='12' fill='#52606d'>改善</text>",
+        f"<text x='{width - 52}' y='{height - 14}' text-anchor='middle' font-size='12' fill='#52606d'>鈍化</text>",
+        f"<text x='{plot_min_x + 26:.1f}' y='{height - 14}' text-anchor='middle' font-size='12' fill='#52606d'>出遅れ</text>",
     ]
     previous_vectors: list[str] = []
     current_vectors: list[str] = []
@@ -1142,7 +1178,7 @@ def _render_sector_rotation_svg(sector_rotation: dict[str, Any], sector_context:
         tooltip = html.escape(_sector_tooltip(ticker, row, analysis))
         label = html.escape(ticker)
         candidate_label = html.escape(str(analysis.get("candidate_label", "")))
-        show_label = candidate_label and candidate_label != "様子見"
+        show_label = bool(candidate_label)
 
         previous_vectors.append(_sector_vector_segment(x_old, y_old, x_mid, y_mid, middle_color, tooltip, 2.2))
         current_vectors.append(_sector_vector_segment(x_mid, y_mid, x_cur, y_cur, base_color, tooltip, 2.8))

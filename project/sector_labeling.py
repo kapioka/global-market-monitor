@@ -51,9 +51,13 @@ def classify_sector_candidate(
     if single_week_spike:
         return "監視"
 
-    if current_quadrant == "weakening" and current_direction in {"weakening", "defensive"}:
-        if normalized_length >= merged["warning_normalized_length_min"] or acceleration_state == "decelerating":
-            return "失速警戒"
+    if current_quadrant == "weakening":
+        if current_direction in {"weakening", "defensive"}:
+            if normalized_length >= merged["warning_normalized_length_min"] or acceleration_state == "decelerating":
+                return "失速警戒"
+            return "様子見"
+        if current_direction == "improving" and normalized_length >= merged["normalized_length_min"]:
+            return "監視"
         return "様子見"
 
     if current_quadrant in {"leading", "improving"}:

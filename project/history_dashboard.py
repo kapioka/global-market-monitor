@@ -147,7 +147,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       background: linear-gradient(180deg, rgba(255,255,255,0.94) 0%, rgba(248,243,236,0.98) 100%);
     }
     .focus-card .label { font-size: 11px; font-weight: 700; color: var(--muted); }
-    .focus-card .value { margin-top: 4px; font-size: clamp(16px, 1.9vw, 20px); font-weight: 800; line-height: 1.35; word-break: break-word; }
+    .focus-card .value { margin-top: 4px; font-size: clamp(14px, 1.5vw, 18px); font-weight: 800; line-height: 1.35; word-break: break-word; }
     .stack { display: grid; gap: 18px; margin-top: 18px; }
     .panel { padding: 22px; }
     .panel h2 { margin: 0; font-size: 22px; }
@@ -855,7 +855,6 @@ DASHBOARD_TEMPLATE = """<!doctype html>
 <body>
   <main class=\"dashboard-shell\">
     <section class=\"hero\">
-      <div class=\"eyebrow\">Market Ops Workspace</div>
       <div class=\"workspace-title-row\">
         <div class=\"workspace-title-block\">
           <h1>市場状態と投資判断を確認するダッシュボード</h1>
@@ -1545,6 +1544,8 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       if (!normalizedHistory.length) return buildSectorRotationSvgLegacy(rows);
 
       const analysisMap = {};
+      const serverCandidateMap = sectorRotation?.candidate_map || {};
+      const serverVectorAnalysis = sectorRotation?.vector_analysis || {};
       normalizedHistory.forEach((item) => {
         const points = {
           two_weeks_ago: { x: Number(item.x_2w_ago || 0), y: Number(item.y_2w_ago || 0) },
@@ -1558,32 +1559,47 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         const prevLength = Math.hypot(prevDx, prevDy);
         const currLength = Math.hypot(currDx, currDy);
         const avgLength = Math.max(Number(item.avg_length_12w || 1), 1e-6);
-        const normalizedLength = currLength / avgLength;
+        const fallbackNormalizedLength = currLength / avgLength;
         const radius = Math.hypot(points.current.x, points.current.y);
         const prevAngle = prevLength > 1e-6 ? Math.atan2(prevDy, prevDx) : null;
         const currAngle = currLength > 1e-6 ? Math.atan2(currDy, currDx) : null;
-        let consistencyScore = 0;
+        let fallbackConsistencyScore = 0;
         if (prevAngle !== null && currAngle !== null) {
           const rawDiff = Math.abs(currAngle - prevAngle);
           const angleDiff = Math.min(rawDiff, (Math.PI * 2) - rawDiff);
-          consistencyScore = Math.max(0, 1 - (angleDiff / Math.PI));
+          fallbackConsistencyScore = Math.max(0, 1 - (angleDiff / Math.PI));
         }
+        const previousDirection = classifyVectorDirection(prevDx, prevDy);
         const currentDirection = classifyVectorDirection(currDx, currDy);
-        const candidateLabel = normalizedLength >= 1.1 && consistencyScore >= 0.6
-          ? '有望'
-          : normalizedLength >= 0.2 || consistencyScore >= 0.3
-            ? '監視'
-            : radius >= 0.75 && (currentDirection === 'weakening' || currentDirection === 'defensive')
-              ? '失速警戒'
-              : '様子見';
+        const serverAnalysis = serverVectorAnalysis[item.sector] || {};
+        const serverCandidate = serverCandidateMap[item.sector] || {};
+        const normalizedLength = Number(serverAnalysis?.normalized_length ?? serverCandidate?.normalized_length ?? fallbackNormalizedLength);
+        const consistencyScore = Number(serverAnalysis?.consistency?.consistency_score ?? serverCandidate?.consistency_score ?? fallbackConsistencyScore);
+        const candidateLabel = String(serverCandidate?.candidate_label || '') || (
+          normalizedLength >= 1.1 && consistencyScore >= 0.6
+            ? '有望'
+            : normalizedLength >= 0.2 || consistencyScore >= 0.3
+              ? '監視'
+              : radius >= 0.75 && (currentDirection === 'weakening' || currentDirection === 'defensive')
+                ? '失速警戒'
+                : '様子見'
+        );
         analysisMap[item.sector] = {
           points,
-          current_quadrant: inferQuadrant(points.current),
+          current_quadrant: String(serverAnalysis?.current_quadrant || serverCandidate?.current_quadrant || inferQuadrant(points.current)),
           normalized_length: normalizedLength,
           consistency: { consistency_score: consistencyScore },
           vectors: {
-            previous: { dx: prevDx, dy: prevDy, direction: classifyVectorDirection(prevDx, prevDy) },
-            current: { dx: currDx, dy: currDy, direction: currentDirection },
+            previous: {
+              dx: Number(serverAnalysis?.vectors?.previous?.dx ?? prevDx),
+              dy: Number(serverAnalysis?.vectors?.previous?.dy ?? prevDy),
+              direction: String(serverAnalysis?.vectors?.previous?.direction || previousDirection),
+            },
+            current: {
+              dx: Number(serverAnalysis?.vectors?.current?.dx ?? currDx),
+              dy: Number(serverAnalysis?.vectors?.current?.dy ?? currDy),
+              direction: String(serverAnalysis?.vectors?.current?.direction || currentDirection),
+            },
           },
           candidate_label: candidateLabel,
         };
@@ -1611,10 +1627,10 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         `<rect x="${padding}" y="${padding}" width="${plotMax - plotMin}" height="${plotMax - plotMin}" fill="none" stroke="#d9e2ec" stroke-width="1" rx="16" />`,
         `<line x1="${((plotMin + plotMax) / 2).toFixed(1)}" y1="${plotMin}" x2="${((plotMin + plotMax) / 2).toFixed(1)}" y2="${plotMax}" stroke="#d9e2ec" stroke-width="1" />`,
         `<line x1="${plotMin}" y1="${((plotMin + plotMax) / 2).toFixed(1)}" x2="${plotMax}" y2="${((plotMin + plotMax) / 2).toFixed(1)}" stroke="#d9e2ec" stroke-width="1" />`,
-        `<text x="${((plotMin + plotMax) / 2).toFixed(1)}" y="24" text-anchor="middle" font-size="12" fill="#52606d">先導</text>`,
-        `<text x="${width - 32}" y="${((plotMin + plotMax) / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">改善</text>`,
-        `<text x="${((plotMin + plotMax) / 2).toFixed(1)}" y="${height - 18}" text-anchor="middle" font-size="12" fill="#52606d">鈍化</text>`,
-        `<text x="28" y="${((plotMin + plotMax) / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">出遅れ</text>`,
+        `<text x="${(width - 52).toFixed(1)}" y="${(plotMin - 12).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">先導</text>`,
+        `<text x="${(plotMin + 26).toFixed(1)}" y="${(plotMin - 12).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">改善</text>`,
+        `<text x="${(plotMin + 26).toFixed(1)}" y="${(height - 18).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">出遅れ</text>`,
+        `<text x="${(width - 52).toFixed(1)}" y="${(height - 18).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">鈍化</text>`,
       ];
 
       const previousVectors = [];
@@ -1635,15 +1651,12 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         const previousColor = middleColor;
         const currentColor = baseColor;
         const tooltip = escapeHtml(sectorTooltip(row, analysis));
-        const showLabel = analysis.candidate_label && analysis.candidate_label !== '様子見';
-
         previousVectors.push(`<g><line x1="${xOld.toFixed(1)}" y1="${yOld.toFixed(1)}" x2="${xMid.toFixed(1)}" y2="${yMid.toFixed(1)}" stroke="${previousColor}" stroke-width="2.2" stroke-linecap="round"><title>${tooltip}</title></line>${buildArrowPolygon(xOld, yOld, xMid, yMid, previousColor)}<title>${tooltip}</title></g>`);
         currentVectors.push(`<g><line x1="${xMid.toFixed(1)}" y1="${yMid.toFixed(1)}" x2="${xCur.toFixed(1)}" y2="${yCur.toFixed(1)}" stroke="${currentColor}" stroke-width="2.8" stroke-linecap="round"><title>${tooltip}</title></line>${buildArrowPolygon(xMid, yMid, xCur, yCur, currentColor)}<title>${tooltip}</title></g>`);
         oldPoints.push(`<circle cx="${xOld.toFixed(1)}" cy="${yOld.toFixed(1)}" r="4.2" fill="#d4d8dd"><title>${tooltip}</title></circle>`);
         midPoints.push(`<circle cx="${xMid.toFixed(1)}" cy="${yMid.toFixed(1)}" r="5" fill="${middleColor}" stroke="#ffffff" stroke-width="1.0"><title>${tooltip}</title></circle>`);
         currentPoints.push(`<circle cx="${xCur.toFixed(1)}" cy="${yCur.toFixed(1)}" r="6.2" fill="${baseColor}" stroke="${sectorOutlineColor(baseColor)}" stroke-width="0.9"><title>${tooltip}</title></circle>`);
         labels.push(`<text x="${(xCur + 8).toFixed(1)}" y="${(yCur - 8).toFixed(1)}" font-size="11" font-weight="700" fill="#1f2933">${escapeHtml(row.ticker || '-')}</text>`);
-        if (showLabel) labels.push(`<text x="${(xCur + 8).toFixed(1)}" y="${(yCur + 6).toFixed(1)}" font-size="10" fill="#52606d">${escapeHtml(analysis.candidate_label)}</text>`);
       });
       parts.push(...previousVectors);
       parts.push(...currentVectors);

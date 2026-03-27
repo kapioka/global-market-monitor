@@ -131,6 +131,20 @@ def test_promising_requires_three_week_direction_continuity():
     assert label == "監視"
 
 
+def test_weakening_with_improving_direction_can_be_watch():
+    consistency = calculate_direction_consistency((-0.4, -0.3), (0.6, 0.2))
+    label = classify_sector_candidate(
+        current_quadrant="weakening",
+        vec1=(-0.4, -0.3),
+        vec2=(0.6, 0.2),
+        normalized_length=0.2,
+        consistency=consistency,
+        radius=0.9,
+        config={"normalized_length_min": 0.04},
+    )
+    assert label == "監視"
+
+
 def test_calculate_sector_vectors_marks_three_week_continuity():
     history_df = pd.DataFrame([
         {
