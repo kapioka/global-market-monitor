@@ -101,8 +101,13 @@ def _acceleration_state(consistency: float | Mapping[str, Any]) -> str:
     return "stable"
 
 
-def _merge_config(config: Mapping[str, float] | None) -> dict[str, float]:
-    merged = dict(DEFAULT_CANDIDATE_CONFIG)
-    if config:
-        merged.update({key: float(value) for key, value in config.items()})
+def _merge_config(config: Mapping[str, Any] | None) -> dict[str, Any]:
+    merged: dict[str, Any] = dict(DEFAULT_CANDIDATE_CONFIG)
+    if not config:
+        return merged
+    for key, value in config.items():
+        if isinstance(value, Mapping) or isinstance(value, list):
+            merged[key] = value
+        else:
+            merged[key] = float(value)
     return merged

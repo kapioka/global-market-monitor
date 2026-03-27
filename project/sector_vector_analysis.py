@@ -206,8 +206,13 @@ def _as_float(value: Any) -> float:
     return float(value)
 
 
-def _merge_config(config: Mapping[str, float] | None) -> dict[str, float]:
-    merged = dict(DEFAULT_VECTOR_CONFIG)
-    if config:
-        merged.update({key: float(value) for key, value in config.items()})
+def _merge_config(config: Mapping[str, Any] | None) -> dict[str, Any]:
+    merged: dict[str, Any] = dict(DEFAULT_VECTOR_CONFIG)
+    if not config:
+        return merged
+    for key, value in config.items():
+        if isinstance(value, Mapping) or isinstance(value, list):
+            merged[key] = value
+        else:
+            merged[key] = float(value)
     return merged

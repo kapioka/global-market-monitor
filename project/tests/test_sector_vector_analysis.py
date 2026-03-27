@@ -333,3 +333,59 @@ def test_relative_thresholds_keep_single_sector_dominance_available_with_small_s
     )
     assert summary["single_sector_dominance"] is True
     assert summary["dominant_sector"] == "XLK"
+
+
+def test_calculate_sector_vectors_accepts_nested_config_values():
+    history_df = pd.DataFrame([
+        {
+            "sector": "XLK",
+            "x_2w_ago": 0.1,
+            "y_2w_ago": 0.2,
+            "x_1w_ago": 0.3,
+            "y_1w_ago": 0.5,
+            "x_current": 0.8,
+            "y_current": 0.9,
+            "avg_length_12w": 0.4,
+        }
+    ])
+    result = calculate_sector_vectors(
+        history_df,
+        config={
+            "flat_threshold": 1e-6,
+            "sector_groups": {"defensive": ["XLP"], "cyclical": ["XLK"]},
+        },
+    )
+    assert result["XLK"]["vectors"]["current"]["direction"] == "improving"
+
+
+def test_classify_sector_candidate_accepts_nested_config_values():
+    consistency = calculate_direction_consistency((0.6, 0.6), (0.8, 0.7))
+    consistency["is_three_week_continuous"] = True
+    label = classify_sector_candidate(
+        current_quadrant="leading",
+        vec1=(0.6, 0.6),
+        vec2=(0.8, 0.7),
+        normalized_length=1.4,
+        consistency=consistency,
+        radius=1.1,
+        config={
+            "promising_length_min": 1.1,
+            "sector_groups": {"defensive": ["XLP"], "cyclical": ["XLK"]},
+        },
+    )
+    assert label == "有望"
+
+
+def test_summarize_sector_structure_accepts_nested_config_values():
+    summary = summarize_sector_structure(
+        {
+            "XLK": {"ticker": "XLK", "candidate_label": "有望", "rank": 1},
+            "XLF": {"ticker": "XLF", "candidate_label": "監視", "rank": 2},
+            "XLP": {"ticker": "XLP", "candidate_label": "様子見", "rank": 4},
+        },
+        config={
+            "dispersion_low_threshold": 0.34,
+            "sector_groups": {"defensive": ["XLP"], "cyclical": ["XLK", "XLF"]},
+        },
+    )
+    assert summary["structure_label"] in {"Cyclical Recovery", "Noisy / Unclear", "Narrow Leadership"}
