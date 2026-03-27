@@ -1617,6 +1617,13 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         `<text x="28" y="${((plotMin + plotMax) / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">出遅れ</text>`,
       ];
 
+      const previousVectors = [];
+      const currentVectors = [];
+      const oldPoints = [];
+      const midPoints = [];
+      const currentPoints = [];
+      const labels = [];
+
       rows.forEach((row) => {
         const analysis = analysisMap[row.ticker];
         if (!analysis) return;
@@ -1630,14 +1637,20 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         const tooltip = escapeHtml(sectorTooltip(row, analysis));
         const showLabel = analysis.candidate_label && analysis.candidate_label !== '様子見';
 
-        parts.push(`<g><line x1="${xOld.toFixed(1)}" y1="${yOld.toFixed(1)}" x2="${xMid.toFixed(1)}" y2="${yMid.toFixed(1)}" stroke="${previousColor}" stroke-width="2.2" stroke-linecap="round"><title>${tooltip}</title></line>${buildArrowPolygon(xOld, yOld, xMid, yMid, previousColor)}<title>${tooltip}</title></g>`);
-        parts.push(`<g><line x1="${xMid.toFixed(1)}" y1="${yMid.toFixed(1)}" x2="${xCur.toFixed(1)}" y2="${yCur.toFixed(1)}" stroke="${currentColor}" stroke-width="2.8" stroke-linecap="round"><title>${tooltip}</title></line>${buildArrowPolygon(xMid, yMid, xCur, yCur, currentColor)}<title>${tooltip}</title></g>`);
-        parts.push(`<circle cx="${xOld.toFixed(1)}" cy="${yOld.toFixed(1)}" r="4.2" fill="#d4d8dd"><title>${tooltip}</title></circle>`);
-        parts.push(`<circle cx="${xMid.toFixed(1)}" cy="${yMid.toFixed(1)}" r="5" fill="${middleColor}" stroke="#ffffff" stroke-width="1.0"><title>${tooltip}</title></circle>`);
-        parts.push(`<circle cx="${xCur.toFixed(1)}" cy="${yCur.toFixed(1)}" r="6.2" fill="${baseColor}" stroke="${sectorOutlineColor(baseColor)}" stroke-width="0.9"><title>${tooltip}</title></circle>`);
-        parts.push(`<text x="${(xCur + 8).toFixed(1)}" y="${(yCur - 8).toFixed(1)}" font-size="11" font-weight="700" fill="#1f2933">${escapeHtml(row.ticker || '-')}</text>`);
-        if (showLabel) parts.push(`<text x="${(xCur + 8).toFixed(1)}" y="${(yCur + 6).toFixed(1)}" font-size="10" fill="#52606d">${escapeHtml(analysis.candidate_label)}</text>`);
+        previousVectors.push(`<g><line x1="${xOld.toFixed(1)}" y1="${yOld.toFixed(1)}" x2="${xMid.toFixed(1)}" y2="${yMid.toFixed(1)}" stroke="${previousColor}" stroke-width="2.2" stroke-linecap="round"><title>${tooltip}</title></line>${buildArrowPolygon(xOld, yOld, xMid, yMid, previousColor)}<title>${tooltip}</title></g>`);
+        currentVectors.push(`<g><line x1="${xMid.toFixed(1)}" y1="${yMid.toFixed(1)}" x2="${xCur.toFixed(1)}" y2="${yCur.toFixed(1)}" stroke="${currentColor}" stroke-width="2.8" stroke-linecap="round"><title>${tooltip}</title></line>${buildArrowPolygon(xMid, yMid, xCur, yCur, currentColor)}<title>${tooltip}</title></g>`);
+        oldPoints.push(`<circle cx="${xOld.toFixed(1)}" cy="${yOld.toFixed(1)}" r="4.2" fill="#d4d8dd"><title>${tooltip}</title></circle>`);
+        midPoints.push(`<circle cx="${xMid.toFixed(1)}" cy="${yMid.toFixed(1)}" r="5" fill="${middleColor}" stroke="#ffffff" stroke-width="1.0"><title>${tooltip}</title></circle>`);
+        currentPoints.push(`<circle cx="${xCur.toFixed(1)}" cy="${yCur.toFixed(1)}" r="6.2" fill="${baseColor}" stroke="${sectorOutlineColor(baseColor)}" stroke-width="0.9"><title>${tooltip}</title></circle>`);
+        labels.push(`<text x="${(xCur + 8).toFixed(1)}" y="${(yCur - 8).toFixed(1)}" font-size="11" font-weight="700" fill="#1f2933">${escapeHtml(row.ticker || '-')}</text>`);
+        if (showLabel) labels.push(`<text x="${(xCur + 8).toFixed(1)}" y="${(yCur + 6).toFixed(1)}" font-size="10" fill="#52606d">${escapeHtml(analysis.candidate_label)}</text>`);
       });
+      parts.push(...previousVectors);
+      parts.push(...currentVectors);
+      parts.push(...oldPoints);
+      parts.push(...midPoints);
+      parts.push(...currentPoints);
+      parts.push(...labels);
       parts.push('</svg>');
       return parts.join('');
     }

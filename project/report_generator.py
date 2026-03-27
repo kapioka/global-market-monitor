@@ -762,7 +762,10 @@ def render_html(report: dict[str, Any]) -> str:
     .risk-badge.danger {{ background: rgba(192,86,33,0.14); color: var(--danger); }}
     .risk-badge.extreme {{ background: rgba(197,48,48,0.14); color: var(--bad); }}
     .inline-note {{ margin-top: 8px; font-size: 13px; color: var(--muted); line-height: 1.6; }}
-    .sector-visual {{ display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 18px; align-items: start; }}
+    .sector-visual {{ display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }}
+    .sector-visual > div:first-child {{ max-width: 760px; }}
+    .sector-visual svg {{ width: min(100%, 640px); height: auto; display: block; }}
+    .sector-visual > div:last-child {{ width: 100%; }}
     .sector-caption {{ font-size: 13px; color: var(--muted); }}
     .sector-label-badge {{ display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: rgba(16,32,51,0.08); color: #1f2933; }}
     ul {{ margin: 0; padding-left: 20px; }}
@@ -1074,9 +1077,9 @@ def _render_sector_rotation_svg(sector_rotation: dict[str, Any], sector_context:
     if not analysis_map:
         return _render_sector_rotation_svg_legacy(rows)
 
-    width = 320
-    height = 320
-    padding = 34
+    width = 640
+    height = 640
+    padding = 68
     plot_min = padding
     plot_max = width - padding
     current_points: list[tuple[float, float]] = []
@@ -1113,6 +1116,12 @@ def _render_sector_rotation_svg(sector_rotation: dict[str, Any], sector_context:
         f"<text x='{(plot_min + plot_max) / 2:.1f}' y='{height - 18}' text-anchor='middle' font-size='12' fill='#52606d'>鈍化</text>",
         f"<text x='28' y='{(plot_min + plot_max) / 2 + 4:.1f}' text-anchor='middle' font-size='12' fill='#52606d'>出遅れ</text>",
     ]
+    previous_vectors: list[str] = []
+    current_vectors: list[str] = []
+    old_points: list[str] = []
+    mid_points: list[str] = []
+    current_points_svg: list[str] = []
+    labels: list[str] = []
 
     for row in sector_context.get("rows", []):
         ticker = str(row.get("ticker", ""))
@@ -1130,24 +1139,26 @@ def _render_sector_rotation_svg(sector_rotation: dict[str, Any], sector_context:
         x_cur, y_cur = scale_point(point_cur)
         base_color = _sector_base_color(ticker)
         middle_color = _blend_hex_color(base_color, '#cbd5e0', 0.45)
-        previous_vector = analysis.get("vectors", {}).get("previous", {})
-        current_vector = analysis.get("vectors", {}).get("current", {})
-        previous_color = _vector_display_color(float(previous_vector.get("dx", 0.0) or 0.0), float(previous_vector.get("dy", 0.0) or 0.0))
-        current_color = _vector_display_color(float(current_vector.get("dx", 0.0) or 0.0), float(current_vector.get("dy", 0.0) or 0.0))
         tooltip = html.escape(_sector_tooltip(ticker, row, analysis))
         label = html.escape(ticker)
         candidate_label = html.escape(str(analysis.get("candidate_label", "")))
         show_label = candidate_label and candidate_label != "様子見"
 
-        parts.append(_sector_vector_segment(x_old, y_old, x_mid, y_mid, middle_color, tooltip, 2.2))
-        parts.append(_sector_vector_segment(x_mid, y_mid, x_cur, y_cur, base_color, tooltip, 2.8))
-        parts.append(f"<circle cx='{x_old:.1f}' cy='{y_old:.1f}' r='4.2' fill='#d4d8dd'><title>{tooltip}</title></circle>")
-        parts.append(f"<circle cx='{x_mid:.1f}' cy='{y_mid:.1f}' r='5' fill='{middle_color}' stroke='#ffffff' stroke-width='1.0'><title>{tooltip}</title></circle>")
-        parts.append(f"<circle cx='{x_cur:.1f}' cy='{y_cur:.1f}' r='6.2' fill='{base_color}' stroke='{_blend_hex_color(base_color, '#102a43', 0.35)}' stroke-width='0.9'><title>{tooltip}</title></circle>")
-        parts.append(f"<text x='{x_cur + 8:.1f}' y='{y_cur - 8:.1f}' font-size='11' font-weight='700' fill='#1f2933'>{label}</text>")
+        previous_vectors.append(_sector_vector_segment(x_old, y_old, x_mid, y_mid, middle_color, tooltip, 2.2))
+        current_vectors.append(_sector_vector_segment(x_mid, y_mid, x_cur, y_cur, base_color, tooltip, 2.8))
+        old_points.append(f"<circle cx='{x_old:.1f}' cy='{y_old:.1f}' r='4.2' fill='#d4d8dd'><title>{tooltip}</title></circle>")
+        mid_points.append(f"<circle cx='{x_mid:.1f}' cy='{y_mid:.1f}' r='5' fill='{middle_color}' stroke='#ffffff' stroke-width='0.8'><title>{tooltip}</title></circle>")
+        current_points_svg.append(f"<circle cx='{x_cur:.1f}' cy='{y_cur:.1f}' r='6.2' fill='{base_color}' stroke='#ffffff' stroke-width='0.9'><title>{tooltip}</title></circle>")
+        labels.append(f"<text x='{x_cur + 8:.1f}' y='{y_cur - 8:.1f}' font-size='11' font-weight='700' fill='#1f2933'>{label}</text>")
         if show_label:
-            parts.append(f"<text x='{x_cur + 8:.1f}' y='{y_cur + 6:.1f}' font-size='10' fill='#52606d'>{candidate_label}</text>")
+            labels.append(f"<text x='{x_cur + 8:.1f}' y='{y_cur + 6:.1f}' font-size='10' fill='#52606d'>{candidate_label}</text>")
 
+    parts.extend(previous_vectors)
+    parts.extend(current_vectors)
+    parts.extend(old_points)
+    parts.extend(mid_points)
+    parts.extend(current_points_svg)
+    parts.extend(labels)
     parts.append("</svg>")
     return "".join(parts)
 
@@ -1170,11 +1181,11 @@ def _render_sector_rotation_svg_legacy(rows: list[dict[str, Any]]) -> str:
     if not rows:
         return "<div>有効データなし</div>"
 
-    width = 320
-    height = 320
-    cx = 160
-    cy = 160
-    max_radius = 115
+    width = 640
+    height = 640
+    cx = 320
+    cy = 320
+    max_radius = 230
     min_return = min(row["return_12w"] for row in rows)
     max_return = max(row["return_12w"] for row in rows)
     span = max(max_return - min_return, 0.0001)
