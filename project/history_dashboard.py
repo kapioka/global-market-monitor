@@ -862,22 +862,8 @@ DASHBOARD_TEMPLATE = """<!doctype html>
           <p class=\"workspace-copy\">履歴ブラウズと今回の実行結果を分離し、時間差による見え方の違いを混同せずに判断できるようにした運用画面です。</p>
         </div>
         <div class=\"focus-card\">
-          <div class=\"label\">画面の役割</div>
-          <div class=\"value\">履歴比較と今回実行の切り分け</div>
-        </div>
-      </div>
-      <div class=\"workspace-status-strip\" aria-label=\"画面の使い分け\">
-        <div class=\"status-chip\">
-          <div class=\"k\">上段</div>
-          <div class=\"v\">今回の実行結果だけを確認</div>
-        </div>
-        <div class=\"status-chip\">
-          <div class=\"k\">中段</div>
-          <div class=\"v\">保存済み履歴を時系列で比較</div>
-        </div>
-        <div class=\"status-chip\">
-          <div class=\"k\">右側</div>
-          <div class=\"v\">選択ノードの解釈を固定表示</div>
+          <div class=\"label\">画面リンク</div>
+          <div class=\"value\"><a href=\"report.html\">最新レポートを見る</a></div>
         </div>
       </div>
     </section>
@@ -1418,7 +1404,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       `).join('')}</div>`;
     }
 
-    function buildSectorRotationSvg(rows) {
+    function buildSectorRotationSvgLegacy(rows) {
       if (!rows.length) {
         return '<div class="detail-empty">有効なセクターデータがありません。</div>';
       }
@@ -1462,7 +1448,202 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       return parts.join('');
     }
 
-    function renderSectorRotationDetail(rows) {
+    function sectorBaseColor(ticker) {
+      const colors = { XLK: '#2563eb', XLF: '#0f766e', XLE: '#b45309', XLV: '#0ea5a4', XLY: '#db2777', XLP: '#2f855a', XLI: '#475569', XLB: '#ca8a04', XLU: '#7c3aed', XLRE: '#5b6c7d' };
+      return colors[ticker] || '#52606d';
+    }
+
+    function sectorOutlineColor(baseColor) {
+      return blendHexColor(baseColor, '#102a43', 0.35);
+    }
+
+    function blendHexColor(baseColor, mixColor, ratio) {
+      const normalize = (value) => {
+        const hex = String(value || '').replace('#', '');
+        return hex.length === 3 ? hex.split('').map((char) => char + char).join('') : hex;
+      };
+      const base = normalize(baseColor);
+      const mix = normalize(mixColor);
+      if (base.length !== 6 || mix.length !== 6) return baseColor || '#52606d';
+      const blendChannel = (index) => {
+        const baseValue = parseInt(base.slice(index, index + 2), 16);
+        const mixValue = parseInt(mix.slice(index, index + 2), 16);
+        const blended = Math.round(baseValue * (1 - ratio) + mixValue * ratio);
+        return blended.toString(16).padStart(2, '0');
+      };
+      return `#${blendChannel(0)}${blendChannel(2)}${blendChannel(4)}`;
+    }
+
+    function buildArrowPolygon(x1, y1, x2, y2, color) {
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const arrowLength = 9;
+      const arrowHalfWidth = 4;
+      const leftX = x2 - arrowLength * Math.cos(angle) + arrowHalfWidth * Math.sin(angle);
+      const leftY = y2 - arrowLength * Math.sin(angle) - arrowHalfWidth * Math.cos(angle);
+      const rightX = x2 - arrowLength * Math.cos(angle) - arrowHalfWidth * Math.sin(angle);
+      const rightY = y2 - arrowLength * Math.sin(angle) + arrowHalfWidth * Math.cos(angle);
+      return `<polygon points="${x2.toFixed(1)},${y2.toFixed(1)} ${leftX.toFixed(1)},${leftY.toFixed(1)} ${rightX.toFixed(1)},${rightY.toFixed(1)}" fill="${color}"></polygon>`;
+    }
+
+    function classifyVectorDirection(dx, dy) {
+      const absDx = Math.abs(dx || 0);
+      const absDy = Math.abs(dy || 0);
+      if (absDx < 1e-6 && absDy < 1e-6) return 'flat';
+      if (absDy >= absDx) return (dy || 0) < 0 ? 'improving' : 'weakening';
+      return (dx || 0) >= 0 ? 'cyclical' : 'defensive';
+    }
+
+    function inferQuadrant(point) {
+      const x = Number(point?.x || 0);
+      const y = Number(point?.y || 0);
+      if (Math.abs(x) < 0.1 && Math.abs(y) < 0.1) return 'center';
+      if (x >= 0 && y >= 0) return 'leading';
+      if (x >= 0 && y < 0) return 'improving';
+      if (x < 0 && y < 0) return 'weakening';
+      return 'lagging';
+    }
+
+    function sectorCandidateReason(analysis, candidateLabel) {
+      const normalizedLength = Number(analysis?.normalized_length || 0);
+      const consistencyScore = Number(analysis?.consistency?.consistency_score || 0);
+      if (candidateLabel === '有望') return `方向が揃い、正規化長 ${normalizedLength.toFixed(2)} と一貫性 ${consistencyScore.toFixed(2)} が十分です。`;
+      if (candidateLabel === '監視') return `改善の兆しはありますが、正規化長 ${normalizedLength.toFixed(2)} か一貫性 ${consistencyScore.toFixed(2)} はまだ過熱前です。`;
+      if (candidateLabel === '失速警戒') return `位置は高い一方で、勢いが鈍く一貫性 ${consistencyScore.toFixed(2)} も低下しています。`;
+      return '中心近傍または方向感不足のため、まだ様子見です。';
+    }
+
+    function sectorTooltip(row, analysis) {
+      const prev = analysis?.vectors?.previous || {};
+      const curr = analysis?.vectors?.current || {};
+      const consistency = analysis?.consistency || {};
+      const reason = analysis?.candidate_reason || '-';
+      return [
+        `${row.ticker || '-'} ${row.sector_name_ja || row.ticker || '-'}`,
+        `象限 ${analysis?.current_quadrant || 'center'}`,
+        `前ベクトル ${prev.direction || 'flat'}`,
+        `現ベクトル ${curr.direction || 'flat'}`,
+        `正規化長 ${formatSigned(analysis?.normalized_length, 2)}`,
+        `一貫性 ${formatSigned(consistency.consistency_score, 2)}`,
+        `判定 ${analysis?.candidate_label || '様子見'}: ${reason}`,
+      ].join(' | ');
+    }
+
+    function buildSectorRotationSvg(sectorRotation) {
+      const rows = Array.isArray(sectorRotation?.table) ? sectorRotation.table : [];
+      const historyRows = sectorRotation?.history || sectorRotation?.history_points || [];
+      if (!rows.length) return '<div class="detail-empty">有効なセクターデータがありません。</div>';
+      if (!Array.isArray(historyRows) || !historyRows.length) return buildSectorRotationSvgLegacy(rows);
+
+      const width = 320;
+      const height = 320;
+      const padding = 34;
+      const plotMin = padding;
+      const plotMax = width - padding;
+      const normalizedHistory = historyRows
+        .map((item) => ({ ...item, sector: String(item?.sector || item?.ticker || '').trim() }))
+        .filter((item) => item.sector);
+      if (!normalizedHistory.length) return buildSectorRotationSvgLegacy(rows);
+
+      const analysisMap = {};
+      normalizedHistory.forEach((item) => {
+        const points = {
+          two_weeks_ago: { x: Number(item.x_2w_ago || 0), y: Number(item.y_2w_ago || 0) },
+          one_week_ago: { x: Number(item.x_1w_ago || 0), y: Number(item.y_1w_ago || 0) },
+          current: { x: Number(item.x_current || 0), y: Number(item.y_current || 0) },
+        };
+        const prevDx = points.one_week_ago.x - points.two_weeks_ago.x;
+        const prevDy = points.one_week_ago.y - points.two_weeks_ago.y;
+        const currDx = points.current.x - points.one_week_ago.x;
+        const currDy = points.current.y - points.one_week_ago.y;
+        const prevLength = Math.hypot(prevDx, prevDy);
+        const currLength = Math.hypot(currDx, currDy);
+        const avgLength = Math.max(Number(item.avg_length_12w || 1), 1e-6);
+        const normalizedLength = currLength / avgLength;
+        const radius = Math.hypot(points.current.x, points.current.y);
+        const prevAngle = prevLength > 1e-6 ? Math.atan2(prevDy, prevDx) : null;
+        const currAngle = currLength > 1e-6 ? Math.atan2(currDy, currDx) : null;
+        let consistencyScore = 0;
+        if (prevAngle !== null && currAngle !== null) {
+          const rawDiff = Math.abs(currAngle - prevAngle);
+          const angleDiff = Math.min(rawDiff, (Math.PI * 2) - rawDiff);
+          consistencyScore = Math.max(0, 1 - (angleDiff / Math.PI));
+        }
+        const currentDirection = classifyVectorDirection(currDx, currDy);
+        const candidateLabel = normalizedLength >= 1.1 && consistencyScore >= 0.6
+          ? '有望'
+          : normalizedLength >= 0.2 || consistencyScore >= 0.3
+            ? '監視'
+            : radius >= 0.75 && (currentDirection === 'weakening' || currentDirection === 'defensive')
+              ? '失速警戒'
+              : '様子見';
+        analysisMap[item.sector] = {
+          points,
+          current_quadrant: inferQuadrant(points.current),
+          normalized_length: normalizedLength,
+          consistency: { consistency_score: consistencyScore },
+          vectors: {
+            previous: { dx: prevDx, dy: prevDy, direction: classifyVectorDirection(prevDx, prevDy) },
+            current: { dx: currDx, dy: currDy, direction: currentDirection },
+          },
+          candidate_label: candidateLabel,
+        };
+        analysisMap[item.sector].candidate_reason = sectorCandidateReason(analysisMap[item.sector], candidateLabel);
+      });
+
+      const allPoints = Object.values(analysisMap).flatMap((analysis) => [analysis.points.two_weeks_ago, analysis.points.one_week_ago, analysis.points.current]);
+      const xs = allPoints.map((point) => point.x);
+      const ys = allPoints.map((point) => point.y);
+      const minX = Math.min(...xs);
+      const maxX = Math.max(...xs);
+      const minY = Math.min(...ys);
+      const maxY = Math.max(...ys);
+      const spanX = Math.max(maxX - minX, 0.0001);
+      const spanY = Math.max(maxY - minY, 0.0001);
+      const scalePoint = (point) => {
+        const sx = plotMin + ((point.x - minX) / spanX) * (plotMax - plotMin);
+        const sy = plotMax - ((point.y - minY) / spanY) * (plotMax - plotMin);
+        return [sx, sy];
+      };
+
+      const parts = [
+        `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="セクターローテーション図">`,
+        ``,
+        `<rect x="${padding}" y="${padding}" width="${plotMax - plotMin}" height="${plotMax - plotMin}" fill="none" stroke="#d9e2ec" stroke-width="1" rx="16" />`,
+        `<line x1="${((plotMin + plotMax) / 2).toFixed(1)}" y1="${plotMin}" x2="${((plotMin + plotMax) / 2).toFixed(1)}" y2="${plotMax}" stroke="#d9e2ec" stroke-width="1" />`,
+        `<line x1="${plotMin}" y1="${((plotMin + plotMax) / 2).toFixed(1)}" x2="${plotMax}" y2="${((plotMin + plotMax) / 2).toFixed(1)}" stroke="#d9e2ec" stroke-width="1" />`,
+        `<text x="${((plotMin + plotMax) / 2).toFixed(1)}" y="24" text-anchor="middle" font-size="12" fill="#52606d">先導</text>`,
+        `<text x="${width - 32}" y="${((plotMin + plotMax) / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">改善</text>`,
+        `<text x="${((plotMin + plotMax) / 2).toFixed(1)}" y="${height - 18}" text-anchor="middle" font-size="12" fill="#52606d">鈍化</text>`,
+        `<text x="28" y="${((plotMin + plotMax) / 2 + 4).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">出遅れ</text>`,
+      ];
+
+      rows.forEach((row) => {
+        const analysis = analysisMap[row.ticker];
+        if (!analysis) return;
+        const [xOld, yOld] = scalePoint(analysis.points.two_weeks_ago);
+        const [xMid, yMid] = scalePoint(analysis.points.one_week_ago);
+        const [xCur, yCur] = scalePoint(analysis.points.current);
+        const baseColor = sectorBaseColor(row.ticker);
+        const middleColor = blendHexColor(baseColor, '#cbd5e0', 0.45);
+        const previousColor = middleColor;
+        const currentColor = baseColor;
+        const tooltip = escapeHtml(sectorTooltip(row, analysis));
+        const showLabel = analysis.candidate_label && analysis.candidate_label !== '様子見';
+
+        parts.push(`<g><line x1="${xOld.toFixed(1)}" y1="${yOld.toFixed(1)}" x2="${xMid.toFixed(1)}" y2="${yMid.toFixed(1)}" stroke="${previousColor}" stroke-width="2.2" stroke-linecap="round"><title>${tooltip}</title></line>${buildArrowPolygon(xOld, yOld, xMid, yMid, previousColor)}<title>${tooltip}</title></g>`);
+        parts.push(`<g><line x1="${xMid.toFixed(1)}" y1="${yMid.toFixed(1)}" x2="${xCur.toFixed(1)}" y2="${yCur.toFixed(1)}" stroke="${currentColor}" stroke-width="2.8" stroke-linecap="round"><title>${tooltip}</title></line>${buildArrowPolygon(xMid, yMid, xCur, yCur, currentColor)}<title>${tooltip}</title></g>`);
+        parts.push(`<circle cx="${xOld.toFixed(1)}" cy="${yOld.toFixed(1)}" r="4.2" fill="#d4d8dd"><title>${tooltip}</title></circle>`);
+        parts.push(`<circle cx="${xMid.toFixed(1)}" cy="${yMid.toFixed(1)}" r="5" fill="${middleColor}" stroke="#ffffff" stroke-width="1.0"><title>${tooltip}</title></circle>`);
+        parts.push(`<circle cx="${xCur.toFixed(1)}" cy="${yCur.toFixed(1)}" r="6.2" fill="${baseColor}" stroke="${sectorOutlineColor(baseColor)}" stroke-width="0.9"><title>${tooltip}</title></circle>`);
+        parts.push(`<text x="${(xCur + 8).toFixed(1)}" y="${(yCur - 8).toFixed(1)}" font-size="11" font-weight="700" fill="#1f2933">${escapeHtml(row.ticker || '-')}</text>`);
+        if (showLabel) parts.push(`<text x="${(xCur + 8).toFixed(1)}" y="${(yCur + 6).toFixed(1)}" font-size="10" fill="#52606d">${escapeHtml(analysis.candidate_label)}</text>`);
+      });
+      parts.push('</svg>');
+      return parts.join('');
+    }
+
+    function renderSectorRotationDetail(sectorRotation) {
+      const rows = Array.isArray(sectorRotation?.table) ? sectorRotation.table : [];
       const disclosure = el('detailTableDisclosure');
       el('detailTableSummary').textContent = 'セクター順位と簡易ローテーション図';
       if (!rows.length) {
@@ -1470,9 +1651,18 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         disclosure.open = true;
         return;
       }
+      const historyRows = sectorRotation?.history || sectorRotation?.history_points || [];
+      const historyFlags = Array.isArray(historyRows) ? historyRows.reduce((acc, item) => {
+        const ticker = String(item?.sector || item?.ticker || '').trim();
+        if (ticker) acc[ticker] = true;
+        return acc;
+      }, {}) : {};
       const tableHead = ['順位', 'ティッカー', '日本語', '12週騰落率', '位置'].map((header) => `<th>${header}</th>`).join('');
-      const tableBody = rows.map((row) => `<tr><td>${row.rank ?? '-'}</td><td>${row.ticker || '-'}</td><td>${row.sector_name_ja || row.ticker || '-'}</td><td>${formatSigned(row.return_12w, 4)}</td><td>${row.rotation_phase_ja || row.rotation_phase || '-'}</td></tr>`).join('');
-      el('detailTableWrap').innerHTML = `<div class="sector-visual"><div class="sector-visual-card"><h4>簡易ローテーション図</h4>${buildSectorRotationSvg(rows)}<p>外側ほど 12 週騰落率が強く、上側ほど順位が高いセクターです。シークや再生に合わせて位置も更新されます。</p></div><div class="sector-visual-card"><h4>セクター順位</h4><table class="list-table"><thead><tr>${tableHead}</tr></thead><tbody>${tableBody}</tbody></table></div></div>`;
+      const tableBody = rows.map((row) => {
+        const labelBadge = historyFlags[row.ticker || ''] ? '<br><span class="sector-label-badge">履歴あり</span>' : '';
+        return `<tr><td>${row.rank ?? '-'}</td><td>${row.ticker || '-'}</td><td>${row.sector_name_ja || row.ticker || '-'}${labelBadge}</td><td>${formatSigned(row.return_12w, 4)}</td><td>${row.rotation_phase_ja || row.rotation_phase || '-'}</td></tr>`;
+      }).join('');
+      el('detailTableWrap').innerHTML = `<div class="sector-visual"><div class="sector-visual-card"><h4>簡易ローテーション図</h4>${buildSectorRotationSvg(sectorRotation)}<p>先々週・先週・今週の3点と2本のベクトルで流れを確認します。履歴が無い場合は従来の簡易ローテーション図へ戻ります。</p><p><a href="report.html">最新レポートを見る</a></p></div><div class="sector-visual-card"><h4>セクター順位</h4><table class="list-table"><thead><tr>${tableHead}</tr></thead><tbody>${tableBody}</tbody></table></div></div>`;
       disclosure.open = true;
     }
 
@@ -1622,7 +1812,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         el('detailSubtitle').textContent = '上位セクターの流れ';
         setDetailCopy('その時点で資金がどのセクターへ向かっていたかを確認します。順位と位置をあわせて見ると、単なる騰落率より流れが追いやすくなります。');
         renderBoxes([{ key: '先導セクター', value: entry.top_sector?.label || '-' }, { key: 'ティッカー', value: entry.top_sector?.ticker || '-' }, { key: '12週騰落率', value: formatSigned(entry.top_sector?.return_12w, 4) }]);
-        renderSectorRotationDetail(entry.sector_table || []);
+        renderSectorRotationDetail(entry.sector_rotation || { table: entry.sector_table || [] });
         return;
       }
       if (node === 'alerts') {
@@ -1951,7 +2141,8 @@ def render_dashboard_html(entries: list[dict[str, Any]], current_run: dict[str, 
 
 
 def _normalize_dashboard_entry(data: dict[str, Any]) -> dict[str, Any]:
-    sector_table = data.get("sector_rotation", {}).get("table", [])
+    sector_rotation = data.get("sector_rotation", {})
+    sector_table = sector_rotation.get("table", [])
     asset_rows = data.get("asset_compare", [])
     availability = data.get("data_availability", [])
     issue_count = sum(
@@ -2006,6 +2197,7 @@ def _normalize_dashboard_entry(data: dict[str, Any]) -> dict[str, Any]:
         "regime_leading_candidates": data.get("regime_leading_candidates", {"label": "候補なし", "summary": "-", "candidate_tickers": [], "rationale": [], "preferred_sector": None, "preferred_region": None, "preferred_asset_class": None}),
         "top_sector": _top_sector(sector_table),
         "top_asset": _top_asset(asset_rows),
+        "sector_rotation": sector_rotation,
         "sector_table": sector_table,
         "asset_compare": asset_rows,
         "availability_summary": {

@@ -723,13 +723,14 @@ def render_html(report: dict[str, Any]) -> str:
     body {{ font-family: 'Yu Gothic UI', 'Hiragino Sans', sans-serif; margin: 0; background: linear-gradient(180deg, #f7faff 0%, #eaf0f7 100%); color: var(--ink); }}
     .wrap {{ max-width: 1160px; margin: 0 auto; padding: 28px 20px 56px; }}
     .hero {{ background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 22px 24px; box-shadow: none; }}
+    .hero-top {{ display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }}
+    .hero-title {{ min-width: 0; flex: 1; }}
+    .hero-link-card {{ width: min(220px, 100%); padding: 12px 14px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,0.72); }}
+    .hero-link-card .k {{ font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: .03em; }}
+    .hero-link-card .v {{ margin-top: 4px; font-size: 15px; font-weight: 800; line-height: 1.35; color: var(--ink); }}
     .hero h1 {{ margin: 0; font-size: 34px; line-height: 1.12; }}
     .hero-copy {{ margin: 10px 0 0; max-width: 76ch; color: var(--muted); line-height: 1.7; }}
     .meta {{ display: flex; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 14px; margin-top: 14px; }}
-    .hero-status {{ display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }}
-    .status-chip {{ min-width: 180px; padding: 12px 14px; border-radius: 16px; border: 1px solid var(--line); background: rgba(255,255,255,0.72); }}
-    .status-chip .k {{ font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }}
-    .status-chip .v {{ margin-top: 4px; font-size: 15px; font-weight: 800; line-height: 1.35; color: var(--ink); }}
     .grid {{ display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 14px; margin-top: 18px; }}
     .summary-panel {{ background: rgba(255,255,255,0.78); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }}
     .summary-head {{ display: grid; gap: 6px; }}
@@ -769,24 +770,25 @@ def render_html(report: dict[str, Any]) -> str:
       .grid {{ grid-template-columns: 1fr; }}
       .summary-main {{ grid-template-columns: 1fr; }}
       .summary-metrics {{ grid-template-columns: 1fr; }}
-      .hero-status {{ flex-direction: column; }}
+      .hero-top {{ flex-direction: column; }}
+      .hero-link-card {{ width: 100%; }}
     }}
   </style>
 </head>
 <body>
   <div class=\"wrap\">
     <section class=\"hero\">
-      <h1>{html.escape(report['title'])}</h1>
-      <p class=\"hero-copy\">市場レジーム、危険ライン、候補層、取得状況を分離して、運用判断に必要な順序で読めるようにしたレポートです。</p>
+      <div class=\"hero-top\">
+        <div class=\"hero-title\">
+          <h1>{html.escape(report['title'])}</h1>
+          <p class=\"hero-copy\">市場レジーム、危険ライン、候補層、取得状況を分離して、運用判断に必要な順序で読めるようにしたレポートです。</p>
+        </div>
+        <div class=\"hero-link-card\"><div class=\"k\">画面リンク</div><div class=\"v\"><a href=\"dashboard.html\">ダッシュボードを見る</a></div></div>
+      </div>
       <div class=\"meta\">
         <span>生成時刻: {html.escape(report['generated_at'])}</span>
         <span>データソース: <span class=\"pill\">{html.escape(report['data_source'])}</span></span>
         <span>判定信頼性: <span class=\"pill\">{html.escape(_jp_reliability(report.get('data_reliability', {}).get('level', 'high')))}</span></span>
-      </div>
-      <div class=\"hero-status\">
-        <div class=\"status-chip\"><div class=\"k\">最優先</div><div class=\"v\">市場レジームと危険ライン</div></div>
-        <div class=\"status-chip\"><div class=\"k\">次に見る</div><div class=\"v\">合成スコアとスポット判断</div></div>
-        <div class=\"status-chip\"><div class=\"k\">補助層</div><div class=\"v\">候補、取得状況、診断</div></div>
       </div>
       <div class=\"grid\">
         <div class=\"summary-panel\">
@@ -1103,7 +1105,6 @@ def _render_sector_rotation_svg(sector_rotation: dict[str, Any], sector_context:
 
     parts = [
         f"<svg viewBox='0 0 {width} {height}' width='{width}' height='{height}' role='img' aria-label='セクターローテーション図'>",
-        "<defs><marker id='sector-arrow' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='5' markerHeight='5' orient='auto-start-reverse'><path d='M 0 0 L 10 5 L 0 10 z' fill='currentColor'></path></marker></defs>",
         f"<rect x='{padding}' y='{padding}' width='{plot_max - plot_min}' height='{plot_max - plot_min}' fill='none' stroke='#d9e2ec' stroke-width='1' rx='16' />",
         f"<line x1='{(plot_min + plot_max) / 2:.1f}' y1='{plot_min}' x2='{(plot_min + plot_max) / 2:.1f}' y2='{plot_max}' stroke='#d9e2ec' stroke-width='1' />",
         f"<line x1='{plot_min}' y1='{(plot_min + plot_max) / 2:.1f}' x2='{plot_max}' y2='{(plot_min + plot_max) / 2:.1f}' stroke='#d9e2ec' stroke-width='1' />",
@@ -1138,17 +1139,31 @@ def _render_sector_rotation_svg(sector_rotation: dict[str, Any], sector_context:
         candidate_label = html.escape(str(analysis.get("candidate_label", "")))
         show_label = candidate_label and candidate_label != "様子見"
 
-        parts.append(f"<g style='color:{previous_color};'><line x1='{x_old:.1f}' y1='{y_old:.1f}' x2='{x_mid:.1f}' y2='{y_mid:.1f}' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' marker-end='url(#sector-arrow)'><title>{tooltip}</title></line></g>")
-        parts.append(f"<g style='color:{current_color};'><line x1='{x_mid:.1f}' y1='{y_mid:.1f}' x2='{x_cur:.1f}' y2='{y_cur:.1f}' stroke='currentColor' stroke-width='2.8' stroke-linecap='round' marker-end='url(#sector-arrow)'><title>{tooltip}</title></line></g>")
+        parts.append(_sector_vector_segment(x_old, y_old, x_mid, y_mid, middle_color, tooltip, 2.2))
+        parts.append(_sector_vector_segment(x_mid, y_mid, x_cur, y_cur, base_color, tooltip, 2.8))
         parts.append(f"<circle cx='{x_old:.1f}' cy='{y_old:.1f}' r='4.2' fill='#d4d8dd'><title>{tooltip}</title></circle>")
-        parts.append(f"<circle cx='{x_mid:.1f}' cy='{y_mid:.1f}' r='5' fill='{middle_color}' stroke='#ffffff' stroke-width='1.2'><title>{tooltip}</title></circle>")
-        parts.append(f"<circle cx='{x_cur:.1f}' cy='{y_cur:.1f}' r='6.2' fill='{base_color}' stroke='#102a43' stroke-width='1.4'><title>{tooltip}</title></circle>")
+        parts.append(f"<circle cx='{x_mid:.1f}' cy='{y_mid:.1f}' r='5' fill='{middle_color}' stroke='#ffffff' stroke-width='1.0'><title>{tooltip}</title></circle>")
+        parts.append(f"<circle cx='{x_cur:.1f}' cy='{y_cur:.1f}' r='6.2' fill='{base_color}' stroke='{_blend_hex_color(base_color, '#102a43', 0.35)}' stroke-width='0.9'><title>{tooltip}</title></circle>")
         parts.append(f"<text x='{x_cur + 8:.1f}' y='{y_cur - 8:.1f}' font-size='11' font-weight='700' fill='#1f2933'>{label}</text>")
         if show_label:
             parts.append(f"<text x='{x_cur + 8:.1f}' y='{y_cur + 6:.1f}' font-size='10' fill='#52606d'>{candidate_label}</text>")
 
     parts.append("</svg>")
     return "".join(parts)
+
+
+def _sector_vector_segment(x1: float, y1: float, x2: float, y2: float, color: str, tooltip: str, width: float) -> str:
+    angle = math.atan2(y2 - y1, x2 - x1)
+    arrow_length = 9.0
+    arrow_half_width = 4.0
+    left_x = x2 - arrow_length * math.cos(angle) + arrow_half_width * math.sin(angle)
+    left_y = y2 - arrow_length * math.sin(angle) - arrow_half_width * math.cos(angle)
+    right_x = x2 - arrow_length * math.cos(angle) - arrow_half_width * math.sin(angle)
+    right_y = y2 - arrow_length * math.sin(angle) + arrow_half_width * math.cos(angle)
+    return (
+        f"<g><line x1='{x1:.1f}' y1='{y1:.1f}' x2='{x2:.1f}' y2='{y2:.1f}' stroke='{color}' stroke-width='{width:.1f}' stroke-linecap='round'><title>{tooltip}</title></line>"
+        f"<polygon points='{x2:.1f},{y2:.1f} {left_x:.1f},{left_y:.1f} {right_x:.1f},{right_y:.1f}' fill='{color}'><title>{tooltip}</title></polygon></g>"
+    )
 
 
 def _render_sector_rotation_svg_legacy(rows: list[dict[str, Any]]) -> str:

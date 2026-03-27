@@ -53,6 +53,18 @@ def _history_payload(generated_at: str, score: float, regime: str) -> dict:
                     "rotation_phase": "leading",
                     "rotation_phase_ja": "先導",
                 }
+            ],
+            "history": [
+                {
+                    "sector": "XLE",
+                    "x_2w_ago": 0.1,
+                    "y_2w_ago": 0.2,
+                    "x_1w_ago": 0.2,
+                    "y_1w_ago": 0.4,
+                    "x_current": 0.5,
+                    "y_current": 0.8,
+                    "avg_length_12w": 0.3,
+                }
             ]
         },
         "asset_compare": [
@@ -198,6 +210,10 @@ def test_write_dashboard_creates_interactive_html():
     assert "先回り候補の詳細" in html
     assert "レジーム先回り候補の詳細" in html
     assert '"meta": {' in html
+    assert '<polygon' in html
+    assert 'report.html' in html
+    assert '最新レポートを見る' in html
+    assert '先々週・先週・今週の3点と2本のベクトル' in html
 
 
 def test_render_dashboard_html_handles_empty_history():

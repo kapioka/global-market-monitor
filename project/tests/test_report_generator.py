@@ -305,7 +305,9 @@ def test_render_html_contains_japanese_explanations():
     assert "代替ティッカーで取得" in html
     assert "生活必需品" in html
     assert "簡易ローテーション図" in html
-    assert "sector-arrow" in html
+    assert "<polygon" in html
+    assert 'ダッシュボードを見る' in html
+    assert '画面リンク' in html
     assert "正規化長" in html
     assert "有望" in html
     assert "セクターローテーション内部構造" in html
