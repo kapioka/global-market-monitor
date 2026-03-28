@@ -32,3 +32,7 @@ history_dashboard.py
 report_generator.py
 project/*.backup_*
 公開用/
+
+# Internal handoff / review notes (not for public release)
+project/session_handoff_*.md
+project/explanation_review_summary_*.md

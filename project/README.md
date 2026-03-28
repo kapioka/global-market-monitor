@@ -1,86 +1,130 @@
-# Global Market Monitor
+# Global Market Monitor 詳細ガイド
 
-Windows 向けの Python 市場監視アプリです。予測装置ではなく、誤認回避のための判断補助ツールとして設計しています。実データ取得に失敗した場合でも、警告を残したうえでサンプルデータへフォールバックしてレポート生成を継続します。
+このファイルは、Global Market Monitor の詳しい使い方をまとめた説明書です。
 
-## 構成
+「まず動かしてみたい」という場合は、先に [../README.md](../README.md) を読んでください。
 
-- `main.py`: 実行エントリポイントとスケジュール起動
-- `config.yaml`: ティッカー、重み、しきい値、出力先、スケジュール設定
-- `data_fetcher.py`: yfinance 取得、キャッシュ初期化、サンプルデータへのフォールバック
-- `indicators.py`: ATR、ADX、drawdown、relative strength などの共通指標
-- `regime_analysis.py`: 市場レジーム判定
-- `cycle_analysis.py`: ヒルベルト位相ベースのサイクル判定
-- `scoring.py`: 合成スコア計算
-- `sector_rotation.py`: セクター順位比較
-- `asset_compare.py`: 資産クラス比較
-- `spot_signal.py`: スポット投資タイミング判定
-- `analogue_search.py`: 類似局面検索
-- `report_generator.py`: Markdown / HTML レポート生成と履歴保存
-- `history_dashboard.py`: 履歴 JSON 集約とインタラクティブ `dashboard.html` 生成
-- `scheduler.py`: 日次スケジューラ
-- `tests/`: モック系列ベースの単体テスト
+## このアプリがやること
+
+このアプリは、複数の市場データをまとめて取り込み、毎週の市場状態を整理してレポート化します。
+
+見る対象は主に次のようなものです。
+
+- 世界株と米国株
+- セクター ETF
+- 債券と信用市場
+- 金、原油、ドルなどのマクロ関連指標
+- ボラティリティや金利などのリスク指標
+
+その上で、
+
+- 市場全体の地合い
+- 直近のサイクル状態
+- 追加投資を急ぐべきかどうか
+- どのセクターに資金が向かっているか
+
+を、ひとつのレポートにまとめます。
+
+## ファイル構成
+
+主に見るファイルは次のとおりです。
+
+- `main.py`
+  - 実行の入口です
+- `config.yaml`
+  - ティッカー、重み、しきい値、出力先をまとめた設定ファイルです
+- `report_generator.py`
+  - レポート HTML / Markdown を作ります
+- `history_dashboard.py`
+  - 履歴をまとめたダッシュボード HTML を作ります
+- `tests/`
+  - テストコードです
 
 ## セットアップ
+
+### 必要なもの
+
+- Windows
+- Python 3.11 以上
+
+### インストール
 
 ```bash
 python -m pip install -r project/requirements.txt
 ```
 
-Windows で複数の Python が入っている場合は、`py -3 -m pip install -r project/requirements.txt` のように明示実行してください。
+Python の呼び出し方が環境によって違う場合は、次でも構いません。
 
-## 実行
+```bash
+py -3 -m pip install -r project/requirements.txt
+```
 
-通常実行:
+## 実行方法
+
+### 通常実行
 
 ```bash
 python project/main.py
 ```
 
-サンプルデータ固定実行:
+### サンプルデータだけで試す
 
 ```bash
 python project/main.py --sample-only
 ```
 
-日次スケジュール実行:
+### スケジュール実行
 
 ```bash
 python project/main.py --schedule
 ```
 
-`--schedule` は起動直後に 1 回実行し、その後は `config.yaml` の `scheduler.hour` / `scheduler.minute` に従って毎日実行します。PC が停止していた時間帯の取りこぼしは内蔵スケジューラーだけでは埋まらないため、通常起動時には `startup.max_backfill_days` の範囲で未生成日の履歴を穴埋めします。穴埋め時は日足を取得し、その日までの実データで週次判定を再計算します。
+`--schedule` を使うと、`config.yaml` の時刻設定に従って日次実行します。
 
-## 出力
+## 出力されるもの
 
-最新ファイル:
+### 最新レポート
 
-- `project/reports/report.md`
 - `project/reports/report.html`
+- `project/reports/report.md`
 - `project/reports/report_summary.json`
 - `project/reports/dashboard.html`
 
-履歴ファイル:
+### 履歴
 
 - `project/reports/history/report_YYYY-MM-DD_HHMMSS.md`
 - `project/reports/history/report_YYYY-MM-DD_HHMMSS.html`
 - `project/reports/history/report_YYYY-MM-DD_HHMMSS.json`
 
-その他:
+## 何を見ればよいか
 
-- `project/sample_output/report_sample.md`
-- `project/sample_output/report_sample.html`
-- `project/logs/app.log`
-- `project/cache/`: yfinance のキャッシュ配置先
+### まず見るもの
 
-## ダッシュボード
+初心者なら、まずは `report.html` を開いてください。
 
-`project/reports/dashboard.html` は履歴 JSON を束ねたインタラクティブビューです。
+最初に見るとよい項目は次の3つです。
 
-- スライダーで過去から現在までの時点を切替
-- `再生` ボタンで履歴をアニメーション再生
-- 合成スコア推移チャートの下にシークと主要指標をまとめ、時間操作と変化を同じ視野で確認
-- 関係マップで `市場レジーム`、`合成スコア`、`サイクル判定`、`スポット判断`、`先導セクター`、`上位資産クラス`、`データ取得状況` のつながりを可視化
-- ノードクリックで右側の詳細パネルが切り替わり、セクター、資産クラス、取得状況まで掘れる
+- 市場レジーム
+- 合成スコア
+- スポット投資判断
+
+そのあとで、必要に応じて
+
+- セクターローテーション
+- 資産クラス比較
+- 信用市場の補助情報
+
+を見る流れが分かりやすいです。
+
+### ダッシュボードの役割
+
+`dashboard.html` は、過去の変化を見るための画面です。
+
+- 以前より強くなっているか
+- 以前より弱くなっているか
+- 一時的な動きなのか、継続しているのか
+
+を見たいときに使います。
 
 ## テスト
 
@@ -88,9 +132,9 @@ python project/main.py --schedule
 python -m pytest project/tests
 ```
 
-## 配布パッケージ作成
+## 配布パッケージを作る
 
-Windows 向けの配布用 `exe` と ZIP は次で作成できます。
+Windows 向けの配布用ファイルは次で作れます。
 
 ```powershell
 pwsh -File project/build_distribution.ps1
@@ -101,10 +145,17 @@ pwsh -File project/build_distribution.ps1
 - `release/GlobalMarketMonitor-win64/`
 - `release/GlobalMarketMonitor-win64.zip`
 
-配布物には `GlobalMarketMonitor.exe` と `project/config.yaml` が含まれます。
+## 公開版で含めないもの
 
-## 公開時の前提
+このリポジトリでは、次のようなローカル専用ファイルは Git 管理の対象外にしています。
 
-- このリポジトリにはローカルのログ、キャッシュ、レポート生成物を含めない想定です。
-- `.gitignore` で `project/reports/`、`project/logs/`、`project/cache/`、`release/` などを除外しています。
-- 個人環境の絶対パスや手元メモは公開用コピーから外しています。
+- `project/reports/`
+- `project/logs/`
+- `project/cache/`
+- `project/sample_output/`
+- 個人用の handoff メモや review メモ
+
+## 補足
+
+このアプリは、投資の正解を出すためのものではありません。
+数字を並べて判断を固定するのではなく、「今どんな状態かを落ち着いて確認する」ための道具として使うのが前提です。
