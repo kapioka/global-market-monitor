@@ -730,7 +730,8 @@ def render_html(report: dict[str, Any]) -> str:
     .hero-link-card .v {{ margin-top: 4px; font-size: 15px; font-weight: 800; line-height: 1.35; color: var(--ink); }}
     .hero h1 {{ margin: 0; font-size: 34px; line-height: 1.12; }}
     .hero-copy {{ margin: 10px 0 0; max-width: 76ch; color: var(--muted); line-height: 1.7; }}
-    .meta {{ display: flex; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 14px; margin-top: 14px; }}
+    .meta {{ display: flex; gap: 10px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 14px; margin-top: 14px; }}
+    .meta > span {{ display: inline-flex; align-items: center; gap: 6px; line-height: 1.2; }}
     .grid {{ display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 14px; margin-top: 18px; }}
     .summary-panel {{ background: rgba(255,255,255,0.78); border: 1px solid var(--line); border-radius: 18px; padding: 18px; }}
     .summary-head {{ display: grid; gap: 6px; }}
@@ -756,7 +757,7 @@ def render_html(report: dict[str, Any]) -> str:
     table {{ width: 100%; border-collapse: collapse; margin-top: 8px; }}
     th, td {{ border-bottom: 1px solid var(--line); padding: 10px 8px; text-align: left; vertical-align: top; }}
     th {{ color: var(--muted); font-size: 13px; }}
-    .pill {{ display: inline-block; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: #1d4ed8; font-size: 13px; }}
+    .pill {{ display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: #1d4ed8; font-size: 13px; line-height: 1; }}
     .risk-badge {{ display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 800; }}
     .risk-badge.caution {{ background: rgba(183,121,31,0.12); color: var(--caution); }}
     .risk-badge.danger {{ background: rgba(192,86,33,0.14); color: var(--danger); }}

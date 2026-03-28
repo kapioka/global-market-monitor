@@ -1621,17 +1621,24 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         return [sx, sy];
       };
 
+      const quadrantBadges = [
+        { x: width - 34, y: plotMin - 34, w: 54, h: 24, label: '先導' },
+        { x: 30, y: plotMin - 34, w: 54, h: 24, label: '改善' },
+        { x: width - 34, y: height - 22, w: 54, h: 24, label: '鈍化' },
+        { x: 34, y: height - 22, w: 62, h: 24, label: '出遅れ' },
+      ];
+
       const parts = [
         `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="セクターローテーション図">`,
         ``,
         `<rect x="${padding}" y="${padding}" width="${plotMax - plotMin}" height="${plotMax - plotMin}" fill="none" stroke="#d9e2ec" stroke-width="1" rx="16" />`,
         `<line x1="${((plotMin + plotMax) / 2).toFixed(1)}" y1="${plotMin}" x2="${((plotMin + plotMax) / 2).toFixed(1)}" y2="${plotMax}" stroke="#d9e2ec" stroke-width="1" />`,
         `<line x1="${plotMin}" y1="${((plotMin + plotMax) / 2).toFixed(1)}" x2="${plotMax}" y2="${((plotMin + plotMax) / 2).toFixed(1)}" stroke="#d9e2ec" stroke-width="1" />`,
-        `<text x="${(width - 52).toFixed(1)}" y="${(plotMin - 12).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">先導</text>`,
-        `<text x="${(plotMin + 26).toFixed(1)}" y="${(plotMin - 12).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">改善</text>`,
-        `<text x="${(plotMin + 26).toFixed(1)}" y="${(height - 18).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">出遅れ</text>`,
-        `<text x="${(width - 52).toFixed(1)}" y="${(height - 18).toFixed(1)}" text-anchor="middle" font-size="12" fill="#52606d">鈍化</text>`,
       ];
+      quadrantBadges.forEach((badge) => {
+        parts.push(`<rect x="${(badge.x - badge.w / 2).toFixed(1)}" y="${badge.y.toFixed(1)}" width="${badge.w}" height="${badge.h}" rx="12" fill="#eef2f6" />`);
+        parts.push(`<text x="${badge.x.toFixed(1)}" y="${(badge.y + 16).toFixed(1)}" text-anchor="middle" font-size="11.5" font-weight="700" fill="#243b53">${badge.label}</text>`);
+      });
 
       const previousVectors = [];
       const currentVectors = [];
@@ -2342,3 +2349,4 @@ def _top_asset(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
         "label": row.get("ticker_name_ja", row.get("ticker", "-")),
         "momentum_12w": row.get("momentum_12w", "-"),
     }
+
