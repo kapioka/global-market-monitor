@@ -925,10 +925,17 @@ def render_html(report: dict[str, Any]) -> str:
           <div class=\"sector-guide\">
             <h4>図の読み方</h4>
             <ul class=\"inline-note\">
-              <li><span class="guide-key">出遅れ</span>から<span class="guide-key">改善</span>を経て<span class="guide-key">先導</span>へ向かう流れは、全体として上向きです。</li>
-              <li><span class="guide-key">先導</span>から<span class="guide-key">鈍化</span>へ向かう動きは、強さを保ちながら勢いが落ちる失速警戒です。</li>
-              <li><span class="guide-key">改善</span>は、まだ主役ではないものの持ち直しが見える領域です。</li>
-              <li><span class="guide-key">鈍化</span>は、順位が保たれていても相対的な強さが弱くなる局面です。</li>
+              <li><span class="guide-key">出遅れ</span>は、順位も12週騰落率も弱く、まだ弱さが残る領域です。</li>
+              <li><span class="guide-key">改善</span>は、順位は低いものの、12週騰落率が持ち直してきた領域です。</li>
+              <li><span class="guide-key">先導</span>は、順位も12週騰落率も強く、相対的に主導している領域です。</li>
+              <li><span class="guide-key">鈍化</span>は、上位を保ちながらも、12週騰落率の強さが弱くなっている領域です。</li>
+              <li><span class="guide-key">出遅れ</span> → <span class="guide-key">改善</span> は、弱かったセクターの立ち直り初動です。</li>
+              <li><span class="guide-key">改善</span> → <span class="guide-key">先導</span> は、持ち直しが本格化し、追い風が続く流れです。</li>
+              <li><span class="guide-key">先導</span> → <span class="guide-key">鈍化</span> は、強さを保ちながら勢いが落ちる失速警戒です。</li>
+              <li><span class="guide-key">鈍化</span> → <span class="guide-key">出遅れ</span> は、弱さが固定化しやすい流れです。</li>
+              <li><span class="guide-key">出遅れ</span> → <span class="guide-key">鈍化</span> は、相対順位だけが先に上がっている可能性があります。</li>
+              <li><span class="guide-key">先導</span> → <span class="guide-key">改善</span> は、強さは残るものの主導性がやや落ちた状態です。</li>
+              <li>全体としては、<span class="guide-key">出遅れ</span> → <span class="guide-key">改善</span> → <span class="guide-key">先導</span> が上向きの王道パスです。<span class="guide-key">改善</span>は持ち直しの初動、<span class="guide-key">鈍化</span>は上位でも勢いが落ちる局面として読むのが実務的です。</li>
             </ul>
           </div>
         </div>
@@ -1116,7 +1123,7 @@ def _render_sector_rotation_svg(sector_rotation: dict[str, Any], sector_context:
     height = 600
     plot_min_x = 68
     plot_max_x = width - 68
-    plot_min_y = 44
+    plot_min_y = 52
     plot_max_y = plot_min_y + (plot_max_x - plot_min_x)
     current_points: list[tuple[float, float]] = []
     for analysis in analysis_map.values():
@@ -1142,16 +1149,27 @@ def _render_sector_rotation_svg(sector_rotation: dict[str, Any], sector_context:
         sy = plot_max_y - ((py - min_y) / span_y) * (plot_max_y - plot_min_y)
         return sx, sy
 
+    badge_gap = 14
+    quadrant_badges = [
+        (plot_max_x + badge_gap + 10, plot_min_y - 32, 54, 24, "先導"),
+        (plot_min_x - badge_gap - 8, plot_min_y - 32, 54, 24, "改善"),
+        (plot_max_x + badge_gap + 10, plot_max_y + badge_gap, 54, 24, "鈍化"),
+        (plot_min_x - badge_gap - 16, plot_max_y + badge_gap, 62, 24, "出遅れ"),
+    ]
+
     parts = [
         f"<svg viewBox='0 0 {width} {height}' width='{width}' height='{height}' role='img' aria-label='セクターローテーション図'>",
         f"<rect x='{plot_min_x}' y='{plot_min_y}' width='{plot_max_x - plot_min_x}' height='{plot_max_y - plot_min_y}' fill='none' stroke='#d9e2ec' stroke-width='1' rx='16' />",
         f"<line x1='{(plot_min_x + plot_max_x) / 2:.1f}' y1='{plot_min_y}' x2='{(plot_min_x + plot_max_x) / 2:.1f}' y2='{plot_max_y}' stroke='#d9e2ec' stroke-width='1' />",
         f"<line x1='{plot_min_x}' y1='{(plot_min_y + plot_max_y) / 2:.1f}' x2='{plot_max_x}' y2='{(plot_min_y + plot_max_y) / 2:.1f}' stroke='#d9e2ec' stroke-width='1' />",
-        f"<text x='{width - 52}' y='{plot_min_y - 10:.1f}' text-anchor='middle' font-size='12' fill='#52606d'>先導</text>",
-        f"<text x='{plot_min_x + 26:.1f}' y='{plot_min_y - 10:.1f}' text-anchor='middle' font-size='12' fill='#52606d'>改善</text>",
-        f"<text x='{width - 52}' y='{height - 14}' text-anchor='middle' font-size='12' fill='#52606d'>鈍化</text>",
-        f"<text x='{plot_min_x + 26:.1f}' y='{height - 14}' text-anchor='middle' font-size='12' fill='#52606d'>出遅れ</text>",
     ]
+    for cx, cy, badge_w, badge_h, label in quadrant_badges:
+        parts.append(
+            f"<rect x='{cx - badge_w / 2:.1f}' y='{cy:.1f}' width='{badge_w}' height='{badge_h}' rx='12' fill='#eef2f6' />"
+        )
+        parts.append(
+            f"<text x='{cx:.1f}' y='{cy + 16:.1f}' text-anchor='middle' font-size='11.5' font-weight='700' fill='#243b53'>{label}</text>"
+        )
     previous_vectors: list[str] = []
     current_vectors: list[str] = []
     old_points: list[str] = []
@@ -1372,3 +1390,4 @@ def _alert_severity_label(value: str) -> str:
         "low": "監視",
     }
     return labels.get(value, value)
+
