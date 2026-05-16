@@ -1,0 +1,187 @@
+schema_version: 1
+
+app:
+  log_level: INFO
+  timezone: Asia/Tokyo
+  report_title: Global Market Monitor
+  continue_on_error: true
+
+paths:
+  logs_dir: project/logs
+  reports_dir: project/reports
+  sample_output_dir: project/sample_output
+  cache_dir: project/cache
+
+data:
+  period_years: 10
+  interval: 1wk
+  min_history_points: 104
+  max_analogue_results: 5
+  use_sample_on_failure: true
+  monitor_windows_weeks:
+    short: 1
+    medium: 4
+    long: 12
+  zscore_window_weeks: 52
+
+tickers:
+  global_equities:
+    ACWI: ACWI
+    VT: VT
+    SPY: SPY
+    VEA: VEA
+    VWO: VWO
+    EWJ: EWJ
+  sector_etfs:
+    XLK: XLK
+    XLF: XLF
+    XLE: XLE
+    XLV: XLV
+    XLY: XLY
+    XLP: XLP
+    XLI: XLI
+    XLB: XLB
+    XLU: XLU
+    XLRE: XLRE
+  asset_classes:
+    US_Stocks: SPY
+    Intl_Stocks: ACWI
+    Gold: GLD
+    Bonds: AGG
+    Inflation_Bonds: TIP
+    REITs: VNQ
+  credit:
+    HYG: HYG
+    LQD: LQD
+  inflation:
+    Oil: CL=F
+    Gold: GC=F
+    Dollar_Index: DX-Y.NYB
+    Wheat: ZW=F
+    Corn: ZC=F
+    Mortgage_30Y: FRED:MORTGAGE30US
+    US10Y: ^TNX
+  risk_indicators:
+    SPY: SPY
+    HYG: HYG
+    LQD: LQD
+    VIX: ^VIX
+    MOVE: ^MOVE
+    WTI: CL=F
+    Brent: BZ=F
+    DXY: DX-Y.NYB
+    US10Y: ^TNX
+  japan:
+    usd_jpy: USDJPY=X
+    topix_proxy: 1306.T
+    sox_primary: ^SOX
+    sox_fallback: SOXX
+
+thresholds:
+  adx_trend_strong: 25
+  drawdown_alert: -0.12
+  drawdown_crash: -0.2
+  volatility_compression_ratio: 0.85
+  spot_score_buy: 0.65
+  spot_score_watch: 0.45
+  analogue_similarity_min: 0.6
+  regime_risk_off_score: -0.2
+  regime_risk_on_score: 0.2
+  penalty_transition: 0.02
+  penalty_risk_off: 0.06
+  penalty_risk_off_relief: 0.02
+  penalty_risk_off_relief_score_min: 0.48
+  penalty_credit_stress_moderate: 0.12
+  penalty_credit_stress_severe: 0.16
+  penalty_credit_stress: 0.16
+  penalty_inflation_shock_oil_only: 0.06
+  penalty_inflation_shock_broad: 0.1
+  penalty_inflation_shock: 0.1
+  penalty_stagflation_warning: 0.18
+
+weights:
+  trend: 0.22
+  momentum: 0.18
+  breadth_proxy: 0.13
+  drawdown: 0.13
+  volatility: 0.14
+  macro_proxy: 0.1
+  credit_stress: 0.1
+  stress: 0.08
+
+scheduler:
+  enabled: false
+  hour: 7
+  minute: 30
+
+startup:
+  max_backfill_days: 14
+
+risk_line_recalibration:
+  enabled: true
+  cadence_days: 90
+  warning_days: 14
+  refresh_drift_on_run: true
+  auto_generate_proposal: true
+  generate_on_drift_review: true
+
+japan_risk:
+  yen_shock_4w: 0.05
+  yen_reversal_4w: -0.05
+  fx_dependency_ratio: 0.5
+  spot_penalty_moderate: 0.02
+  spot_penalty_high: 0.04
+  foreign_asset_classes:
+    - US_Stocks
+    - Intl_Stocks
+    - Gold
+    - Bonds
+    - Inflation_Bonds
+    - REITs
+
+sector_vector_analysis:
+  spot_signal_integration_weight: 0.02
+  ranking_integration_weight: 0.02
+  regime_bonus_weight: 0.03
+  max_sector_adjustment: 0.1
+  flat_threshold: 0.000001
+  acceleration_positive_threshold: 0.08
+  acceleration_negative_threshold: -0.08
+  angle_consistency_threshold: 35
+  center_radius_threshold: 0.30
+  normalized_length_min: 0.04
+  warning_normalized_length_min: 0.80
+  promising_length_min: 1.05
+  promising_length_max: 2.75
+  single_week_spike_ratio: 1.8
+  broad_count_threshold: 4
+  narrow_leadership_max_count: 2
+  peakout_warning_count: 3
+  energy_dominance_rank_max: 1
+  energy_dominance_active_max: 2
+  dispersion_low_threshold: 0.34
+  dispersion_high_threshold: 0.5
+  broad_watch_ratio_threshold: 0.45
+  broad_promising_ratio_threshold: 0.22
+  narrow_promising_ratio_threshold: 0.22
+  dominance_active_ratio_max: 0.25
+  dominance_strong_active_max: 1
+  dominance_strong_rank_max: 1
+  dominance_medium_active_max: 1
+  dominance_medium_dispersion_buffer_per_sector: 1.0
+  broad_watch_share_threshold: 0.45
+  broad_promising_share_threshold: 0.2
+  narrow_promising_share_max: 0.22
+  sector_groups:
+    defensive:
+      - XLP
+      - XLU
+      - XLV
+    cyclical:
+      - XLK
+      - XLF
+      - XLE
+      - XLI
+      - XLY
+      - XLB
+

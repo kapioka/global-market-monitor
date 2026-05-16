@@ -1,0 +1,1143 @@
+{
+  "schema_version": 1,
+  "threshold_set": {
+    "name": "risk-line-active",
+    "version": "2026-04-05-active-161353",
+    "status": "active",
+    "generated_at": "2026-04-05T16:13:53+09:00",
+    "source_report": "risk_line_reality_checked_thresholds",
+    "notes": "Applied from proposed thresholds after manual approval."
+  },
+  "indicators": {
+    "SPY": {
+      "weight": 1.15,
+      "thresholds": {
+        "warning": {
+          "feature": "drawdown_13w",
+          "threshold": -0.024156,
+          "direction": "lower",
+          "decision": "adopt",
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.4863,
+            "precision": 0.4641,
+            "recall": 0.5108,
+            "false_positive_rate": 0.221,
+            "average_lead_weeks": 1.9859
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.5,
+            "interpretability": "raw",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "drawdown_13w",
+                "mode": "raw",
+                "true_positive_median": -0.076907,
+                "true_positive_p25": -0.12125,
+                "true_positive_p75": -0.044258,
+                "historical_percentile": 0.1118,
+                "severity_score": 0.8882
+              }
+            ]
+          }
+        },
+        "danger": {
+          "feature": "drawdown_13w",
+          "threshold": -0.046031,
+          "direction": "lower",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.381,
+            "precision": 0.3137,
+            "recall": 0.4848,
+            "false_positive_rate": 0.1577,
+            "average_lead_weeks": 2.2188,
+            "coverage": 0.2,
+            "predicted_count": 102,
+            "true_positive_count": 32
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.5,
+            "interpretability": "raw",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "drawdown_13w",
+                "mode": "raw",
+                "true_positive_median": -0.100656,
+                "true_positive_p25": -0.141292,
+                "true_positive_p75": -0.080442,
+                "historical_percentile": 0.0627,
+                "severity_score": 0.9373
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "drawdown_13w",
+              "mode": "raw",
+              "true_positive_median": -0.100656,
+              "true_positive_p25": -0.141292,
+              "true_positive_p75": -0.080442,
+              "historical_percentile": 0.0627,
+              "severity_score": 0.9373
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 102,
+            "coverage": 0.2,
+            "true_positive_count": 32
+          }
+        },
+        "extreme": {
+          "feature": "roc_8w",
+          "threshold": -0.043722,
+          "direction": "lower",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.3099,
+            "precision": 0.2115,
+            "recall": 0.5789,
+            "false_positive_rate": 0.0828,
+            "average_lead_weeks": 1.5455,
+            "coverage": 0.1012,
+            "predicted_count": 52,
+            "true_positive_count": 11
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.5,
+            "interpretability": "raw",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "roc_8w",
+                "mode": "raw",
+                "true_positive_median": -0.081108,
+                "true_positive_p25": -0.179888,
+                "true_positive_p75": -0.06527,
+                "historical_percentile": 0.0584,
+                "severity_score": 0.9416
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_8w",
+              "mode": "raw",
+              "true_positive_median": -0.081108,
+              "true_positive_p25": -0.179888,
+              "true_positive_p75": -0.06527,
+              "historical_percentile": 0.0584,
+              "severity_score": 0.9416
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 52,
+            "coverage": 0.1012,
+            "true_positive_count": 11
+          }
+        }
+      }
+    },
+    "HYG": {
+      "weight": 1.05,
+      "thresholds": {
+        "warning": {
+          "feature": "drawdown_13w",
+          "threshold": -0.009923,
+          "direction": "lower"
+        },
+        "danger": {
+          "feature": "drawdown_13w",
+          "threshold": -0.021683,
+          "direction": "lower"
+        },
+        "extreme": {
+          "feature": "roc_z_4w",
+          "threshold": -1.500949,
+          "direction": "lower",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.2121,
+            "precision": 0.1489,
+            "recall": 0.3684,
+            "false_positive_rate": 0.0893,
+            "average_lead_weeks": 1.2857,
+            "coverage": 0.1006,
+            "predicted_count": 47,
+            "true_positive_count": 7
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.3,
+            "interpretability": "anchored_transform",
+            "reasons": [
+              "precision_is_too_low_for_stage"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_4w",
+                "mode": "derived_roc",
+                "true_positive_median": -0.029133,
+                "true_positive_p25": -0.095593,
+                "true_positive_p75": -0.015516,
+                "historical_percentile": 0.0405,
+                "severity_score": 0.9595
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_4w",
+              "mode": "derived_roc",
+              "true_positive_median": -0.029133,
+              "true_positive_p25": -0.095593,
+              "true_positive_p75": -0.015516,
+              "historical_percentile": 0.0405,
+              "severity_score": 0.9595
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 47,
+            "coverage": 0.1006,
+            "true_positive_count": 7
+          }
+        }
+      }
+    },
+    "LQD": {
+      "weight": 0.85,
+      "thresholds": {
+        "warning": {
+          "feature": "drawdown_13w",
+          "threshold": -0.021275,
+          "direction": "lower",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.4726,
+            "precision": 0.451,
+            "recall": 0.4964,
+            "false_positive_rate": 0.2264,
+            "average_lead_weeks": 2.1014,
+            "coverage": 0.3,
+            "predicted_count": 153,
+            "true_positive_count": 69
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.5,
+            "interpretability": "raw",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "drawdown_13w",
+                "mode": "raw",
+                "true_positive_median": -0.039732,
+                "true_positive_p25": -0.081137,
+                "true_positive_p75": -0.027334,
+                "historical_percentile": 0.1196,
+                "severity_score": 0.8804
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "drawdown_13w",
+              "mode": "raw",
+              "true_positive_median": -0.039732,
+              "true_positive_p25": -0.081137,
+              "true_positive_p75": -0.027334,
+              "historical_percentile": 0.1196,
+              "severity_score": 0.8804
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 153,
+            "coverage": 0.3,
+            "true_positive_count": 69
+          }
+        },
+        "danger": {
+          "feature": "drawdown_13w",
+          "threshold": -0.048099,
+          "direction": "lower",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.3077,
+            "precision": 0.3529,
+            "recall": 0.2727,
+            "false_positive_rate": 0.0743,
+            "average_lead_weeks": 2.5556,
+            "coverage": 0.1,
+            "predicted_count": 51,
+            "true_positive_count": 18
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.5,
+            "interpretability": "raw",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "drawdown_13w",
+                "mode": "raw",
+                "true_positive_median": -0.086146,
+                "true_positive_p25": -0.101782,
+                "true_positive_p75": -0.0638,
+                "historical_percentile": 0.0353,
+                "severity_score": 0.9647
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "drawdown_13w",
+              "mode": "raw",
+              "true_positive_median": -0.086146,
+              "true_positive_p25": -0.101782,
+              "true_positive_p75": -0.0638,
+              "historical_percentile": 0.0353,
+              "severity_score": 0.9647
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 51,
+            "coverage": 0.1,
+            "true_positive_count": 18
+          }
+        },
+        "extreme": {
+          "feature": "drawdown_zscore",
+          "threshold": -1.489835,
+          "direction": "lower",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.0923,
+            "precision": 0.0652,
+            "recall": 0.1579,
+            "false_positive_rate": 0.0977,
+            "average_lead_weeks": 1.0,
+            "coverage": 0.1002,
+            "predicted_count": 46,
+            "true_positive_count": 3
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.3,
+            "interpretability": "anchored_transform",
+            "reasons": [
+              "precision_is_too_low_for_stage"
+            ],
+            "anchors": [
+              {
+                "metric": "drawdown_13w",
+                "mode": "derived_drawdown",
+                "true_positive_median": -0.085766,
+                "true_positive_p25": -0.144348,
+                "true_positive_p75": -0.083452,
+                "historical_percentile": 0.0373,
+                "severity_score": 0.9627
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "drawdown_13w",
+              "mode": "derived_drawdown",
+              "true_positive_median": -0.085766,
+              "true_positive_p25": -0.144348,
+              "true_positive_p75": -0.083452,
+              "historical_percentile": 0.0373,
+              "severity_score": 0.9627
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 46,
+            "coverage": 0.1002,
+            "true_positive_count": 3
+          }
+        }
+      }
+    },
+    "HYG/LQD": {
+      "weight": 1.3,
+      "thresholds": {
+        "warning": {
+          "feature": "level_percentile",
+          "threshold": 0.548077,
+          "direction": "lower"
+        },
+        "danger": {
+          "feature": "level_percentile",
+          "threshold": 0.076923,
+          "direction": "lower"
+        },
+        "extreme": {
+          "feature": "roc_z_8w",
+          "threshold": -1.497178,
+          "direction": "lower",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.303,
+            "precision": 0.2128,
+            "recall": 0.5263,
+            "false_positive_rate": 0.0833,
+            "average_lead_weeks": 1.6,
+            "coverage": 0.1015,
+            "predicted_count": 47,
+            "true_positive_count": 10
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.3,
+            "interpretability": "anchored_transform",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "roc_8w",
+                "mode": "derived_roc",
+                "true_positive_median": -0.033479,
+                "true_positive_p25": -0.053145,
+                "true_positive_p75": -0.01815,
+                "historical_percentile": 0.0447,
+                "severity_score": 0.9553
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_8w",
+              "mode": "derived_roc",
+              "true_positive_median": -0.033479,
+              "true_positive_p25": -0.053145,
+              "true_positive_p75": -0.01815,
+              "historical_percentile": 0.0447,
+              "severity_score": 0.9553
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 47,
+            "coverage": 0.1015,
+            "true_positive_count": 10
+          }
+        }
+      }
+    },
+    "^VIX": {
+      "weight": 1.2,
+      "thresholds": {
+        "warning": {
+          "feature": "level_zscore",
+          "threshold": 0.289384,
+          "direction": "higher"
+        },
+        "danger": {
+          "feature": "level_percentile",
+          "threshold": 0.875,
+          "direction": "higher"
+        },
+        "extreme": {
+          "feature": "level_percentile",
+          "threshold": 0.923077,
+          "direction": "higher",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.3125,
+            "precision": 0.2222,
+            "recall": 0.5263,
+            "false_positive_rate": 0.0875,
+            "average_lead_weeks": 1.5,
+            "coverage": 0.1074,
+            "predicted_count": 45,
+            "true_positive_count": 10
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.3,
+            "interpretability": "anchored_transform",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 40.889999,
+                "true_positive_p25": 22.135,
+                "true_positive_p75": 53.857501,
+                "historical_percentile": 0.9866,
+                "severity_score": 0.9866
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 40.889999,
+              "true_positive_p25": 22.135,
+              "true_positive_p75": 53.857501,
+              "historical_percentile": 0.9866,
+              "severity_score": 0.9866
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 45,
+            "coverage": 0.1074,
+            "true_positive_count": 10
+          }
+        }
+      }
+    },
+    "^MOVE": {
+      "weight": 1.2,
+      "thresholds": {
+        "warning": {
+          "feature": "roc_8w",
+          "threshold": 0.082386,
+          "direction": "higher"
+        },
+        "danger": {
+          "feature": "level_and_roc_4w",
+          "threshold": 0.875,
+          "direction": "higher",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.3293,
+            "precision": 0.2755,
+            "recall": 0.4091,
+            "false_positive_rate": 0.1771,
+            "average_lead_weeks": 2.5556,
+            "coverage": 0.2099,
+            "predicted_count": 98,
+            "true_positive_count": 27
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.1,
+            "interpretability": "composite_transform",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 114.230003,
+                "true_positive_p25": 86.93,
+                "true_positive_p75": 125.459999,
+                "historical_percentile": 0.8602,
+                "severity_score": 0.8602
+              },
+              {
+                "metric": "roc_4w",
+                "mode": "derived_roc",
+                "true_positive_median": 0.009208,
+                "true_positive_p25": -0.133848,
+                "true_positive_p75": 0.228741,
+                "historical_percentile": 0.5753,
+                "severity_score": 0.5753
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 114.230003,
+              "true_positive_p25": 86.93,
+              "true_positive_p75": 125.459999,
+              "historical_percentile": 0.8602,
+              "severity_score": 0.8602
+            },
+            {
+              "metric": "roc_4w",
+              "mode": "derived_roc",
+              "true_positive_median": 0.009208,
+              "true_positive_p25": -0.133848,
+              "true_positive_p75": 0.228741,
+              "historical_percentile": 0.5753,
+              "severity_score": 0.5753
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 98,
+            "coverage": 0.2099,
+            "true_positive_count": 27
+          }
+        },
+        "extreme": {
+          "feature": "roc_4w",
+          "threshold": 0.240742,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.2535,
+            "precision": 0.1731,
+            "recall": 0.4737,
+            "false_positive_rate": 0.0862,
+            "average_lead_weeks": 1.5556,
+            "coverage": 0.1004,
+            "predicted_count": 52,
+            "true_positive_count": 9
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.5,
+            "interpretability": "raw",
+            "reasons": [
+              "precision_is_too_low_for_stage"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_4w",
+                "mode": "raw",
+                "true_positive_median": 0.537325,
+                "true_positive_p25": 0.333952,
+                "true_positive_p75": 0.789241,
+                "historical_percentile": 0.9807,
+                "severity_score": 0.9807
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_4w",
+              "mode": "raw",
+              "true_positive_median": 0.537325,
+              "true_positive_p25": 0.333952,
+              "true_positive_p75": 0.789241,
+              "historical_percentile": 0.9807,
+              "severity_score": 0.9807
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 52,
+            "coverage": 0.1004,
+            "true_positive_count": 9
+          }
+        }
+      }
+    },
+    "CL=F": {
+      "weight": 0.9,
+      "thresholds": {
+        "warning": {
+          "feature": "roc_8w",
+          "threshold": 0.095138,
+          "direction": "higher",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.3134,
+            "precision": 0.3256,
+            "recall": 0.3022,
+            "false_positive_rate": 0.232,
+            "average_lead_weeks": 2.4048,
+            "coverage": 0.251,
+            "predicted_count": 129,
+            "true_positive_count": 42
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.5,
+            "interpretability": "raw",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "roc_8w",
+                "mode": "raw",
+                "true_positive_median": 0.16965,
+                "true_positive_p25": 0.13418,
+                "true_positive_p75": 0.310534,
+                "historical_percentile": 0.8872,
+                "severity_score": 0.8872
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_8w",
+              "mode": "raw",
+              "true_positive_median": 0.16965,
+              "true_positive_p25": 0.13418,
+              "true_positive_p75": 0.310534,
+              "historical_percentile": 0.8872,
+              "severity_score": 0.8872
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 129,
+            "coverage": 0.251,
+            "true_positive_count": 42
+          }
+        },
+        "danger": {
+          "feature": "level_and_roc_8w",
+          "threshold": 0.903846,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.1863,
+            "precision": 0.1579,
+            "recall": 0.2273,
+            "false_positive_rate": 0.2015,
+            "average_lead_weeks": 2.6667,
+            "coverage": 0.2052,
+            "predicted_count": 95,
+            "true_positive_count": 15
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 4.1,
+            "interpretability": "composite_transform",
+            "reasons": [
+              "full_sample_f1_is_too_far_below_best_candidate",
+              "precision_is_too_low_for_stage"
+            ],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 98.260002,
+                "true_positive_p25": 73.794998,
+                "true_positive_p75": 110.09,
+                "historical_percentile": 0.9559,
+                "severity_score": 0.9559
+              },
+              {
+                "metric": "roc_8w",
+                "mode": "derived_roc",
+                "true_positive_median": 0.114423,
+                "true_positive_p25": 0.062462,
+                "true_positive_p75": 0.19206,
+                "historical_percentile": 0.7899,
+                "severity_score": 0.7899
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 98.260002,
+              "true_positive_p25": 73.794998,
+              "true_positive_p75": 110.09,
+              "historical_percentile": 0.9559,
+              "severity_score": 0.9559
+            },
+            {
+              "metric": "roc_8w",
+              "mode": "derived_roc",
+              "true_positive_median": 0.114423,
+              "true_positive_p25": 0.062462,
+              "true_positive_p75": 0.19206,
+              "historical_percentile": 0.7899,
+              "severity_score": 0.7899
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 95,
+            "coverage": 0.2052,
+            "true_positive_count": 15
+          }
+        },
+        "extreme": {
+          "feature": "roc_2w",
+          "threshold": 0.084365,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.0563,
+            "precision": 0.0385,
+            "recall": 0.1053,
+            "false_positive_rate": 0.0998,
+            "average_lead_weeks": 2.5,
+            "coverage": 0.1,
+            "predicted_count": 52,
+            "true_positive_count": 2
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 4.5,
+            "interpretability": "raw",
+            "reasons": [
+              "full_sample_f1_is_too_far_below_best_candidate",
+              "precision_is_too_low_for_stage"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_2w",
+                "mode": "raw",
+                "true_positive_median": 0.146424,
+                "true_positive_p25": 0.124899,
+                "true_positive_p75": 0.167949,
+                "historical_percentile": 0.9712,
+                "severity_score": 0.9712
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_2w",
+              "mode": "raw",
+              "true_positive_median": 0.146424,
+              "true_positive_p25": 0.124899,
+              "true_positive_p75": 0.167949,
+              "historical_percentile": 0.9712,
+              "severity_score": 0.9712
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 52,
+            "coverage": 0.1,
+            "true_positive_count": 2
+          }
+        }
+      }
+    },
+    "BZ=F": {
+      "weight": 1.0,
+      "thresholds": {
+        "warning": {
+          "feature": "roc_z_1w",
+          "threshold": 0.56631,
+          "direction": "higher"
+        },
+        "danger": {
+          "feature": "roc_2w",
+          "threshold": 0.055702,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.2,
+            "precision": 0.1635,
+            "recall": 0.2576,
+            "false_positive_rate": 0.1916,
+            "average_lead_weeks": 2.2941,
+            "coverage": 0.2,
+            "predicted_count": 104,
+            "true_positive_count": 17
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.5,
+            "interpretability": "raw",
+            "reasons": [
+              "precision_is_too_low_for_stage"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_2w",
+                "mode": "raw",
+                "true_positive_median": 0.073986,
+                "true_positive_p25": 0.06802,
+                "true_positive_p75": 0.134324,
+                "historical_percentile": 0.8865,
+                "severity_score": 0.8865
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_2w",
+              "mode": "raw",
+              "true_positive_median": 0.073986,
+              "true_positive_p25": 0.06802,
+              "true_positive_p75": 0.134324,
+              "historical_percentile": 0.8865,
+              "severity_score": 0.8865
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 104,
+            "coverage": 0.2,
+            "true_positive_count": 17
+          }
+        },
+        "extreme": {
+          "feature": "roc_2w",
+          "threshold": 0.079544,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.0845,
+            "precision": 0.0577,
+            "recall": 0.1579,
+            "false_positive_rate": 0.0978,
+            "average_lead_weeks": 2.3333,
+            "coverage": 0.1,
+            "predicted_count": 52,
+            "true_positive_count": 3
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.5,
+            "interpretability": "raw",
+            "reasons": [
+              "precision_is_too_low_for_stage"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_2w",
+                "mode": "raw",
+                "true_positive_median": 0.204099,
+                "true_positive_p25": 0.14865,
+                "true_positive_p75": 0.233417,
+                "historical_percentile": 0.9846,
+                "severity_score": 0.9846
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_2w",
+              "mode": "raw",
+              "true_positive_median": 0.204099,
+              "true_positive_p25": 0.14865,
+              "true_positive_p75": 0.233417,
+              "historical_percentile": 0.9846,
+              "severity_score": 0.9846
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 52,
+            "coverage": 0.1,
+            "true_positive_count": 3
+          }
+        }
+      }
+    },
+    "DX-Y.NYB": {
+      "weight": 0.85,
+      "thresholds": {
+        "warning": {
+          "feature": "level_percentile",
+          "threshold": 0.781731,
+          "direction": "higher"
+        },
+        "danger": {
+          "feature": "level_percentile",
+          "threshold": 0.903846,
+          "direction": "higher"
+        },
+        "extreme": {
+          "feature": "roc_z_1w",
+          "threshold": 1.148726,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.1212,
+            "precision": 0.0851,
+            "recall": 0.2105,
+            "false_positive_rate": 0.0953,
+            "average_lead_weeks": 1.5,
+            "coverage": 0.1,
+            "predicted_count": 47,
+            "true_positive_count": 4
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.3,
+            "interpretability": "anchored_transform",
+            "reasons": [
+              "precision_is_too_low_for_stage"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_1w",
+                "mode": "derived_roc",
+                "true_positive_median": 0.021214,
+                "true_positive_p25": 0.012343,
+                "true_positive_p75": 0.03219,
+                "historical_percentile": 0.9885,
+                "severity_score": 0.9885
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_1w",
+              "mode": "derived_roc",
+              "true_positive_median": 0.021214,
+              "true_positive_p25": 0.012343,
+              "true_positive_p75": 0.03219,
+              "historical_percentile": 0.9885,
+              "severity_score": 0.9885
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 47,
+            "coverage": 0.1,
+            "true_positive_count": 4
+          }
+        }
+      }
+    },
+    "^TNX": {
+      "weight": 1.05,
+      "thresholds": {
+        "warning": {
+          "feature": "level_percentile",
+          "threshold": 0.875,
+          "direction": "higher"
+        },
+        "danger": {
+          "feature": "roc_2w",
+          "threshold": 0.053033,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.2824,
+            "precision": 0.2308,
+            "recall": 0.3636,
+            "false_positive_rate": 0.1762,
+            "average_lead_weeks": 2.5417,
+            "coverage": 0.2,
+            "predicted_count": 104,
+            "true_positive_count": 24
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.5,
+            "interpretability": "raw",
+            "reasons": [
+              "precision_is_too_low_for_stage"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_2w",
+                "mode": "raw",
+                "true_positive_median": 0.085074,
+                "true_positive_p25": 0.070596,
+                "true_positive_p75": 0.15693,
+                "historical_percentile": 0.8923,
+                "severity_score": 0.8923
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_2w",
+              "mode": "raw",
+              "true_positive_median": 0.085074,
+              "true_positive_p25": 0.070596,
+              "true_positive_p75": 0.15693,
+              "historical_percentile": 0.8923,
+              "severity_score": 0.8923
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 104,
+            "coverage": 0.2,
+            "true_positive_count": 24
+          }
+        },
+        "extreme": {
+          "feature": "roc_1w",
+          "threshold": 0.061883,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.1389,
+            "precision": 0.0943,
+            "recall": 0.2632,
+            "false_positive_rate": 0.0956,
+            "average_lead_weeks": 2.0,
+            "coverage": 0.1017,
+            "predicted_count": 53,
+            "true_positive_count": 5
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.5,
+            "interpretability": "raw",
+            "reasons": [
+              "precision_is_too_low_for_stage"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_1w",
+                "mode": "raw",
+                "true_positive_median": 0.241908,
+                "true_positive_p25": 0.130376,
+                "true_positive_p75": 0.347026,
+                "historical_percentile": 0.9942,
+                "severity_score": 0.9942
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_1w",
+              "mode": "raw",
+              "true_positive_median": 0.241908,
+              "true_positive_p25": 0.130376,
+              "true_positive_p75": 0.347026,
+              "historical_percentile": 0.9942,
+              "severity_score": 0.9942
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 53,
+            "coverage": 0.1017,
+            "true_positive_count": 5
+          }
+        }
+      }
+    }
+  }
+}

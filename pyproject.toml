@@ -1,0 +1,83 @@
+[tool.black]
+line-length = 140
+target-version = ["py311"]
+include = 'project/(reliability_policy|action_validation|config_loader|config_schema)\.py|project/report_sections/.*\.py'
+force-exclude = '''
+(
+  ^/\.tmp/
+  | ^/\.pytest_tmp/
+  | ^/\.test_tmp
+  | ^/pytest-cache-files-
+  | ^/project/\.runtime/
+  | ^/project/reports/
+  | ^/project/cache/
+  | ^/project/logs/
+  | ^/project/sample_output/
+)
+'''
+
+[tool.ruff]
+line-length = 140
+target-version = "py311"
+include = [
+  "project/reliability_policy.py",
+  "project/action_validation.py",
+  "project/config_loader.py",
+  "project/config_schema.py",
+  "project/report_sections/*.py",
+]
+exclude = [
+  ".git",
+  ".tmp",
+  ".pytest_tmp",
+  ".test_tmp*",
+  "pytest-cache-files-*",
+  "project/.runtime",
+  "project/reports",
+  "project/cache",
+  "project/logs",
+  "project/sample_output",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+no_strict_optional = false
+
+[[tool.mypy.overrides]]
+module = ["yaml"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+  "project.reliability_policy",
+  "project.action_validation",
+  "project.config_loader",
+  "project.config_schema",
+  "project.threshold_metadata",
+  "project.threshold_candidate_policy",
+  "project.threshold_certainty",
+  "project.threshold_decision_policy",
+]
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+  "project.analogue_search",
+  "project.asset_compare",
+  "project.pipeline",
+  "project.regime_analysis",
+  "project.risk_line_calibration_report",
+  "project.risk_line_reality_check_report",
+  "project.risk_line_threshold_drift_report",
+  "project.scoring",
+  "project.sector_rotation",
+  "project.sector_structure_summary",
+  "project.stress_monitor",
+]
+follow_imports = "skip"

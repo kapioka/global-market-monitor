@@ -1,0 +1,3524 @@
+{
+  "schema_version": 1,
+  "threshold_set": {
+    "name": "risk-line-proposed",
+    "version": "2026-05-15-195723",
+    "status": "proposed",
+    "generated_at": "2026-05-15T19:57:23+09:00",
+    "source_report": "risk_line_reality_checked_thresholds",
+    "notes": "Generated from the latest reality-checked threshold report with full stage coverage. Manual approval required before live apply."
+  },
+  "indicators": {
+    "SPY": {
+      "weight": 1.15,
+      "ordering_checks": [
+        {
+          "target": "warning_target",
+          "predicted_count": 211,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "danger_target",
+          "predicted_count": 211,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "extreme_target",
+          "predicted_count": 154,
+          "status": "ok",
+          "detail": ""
+        }
+      ],
+      "thresholds": {
+        "warning": {
+          "feature": "drawdown_and_roc_4w",
+          "threshold": 0.0,
+          "direction": "lower",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.6091,
+            "precision": 0.8863,
+            "recall": 0.464,
+            "false_positive_rate": 0.3871,
+            "average_lead_weeks": 1.1818,
+            "coverage": 0.4538,
+            "predicted_count": 211,
+            "true_positive_count": 187
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 3.6,
+            "interpretability": "composite_transform",
+            "reasons": [
+              "false_positive_rate_is_too_high_for_stage",
+              "triggered_true_positives_do_not_look_severe_enough_in_actual_values"
+            ],
+            "anchors": [
+              {
+                "metric": "drawdown_13w",
+                "mode": "derived_drawdown",
+                "true_positive_median": 0.0,
+                "true_positive_p25": -0.011761,
+                "true_positive_p75": 0.0,
+                "historical_percentile": 1.0,
+                "severity_score": 0.0
+              },
+              {
+                "metric": "roc_4w",
+                "mode": "derived_roc",
+                "true_positive_median": 0.042141,
+                "true_positive_p25": 0.026987,
+                "true_positive_p75": 0.059728,
+                "historical_percentile": 0.7713,
+                "severity_score": 0.2287
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "drawdown_13w",
+              "mode": "derived_drawdown",
+              "true_positive_median": 0.0,
+              "true_positive_p25": -0.011761,
+              "true_positive_p75": 0.0,
+              "historical_percentile": 1.0,
+              "severity_score": 0.0
+            },
+            {
+              "metric": "roc_4w",
+              "mode": "derived_roc",
+              "true_positive_median": 0.042141,
+              "true_positive_p25": 0.026987,
+              "true_positive_p75": 0.059728,
+              "historical_percentile": 0.7713,
+              "severity_score": 0.2287
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 211,
+            "coverage": 0.4538,
+            "true_positive_count": 187
+          },
+          "metadata": {
+            "indicator": "SPY",
+            "family": "equity",
+            "threshold_type": "warning",
+            "value": 0.0,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 211,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "drawdown_and_roc_4w",
+              "direction": "lower",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.6091,
+                "precision": 0.8863,
+                "recall": 0.464,
+                "false_positive_rate": 0.3871,
+                "average_lead_weeks": 1.1818,
+                "coverage": 0.4538,
+                "predicted_count": 211,
+                "true_positive_count": 187
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 3.6,
+                "interpretability": "composite_transform",
+                "reasons": [
+                  "false_positive_rate_is_too_high_for_stage",
+                  "triggered_true_positives_do_not_look_severe_enough_in_actual_values"
+                ],
+                "anchors": [
+                  {
+                    "metric": "drawdown_13w",
+                    "mode": "derived_drawdown",
+                    "true_positive_median": 0.0,
+                    "true_positive_p25": -0.011761,
+                    "true_positive_p75": 0.0,
+                    "historical_percentile": 1.0,
+                    "severity_score": 0.0
+                  },
+                  {
+                    "metric": "roc_4w",
+                    "mode": "derived_roc",
+                    "true_positive_median": 0.042141,
+                    "true_positive_p25": 0.026987,
+                    "true_positive_p75": 0.059728,
+                    "historical_percentile": 0.7713,
+                    "severity_score": 0.2287
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "danger": {
+          "feature": "drawdown_and_roc_4w",
+          "threshold": 0.0,
+          "direction": "lower",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.5663,
+            "precision": 0.7488,
+            "recall": 0.4553,
+            "false_positive_rate": 0.4492,
+            "average_lead_weeks": 1.2278,
+            "coverage": 0.4538,
+            "predicted_count": 211,
+            "true_positive_count": 158
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 3.6,
+            "interpretability": "composite_transform",
+            "reasons": [
+              "false_positive_rate_is_too_high_for_stage",
+              "triggered_true_positives_do_not_look_severe_enough_in_actual_values"
+            ],
+            "anchors": [
+              {
+                "metric": "drawdown_13w",
+                "mode": "derived_drawdown",
+                "true_positive_median": 0.0,
+                "true_positive_p25": -0.011999,
+                "true_positive_p75": 0.0,
+                "historical_percentile": 1.0,
+                "severity_score": 0.0
+              },
+              {
+                "metric": "roc_4w",
+                "mode": "derived_roc",
+                "true_positive_median": 0.042196,
+                "true_positive_p25": 0.025079,
+                "true_positive_p75": 0.060087,
+                "historical_percentile": 0.7713,
+                "severity_score": 0.2287
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "drawdown_13w",
+              "mode": "derived_drawdown",
+              "true_positive_median": 0.0,
+              "true_positive_p25": -0.011999,
+              "true_positive_p75": 0.0,
+              "historical_percentile": 1.0,
+              "severity_score": 0.0
+            },
+            {
+              "metric": "roc_4w",
+              "mode": "derived_roc",
+              "true_positive_median": 0.042196,
+              "true_positive_p25": 0.025079,
+              "true_positive_p75": 0.060087,
+              "historical_percentile": 0.7713,
+              "severity_score": 0.2287
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 211,
+            "coverage": 0.4538,
+            "true_positive_count": 158
+          },
+          "metadata": {
+            "indicator": "SPY",
+            "family": "equity",
+            "threshold_type": "danger",
+            "value": 0.0,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 211,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "drawdown_and_roc_4w",
+              "direction": "lower",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.5663,
+                "precision": 0.7488,
+                "recall": 0.4553,
+                "false_positive_rate": 0.4492,
+                "average_lead_weeks": 1.2278,
+                "coverage": 0.4538,
+                "predicted_count": 211,
+                "true_positive_count": 158
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 3.6,
+                "interpretability": "composite_transform",
+                "reasons": [
+                  "false_positive_rate_is_too_high_for_stage",
+                  "triggered_true_positives_do_not_look_severe_enough_in_actual_values"
+                ],
+                "anchors": [
+                  {
+                    "metric": "drawdown_13w",
+                    "mode": "derived_drawdown",
+                    "true_positive_median": 0.0,
+                    "true_positive_p25": -0.011999,
+                    "true_positive_p75": 0.0,
+                    "historical_percentile": 1.0,
+                    "severity_score": 0.0
+                  },
+                  {
+                    "metric": "roc_4w",
+                    "mode": "derived_roc",
+                    "true_positive_median": 0.042196,
+                    "true_positive_p25": 0.025079,
+                    "true_positive_p75": 0.060087,
+                    "historical_percentile": 0.7713,
+                    "severity_score": 0.2287
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "extreme": {
+          "feature": "roc_8w",
+          "threshold": -0.013482,
+          "direction": "lower",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.265,
+            "precision": 0.2013,
+            "recall": 0.3875,
+            "false_positive_rate": 0.2847,
+            "average_lead_weeks": 2.2258,
+            "coverage": 0.3008,
+            "predicted_count": 154,
+            "true_positive_count": 31
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 4.5,
+            "interpretability": "raw",
+            "reasons": [
+              "false_positive_rate_is_too_high_for_stage",
+              "candidate_quantile_does_not_match_stage_severity",
+              "extreme_stage_is_too_frequent"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_8w",
+                "mode": "raw",
+                "true_positive_median": -0.039554,
+                "true_positive_p25": -0.054762,
+                "true_positive_p75": -0.028634,
+                "historical_percentile": 0.1797,
+                "severity_score": 0.8203
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_8w",
+              "mode": "raw",
+              "true_positive_median": -0.039554,
+              "true_positive_p25": -0.054762,
+              "true_positive_p75": -0.028634,
+              "historical_percentile": 0.1797,
+              "severity_score": 0.8203
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 154,
+            "coverage": 0.3008,
+            "true_positive_count": 31
+          },
+          "metadata": {
+            "indicator": "SPY",
+            "family": "equity",
+            "threshold_type": "extreme",
+            "value": -0.013482,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 154,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "roc_8w",
+              "direction": "lower",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.265,
+                "precision": 0.2013,
+                "recall": 0.3875,
+                "false_positive_rate": 0.2847,
+                "average_lead_weeks": 2.2258,
+                "coverage": 0.3008,
+                "predicted_count": 154,
+                "true_positive_count": 31
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 4.5,
+                "interpretability": "raw",
+                "reasons": [
+                  "false_positive_rate_is_too_high_for_stage",
+                  "candidate_quantile_does_not_match_stage_severity",
+                  "extreme_stage_is_too_frequent"
+                ],
+                "anchors": [
+                  {
+                    "metric": "roc_8w",
+                    "mode": "raw",
+                    "true_positive_median": -0.039554,
+                    "true_positive_p25": -0.054762,
+                    "true_positive_p75": -0.028634,
+                    "historical_percentile": 0.1797,
+                    "severity_score": 0.8203
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "HYG": {
+      "weight": 1.05,
+      "ordering_checks": [
+        {
+          "target": "warning_target",
+          "predicted_count": 141,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "danger_target",
+          "predicted_count": 154,
+          "status": "warning",
+          "detail": "predicted_count_is_not_monotonic"
+        },
+        {
+          "target": "extreme_target",
+          "predicted_count": 47,
+          "status": "ok",
+          "detail": ""
+        }
+      ],
+      "thresholds": {
+        "warning": {
+          "feature": "level_zscore",
+          "threshold": -0.782115,
+          "direction": "lower",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.5146,
+            "precision": 1.0,
+            "recall": 0.3464,
+            "false_positive_rate": 0.0,
+            "average_lead_weeks": 1.0,
+            "coverage": 0.3006,
+            "predicted_count": 141,
+            "true_positive_count": 141
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.3,
+            "interpretability": "anchored_transform",
+            "reasons": [
+              "false_positive_rate_is_too_high_for_stage"
+            ],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 92.206028,
+                "true_positive_p25": 78.195419,
+                "true_positive_p75": 97.276664,
+                "historical_percentile": 0.2846,
+                "severity_score": 0.7154
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 92.206028,
+              "true_positive_p25": 78.195419,
+              "true_positive_p75": 97.276664,
+              "historical_percentile": 0.2846,
+              "severity_score": 0.7154
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 141,
+            "coverage": 0.3006,
+            "true_positive_count": 141
+          },
+          "metadata": {
+            "indicator": "HYG",
+            "family": "credit",
+            "threshold_type": "warning",
+            "value": -0.782115,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 141,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "level_zscore",
+              "direction": "lower",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.5146,
+                "precision": 1.0,
+                "recall": 0.3464,
+                "false_positive_rate": 0.0,
+                "average_lead_weeks": 1.0,
+                "coverage": 0.3006,
+                "predicted_count": 141,
+                "true_positive_count": 141
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 5.3,
+                "interpretability": "anchored_transform",
+                "reasons": [
+                  "false_positive_rate_is_too_high_for_stage"
+                ],
+                "anchors": [
+                  {
+                    "metric": "current",
+                    "mode": "derived_current",
+                    "true_positive_median": 92.206028,
+                    "true_positive_p25": 78.195419,
+                    "true_positive_p75": 97.276664,
+                    "historical_percentile": 0.2846,
+                    "severity_score": 0.7154
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "danger": {
+          "feature": "roc_8w",
+          "threshold": -0.0166,
+          "direction": "lower",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.4818,
+            "precision": 0.8571,
+            "recall": 0.335,
+            "false_positive_rate": 0.1864,
+            "average_lead_weeks": 1.1591,
+            "coverage": 0.3008,
+            "predicted_count": 154,
+            "true_positive_count": 132
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.5,
+            "interpretability": "raw",
+            "reasons": [
+              "candidate_quantile_does_not_match_stage_severity"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_8w",
+                "mode": "raw",
+                "true_positive_median": -0.037133,
+                "true_positive_p25": -0.055526,
+                "true_positive_p75": -0.026486,
+                "historical_percentile": 0.1562,
+                "severity_score": 0.8438
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_8w",
+              "mode": "raw",
+              "true_positive_median": -0.037133,
+              "true_positive_p25": -0.055526,
+              "true_positive_p75": -0.026486,
+              "historical_percentile": 0.1562,
+              "severity_score": 0.8438
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 154,
+            "coverage": 0.3008,
+            "true_positive_count": 132
+          },
+          "metadata": {
+            "indicator": "HYG",
+            "family": "credit",
+            "threshold_type": "danger",
+            "value": -0.0166,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 154,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "roc_8w",
+              "direction": "lower",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.4818,
+                "precision": 0.8571,
+                "recall": 0.335,
+                "false_positive_rate": 0.1864,
+                "average_lead_weeks": 1.1591,
+                "coverage": 0.3008,
+                "predicted_count": 154,
+                "true_positive_count": 132
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 5.5,
+                "interpretability": "raw",
+                "reasons": [
+                  "candidate_quantile_does_not_match_stage_severity"
+                ],
+                "anchors": [
+                  {
+                    "metric": "roc_8w",
+                    "mode": "raw",
+                    "true_positive_median": -0.037133,
+                    "true_positive_p25": -0.055526,
+                    "true_positive_p75": -0.026486,
+                    "historical_percentile": 0.1562,
+                    "severity_score": 0.8438
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "extreme": {
+          "feature": "level_zscore",
+          "threshold": -1.915502,
+          "direction": "lower",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.313,
+            "precision": 0.383,
+            "recall": 0.2647,
+            "false_positive_rate": 0.0723,
+            "average_lead_weeks": 2.3333,
+            "coverage": 0.1002,
+            "predicted_count": 47,
+            "true_positive_count": 18
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.3,
+            "interpretability": "anchored_transform",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 83.127842,
+                "true_positive_p25": 80.773318,
+                "true_positive_p75": 88.854834,
+                "historical_percentile": 0.2115,
+                "severity_score": 0.7885
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 83.127842,
+              "true_positive_p25": 80.773318,
+              "true_positive_p75": 88.854834,
+              "historical_percentile": 0.2115,
+              "severity_score": 0.7885
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 47,
+            "coverage": 0.1002,
+            "true_positive_count": 18
+          },
+          "metadata": {
+            "indicator": "HYG",
+            "family": "credit",
+            "threshold_type": "extreme",
+            "value": -1.915502,
+            "source": "historical_quantile",
+            "confidence": "low",
+            "sample_count": 47,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "adopt",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "weak evidence or review status prevents final-action use.",
+            "evidence": {
+              "feature": "level_zscore",
+              "direction": "lower",
+              "decision": "adopt",
+              "selection_mode": "adopt",
+              "coverage_forced": false,
+              "backtest_metrics": {
+                "full_f1": 0.313,
+                "precision": 0.383,
+                "recall": 0.2647,
+                "false_positive_rate": 0.0723,
+                "average_lead_weeks": 2.3333,
+                "coverage": 0.1002,
+                "predicted_count": 47,
+                "true_positive_count": 18
+              },
+              "actual_value_check": {
+                "status": "pass",
+                "sanity_score": 6.3,
+                "interpretability": "anchored_transform",
+                "reasons": [],
+                "anchors": [
+                  {
+                    "metric": "current",
+                    "mode": "derived_current",
+                    "true_positive_median": 83.127842,
+                    "true_positive_p25": 80.773318,
+                    "true_positive_p75": 88.854834,
+                    "historical_percentile": 0.2115,
+                    "severity_score": 0.7885
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "LQD": {
+      "weight": 0.85,
+      "ordering_checks": [
+        {
+          "target": "warning_target",
+          "predicted_count": 183,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "danger_target",
+          "predicted_count": 197,
+          "status": "warning",
+          "detail": "predicted_count_is_not_monotonic"
+        },
+        {
+          "target": "extreme_target",
+          "predicted_count": 117,
+          "status": "ok",
+          "detail": ""
+        }
+      ],
+      "thresholds": {
+        "warning": {
+          "feature": "adverse_persistence_4",
+          "threshold": 1.0,
+          "direction": "lower",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.5141,
+            "precision": 0.8962,
+            "recall": 0.3604,
+            "false_positive_rate": 0.3065,
+            "average_lead_weeks": 1.189,
+            "coverage": 0.354,
+            "predicted_count": 183,
+            "true_positive_count": 164
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 4.45,
+            "interpretability": "persistence",
+            "reasons": [
+              "actual_value_anchor_is_not_available"
+            ],
+            "anchors": []
+          },
+          "raw_value_reference": [],
+          "frequency_profile": {
+            "predicted_count": 183,
+            "coverage": 0.354,
+            "true_positive_count": 164
+          },
+          "metadata": {
+            "indicator": "LQD",
+            "family": "credit",
+            "threshold_type": "warning",
+            "value": 1.0,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 183,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "adverse_persistence_4",
+              "direction": "lower",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.5141,
+                "precision": 0.8962,
+                "recall": 0.3604,
+                "false_positive_rate": 0.3065,
+                "average_lead_weeks": 1.189,
+                "coverage": 0.354,
+                "predicted_count": 183,
+                "true_positive_count": 164
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 4.45,
+                "interpretability": "persistence",
+                "reasons": [
+                  "actual_value_anchor_is_not_available"
+                ],
+                "anchors": []
+              }
+            }
+          }
+        },
+        "danger": {
+          "feature": "drawdown_and_roc_4w",
+          "threshold": 0.0,
+          "direction": "lower",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.5404,
+            "precision": 0.7462,
+            "recall": 0.4236,
+            "false_positive_rate": 0.4237,
+            "average_lead_weeks": 1.2109,
+            "coverage": 0.4237,
+            "predicted_count": 197,
+            "true_positive_count": 147
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.1,
+            "interpretability": "composite_transform",
+            "reasons": [
+              "false_positive_rate_is_too_high_for_stage"
+            ],
+            "anchors": [
+              {
+                "metric": "drawdown_13w",
+                "mode": "derived_drawdown",
+                "true_positive_median": -0.001662,
+                "true_positive_p25": -0.007187,
+                "true_positive_p75": 0.0,
+                "historical_percentile": 0.7598,
+                "severity_score": 0.2402
+              },
+              {
+                "metric": "roc_4w",
+                "mode": "derived_roc",
+                "true_positive_median": 0.014297,
+                "true_positive_p25": 0.006956,
+                "true_positive_p75": 0.020594,
+                "historical_percentile": 0.7713,
+                "severity_score": 0.2287
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "drawdown_13w",
+              "mode": "derived_drawdown",
+              "true_positive_median": -0.001662,
+              "true_positive_p25": -0.007187,
+              "true_positive_p75": 0.0,
+              "historical_percentile": 0.7598,
+              "severity_score": 0.2402
+            },
+            {
+              "metric": "roc_4w",
+              "mode": "derived_roc",
+              "true_positive_median": 0.014297,
+              "true_positive_p25": 0.006956,
+              "true_positive_p75": 0.020594,
+              "historical_percentile": 0.7713,
+              "severity_score": 0.2287
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 197,
+            "coverage": 0.4237,
+            "true_positive_count": 147
+          },
+          "metadata": {
+            "indicator": "LQD",
+            "family": "credit",
+            "threshold_type": "danger",
+            "value": 0.0,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 197,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "drawdown_and_roc_4w",
+              "direction": "lower",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.5404,
+                "precision": 0.7462,
+                "recall": 0.4236,
+                "false_positive_rate": 0.4237,
+                "average_lead_weeks": 1.2109,
+                "coverage": 0.4237,
+                "predicted_count": 197,
+                "true_positive_count": 147
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 5.1,
+                "interpretability": "composite_transform",
+                "reasons": [
+                  "false_positive_rate_is_too_high_for_stage"
+                ],
+                "anchors": [
+                  {
+                    "metric": "drawdown_13w",
+                    "mode": "derived_drawdown",
+                    "true_positive_median": -0.001662,
+                    "true_positive_p25": -0.007187,
+                    "true_positive_p75": 0.0,
+                    "historical_percentile": 0.7598,
+                    "severity_score": 0.2402
+                  },
+                  {
+                    "metric": "roc_4w",
+                    "mode": "derived_roc",
+                    "true_positive_median": 0.014297,
+                    "true_positive_p25": 0.006956,
+                    "true_positive_p75": 0.020594,
+                    "historical_percentile": 0.7713,
+                    "severity_score": 0.2287
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "extreme": {
+          "feature": "level_zscore",
+          "threshold": -0.455819,
+          "direction": "lower",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.3333,
+            "precision": 0.2627,
+            "recall": 0.4559,
+            "false_positive_rate": 0.217,
+            "average_lead_weeks": 2.2903,
+            "coverage": 0.2516,
+            "predicted_count": 118,
+            "true_positive_count": 31
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 4.3,
+            "interpretability": "anchored_transform",
+            "reasons": [
+              "false_positive_rate_is_too_high_for_stage",
+              "candidate_quantile_does_not_match_stage_severity",
+              "extreme_stage_is_too_frequent"
+            ],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 112.526706,
+                "true_positive_p25": 110.548035,
+                "true_positive_p75": 112.756198,
+                "historical_percentile": 0.3577,
+                "severity_score": 0.6423
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 112.526706,
+              "true_positive_p25": 110.548035,
+              "true_positive_p75": 112.756198,
+              "historical_percentile": 0.3577,
+              "severity_score": 0.6423
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 118,
+            "coverage": 0.2516,
+            "true_positive_count": 31
+          },
+          "metadata": {
+            "indicator": "LQD",
+            "family": "credit",
+            "threshold_type": "extreme",
+            "value": -0.455819,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 118,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "level_zscore",
+              "direction": "lower",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.3333,
+                "precision": 0.2627,
+                "recall": 0.4559,
+                "false_positive_rate": 0.217,
+                "average_lead_weeks": 2.2903,
+                "coverage": 0.2516,
+                "predicted_count": 118,
+                "true_positive_count": 31
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 4.3,
+                "interpretability": "anchored_transform",
+                "reasons": [
+                  "false_positive_rate_is_too_high_for_stage",
+                  "candidate_quantile_does_not_match_stage_severity",
+                  "extreme_stage_is_too_frequent"
+                ],
+                "anchors": [
+                  {
+                    "metric": "current",
+                    "mode": "derived_current",
+                    "true_positive_median": 112.526706,
+                    "true_positive_p25": 110.548035,
+                    "true_positive_p75": 112.756198,
+                    "historical_percentile": 0.3577,
+                    "severity_score": 0.6423
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "HYG/LQD": {
+      "weight": 1.3,
+      "ordering_checks": [
+        {
+          "target": "warning_target",
+          "predicted_count": 155,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "danger_target",
+          "predicted_count": 141,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "extreme_target",
+          "predicted_count": 47,
+          "status": "ok",
+          "detail": ""
+        }
+      ],
+      "thresholds": {
+        "warning": {
+          "feature": "roc_4w",
+          "threshold": -0.017011,
+          "direction": "lower",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.4631,
+            "precision": 0.9097,
+            "recall": 0.3106,
+            "false_positive_rate": 0.2258,
+            "average_lead_weeks": 1.1773,
+            "coverage": 0.3004,
+            "predicted_count": 155,
+            "true_positive_count": 141
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.5,
+            "interpretability": "raw",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "roc_4w",
+                "mode": "raw",
+                "true_positive_median": -0.035787,
+                "true_positive_p25": -0.048699,
+                "true_positive_p75": -0.025994,
+                "historical_percentile": 0.1473,
+                "severity_score": 0.8527
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_4w",
+              "mode": "raw",
+              "true_positive_median": -0.035787,
+              "true_positive_p25": -0.048699,
+              "true_positive_p75": -0.025994,
+              "historical_percentile": 0.1473,
+              "severity_score": 0.8527
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 155,
+            "coverage": 0.3004,
+            "true_positive_count": 141
+          },
+          "metadata": {
+            "indicator": "HYG/LQD",
+            "family": "credit",
+            "threshold_type": "warning",
+            "value": -0.017011,
+            "source": "historical_quantile",
+            "confidence": "medium",
+            "sample_count": 155,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "adopt",
+            "allow_final_action": true,
+            "allow_extreme_stage": true,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "passes_backtest_and_actual_value_check",
+            "evidence": {
+              "feature": "roc_4w",
+              "direction": "lower",
+              "decision": "adopt",
+              "selection_mode": "adopt",
+              "coverage_forced": false,
+              "backtest_metrics": {
+                "full_f1": 0.4631,
+                "precision": 0.9097,
+                "recall": 0.3106,
+                "false_positive_rate": 0.2258,
+                "average_lead_weeks": 1.1773,
+                "coverage": 0.3004,
+                "predicted_count": 155,
+                "true_positive_count": 141
+              },
+              "actual_value_check": {
+                "status": "pass",
+                "sanity_score": 6.5,
+                "interpretability": "raw",
+                "reasons": [],
+                "anchors": [
+                  {
+                    "metric": "roc_4w",
+                    "mode": "raw",
+                    "true_positive_median": -0.035787,
+                    "true_positive_p25": -0.048699,
+                    "true_positive_p75": -0.025994,
+                    "historical_percentile": 0.1473,
+                    "severity_score": 0.8527
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "danger": {
+          "feature": "level_zscore",
+          "threshold": -0.929829,
+          "direction": "lower",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.5447,
+            "precision": 0.9504,
+            "recall": 0.3818,
+            "false_positive_rate": 0.0593,
+            "average_lead_weeks": 1.0224,
+            "coverage": 0.3006,
+            "predicted_count": 141,
+            "true_positive_count": 134
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.3,
+            "interpretability": "anchored_transform",
+            "reasons": [
+              "candidate_quantile_does_not_match_stage_severity"
+            ],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 0.820128,
+                "true_positive_p25": 0.697939,
+                "true_positive_p75": 0.910905,
+                "historical_percentile": 0.3212,
+                "severity_score": 0.6788
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 0.820128,
+              "true_positive_p25": 0.697939,
+              "true_positive_p75": 0.910905,
+              "historical_percentile": 0.3212,
+              "severity_score": 0.6788
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 141,
+            "coverage": 0.3006,
+            "true_positive_count": 134
+          },
+          "metadata": {
+            "indicator": "HYG/LQD",
+            "family": "credit",
+            "threshold_type": "danger",
+            "value": -0.929829,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 141,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "level_zscore",
+              "direction": "lower",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.5447,
+                "precision": 0.9504,
+                "recall": 0.3818,
+                "false_positive_rate": 0.0593,
+                "average_lead_weeks": 1.0224,
+                "coverage": 0.3006,
+                "predicted_count": 141,
+                "true_positive_count": 134
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 5.3,
+                "interpretability": "anchored_transform",
+                "reasons": [
+                  "candidate_quantile_does_not_match_stage_severity"
+                ],
+                "anchors": [
+                  {
+                    "metric": "current",
+                    "mode": "derived_current",
+                    "true_positive_median": 0.820128,
+                    "true_positive_p25": 0.697939,
+                    "true_positive_p75": 0.910905,
+                    "historical_percentile": 0.3212,
+                    "severity_score": 0.6788
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "extreme": {
+          "feature": "level_zscore",
+          "threshold": -1.719363,
+          "direction": "lower",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.2957,
+            "precision": 0.3617,
+            "recall": 0.25,
+            "false_positive_rate": 0.0748,
+            "average_lead_weeks": 2.1765,
+            "coverage": 0.1002,
+            "predicted_count": 47,
+            "true_positive_count": 17
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.3,
+            "interpretability": "anchored_transform",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 0.730154,
+                "true_positive_p25": 0.703879,
+                "true_positive_p75": 0.780643,
+                "historical_percentile": 0.1673,
+                "severity_score": 0.8327
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 0.730154,
+              "true_positive_p25": 0.703879,
+              "true_positive_p75": 0.780643,
+              "historical_percentile": 0.1673,
+              "severity_score": 0.8327
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 47,
+            "coverage": 0.1002,
+            "true_positive_count": 17
+          },
+          "metadata": {
+            "indicator": "HYG/LQD",
+            "family": "credit",
+            "threshold_type": "extreme",
+            "value": -1.719363,
+            "source": "historical_quantile",
+            "confidence": "low",
+            "sample_count": 47,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "adopt",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "weak evidence or review status prevents final-action use.",
+            "evidence": {
+              "feature": "level_zscore",
+              "direction": "lower",
+              "decision": "adopt",
+              "selection_mode": "adopt",
+              "coverage_forced": false,
+              "backtest_metrics": {
+                "full_f1": 0.2957,
+                "precision": 0.3617,
+                "recall": 0.25,
+                "false_positive_rate": 0.0748,
+                "average_lead_weeks": 2.1765,
+                "coverage": 0.1002,
+                "predicted_count": 47,
+                "true_positive_count": 17
+              },
+              "actual_value_check": {
+                "status": "pass",
+                "sanity_score": 6.3,
+                "interpretability": "anchored_transform",
+                "reasons": [],
+                "anchors": [
+                  {
+                    "metric": "current",
+                    "mode": "derived_current",
+                    "true_positive_median": 0.730154,
+                    "true_positive_p25": 0.703879,
+                    "true_positive_p75": 0.780643,
+                    "historical_percentile": 0.1673,
+                    "severity_score": 0.8327
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "^VIX": {
+      "weight": 1.2,
+      "ordering_checks": [
+        {
+          "target": "warning_target",
+          "predicted_count": 154,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "danger_target",
+          "predicted_count": 154,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "extreme_target",
+          "predicted_count": 62,
+          "status": "ok",
+          "detail": ""
+        }
+      ],
+      "thresholds": {
+        "warning": {
+          "feature": "roc_8w",
+          "threshold": 0.039703,
+          "direction": "higher",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.4768,
+            "precision": 0.9351,
+            "recall": 0.32,
+            "false_positive_rate": 0.1613,
+            "average_lead_weeks": 1.1042,
+            "coverage": 0.3008,
+            "predicted_count": 154,
+            "true_positive_count": 144
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.5,
+            "interpretability": "raw",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "roc_8w",
+                "mode": "raw",
+                "true_positive_median": 0.115665,
+                "true_positive_p25": 0.083954,
+                "true_positive_p75": 0.158369,
+                "historical_percentile": 0.8516,
+                "severity_score": 0.8516
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_8w",
+              "mode": "raw",
+              "true_positive_median": 0.115665,
+              "true_positive_p25": 0.083954,
+              "true_positive_p75": 0.158369,
+              "historical_percentile": 0.8516,
+              "severity_score": 0.8516
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 154,
+            "coverage": 0.3008,
+            "true_positive_count": 144
+          },
+          "metadata": {
+            "indicator": "^VIX",
+            "family": "volatility",
+            "threshold_type": "warning",
+            "value": 0.039703,
+            "source": "historical_quantile",
+            "confidence": "medium",
+            "sample_count": 154,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "adopt",
+            "allow_final_action": true,
+            "allow_extreme_stage": true,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "passes_backtest_and_actual_value_check",
+            "evidence": {
+              "feature": "roc_8w",
+              "direction": "higher",
+              "decision": "adopt",
+              "selection_mode": "adopt",
+              "coverage_forced": false,
+              "backtest_metrics": {
+                "full_f1": 0.4768,
+                "precision": 0.9351,
+                "recall": 0.32,
+                "false_positive_rate": 0.1613,
+                "average_lead_weeks": 1.1042,
+                "coverage": 0.3008,
+                "predicted_count": 154,
+                "true_positive_count": 144
+              },
+              "actual_value_check": {
+                "status": "pass",
+                "sanity_score": 6.5,
+                "interpretability": "raw",
+                "reasons": [],
+                "anchors": [
+                  {
+                    "metric": "roc_8w",
+                    "mode": "raw",
+                    "true_positive_median": 0.115665,
+                    "true_positive_p25": 0.083954,
+                    "true_positive_p75": 0.158369,
+                    "historical_percentile": 0.8516,
+                    "severity_score": 0.8516
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "danger": {
+          "feature": "roc_8w",
+          "threshold": 0.039703,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.5,
+            "precision": 0.8896,
+            "recall": 0.3477,
+            "false_positive_rate": 0.1441,
+            "average_lead_weeks": 1.1168,
+            "coverage": 0.3008,
+            "predicted_count": 154,
+            "true_positive_count": 137
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.5,
+            "interpretability": "raw",
+            "reasons": [
+              "candidate_quantile_does_not_match_stage_severity"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_8w",
+                "mode": "raw",
+                "true_positive_median": 0.116465,
+                "true_positive_p25": 0.083975,
+                "true_positive_p75": 0.162942,
+                "historical_percentile": 0.8574,
+                "severity_score": 0.8574
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_8w",
+              "mode": "raw",
+              "true_positive_median": 0.116465,
+              "true_positive_p25": 0.083975,
+              "true_positive_p75": 0.162942,
+              "historical_percentile": 0.8574,
+              "severity_score": 0.8574
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 154,
+            "coverage": 0.3008,
+            "true_positive_count": 137
+          },
+          "metadata": {
+            "indicator": "^VIX",
+            "family": "volatility",
+            "threshold_type": "danger",
+            "value": 0.039703,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 154,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "roc_8w",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.5,
+                "precision": 0.8896,
+                "recall": 0.3477,
+                "false_positive_rate": 0.1441,
+                "average_lead_weeks": 1.1168,
+                "coverage": 0.3008,
+                "predicted_count": 154,
+                "true_positive_count": 137
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 5.5,
+                "interpretability": "raw",
+                "reasons": [
+                  "candidate_quantile_does_not_match_stage_severity"
+                ],
+                "anchors": [
+                  {
+                    "metric": "roc_8w",
+                    "mode": "raw",
+                    "true_positive_median": 0.116465,
+                    "true_positive_p25": 0.083975,
+                    "true_positive_p75": 0.162942,
+                    "historical_percentile": 0.8574,
+                    "severity_score": 0.8574
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "extreme": {
+          "feature": "level_percentile",
+          "threshold": 0.548077,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.2742,
+            "precision": 0.2656,
+            "recall": 0.2833,
+            "false_positive_rate": 0.1317,
+            "average_lead_weeks": 2.2353,
+            "coverage": 0.1535,
+            "predicted_count": 64,
+            "true_positive_count": 17
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.3,
+            "interpretability": "anchored_transform",
+            "reasons": [
+              "candidate_quantile_does_not_match_stage_severity"
+            ],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 78.899325,
+                "true_positive_p25": 74.249872,
+                "true_positive_p75": 85.50314,
+                "historical_percentile": 0.7462,
+                "severity_score": 0.7462
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 78.899325,
+              "true_positive_p25": 74.249872,
+              "true_positive_p75": 85.50314,
+              "historical_percentile": 0.7462,
+              "severity_score": 0.7462
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 64,
+            "coverage": 0.1535,
+            "true_positive_count": 17
+          },
+          "metadata": {
+            "indicator": "^VIX",
+            "family": "volatility",
+            "threshold_type": "extreme",
+            "value": 0.548077,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 64,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "level_percentile",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.2742,
+                "precision": 0.2656,
+                "recall": 0.2833,
+                "false_positive_rate": 0.1317,
+                "average_lead_weeks": 2.2353,
+                "coverage": 0.1535,
+                "predicted_count": 64,
+                "true_positive_count": 17
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 5.3,
+                "interpretability": "anchored_transform",
+                "reasons": [
+                  "candidate_quantile_does_not_match_stage_severity"
+                ],
+                "anchors": [
+                  {
+                    "metric": "current",
+                    "mode": "derived_current",
+                    "true_positive_median": 78.899325,
+                    "true_positive_p25": 74.249872,
+                    "true_positive_p75": 85.50314,
+                    "historical_percentile": 0.7462,
+                    "severity_score": 0.7462
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "^MOVE": {
+      "weight": 1.2,
+      "ordering_checks": [
+        {
+          "target": "warning_target",
+          "predicted_count": 124,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "danger_target",
+          "predicted_count": 124,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "extreme_target",
+          "predicted_count": 154,
+          "status": "warning",
+          "detail": "predicted_count_is_not_monotonic"
+        }
+      ],
+      "thresholds": {
+        "warning": {
+          "feature": "level_percentile",
+          "threshold": 0.923077,
+          "direction": "higher",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.5309,
+            "precision": 0.9847,
+            "recall": 0.3634,
+            "false_positive_rate": 0.0323,
+            "average_lead_weeks": 1.0698,
+            "coverage": 0.3141,
+            "predicted_count": 131,
+            "true_positive_count": 129
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.3,
+            "interpretability": "anchored_transform",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 215.718518,
+                "true_positive_p25": 142.114768,
+                "true_positive_p75": 256.607571,
+                "historical_percentile": 0.4308,
+                "severity_score": 0.4308
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 215.718518,
+              "true_positive_p25": 142.114768,
+              "true_positive_p75": 256.607571,
+              "historical_percentile": 0.4308,
+              "severity_score": 0.4308
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 131,
+            "coverage": 0.3141,
+            "true_positive_count": 129
+          },
+          "metadata": {
+            "indicator": "^MOVE",
+            "family": "volatility",
+            "threshold_type": "warning",
+            "value": 0.923077,
+            "source": "historical_quantile",
+            "confidence": "medium",
+            "sample_count": 131,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "adopt",
+            "allow_final_action": true,
+            "allow_extreme_stage": true,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "passes_backtest_and_actual_value_check",
+            "evidence": {
+              "feature": "level_percentile",
+              "direction": "higher",
+              "decision": "adopt",
+              "selection_mode": "adopt",
+              "coverage_forced": false,
+              "backtest_metrics": {
+                "full_f1": 0.5309,
+                "precision": 0.9847,
+                "recall": 0.3634,
+                "false_positive_rate": 0.0323,
+                "average_lead_weeks": 1.0698,
+                "coverage": 0.3141,
+                "predicted_count": 131,
+                "true_positive_count": 129
+              },
+              "actual_value_check": {
+                "status": "pass",
+                "sanity_score": 6.3,
+                "interpretability": "anchored_transform",
+                "reasons": [],
+                "anchors": [
+                  {
+                    "metric": "current",
+                    "mode": "derived_current",
+                    "true_positive_median": 215.718518,
+                    "true_positive_p25": 142.114768,
+                    "true_positive_p75": 256.607571,
+                    "historical_percentile": 0.4308,
+                    "severity_score": 0.4308
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "danger": {
+          "feature": "level_percentile",
+          "threshold": 0.923077,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.5581,
+            "precision": 0.916,
+            "recall": 0.4013,
+            "false_positive_rate": 0.0932,
+            "average_lead_weeks": 1.0583,
+            "coverage": 0.3141,
+            "predicted_count": 131,
+            "true_positive_count": 120
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.3,
+            "interpretability": "anchored_transform",
+            "reasons": [
+              "candidate_quantile_does_not_match_stage_severity"
+            ],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 211.774062,
+                "true_positive_p25": 141.083036,
+                "true_positive_p75": 251.800133,
+                "historical_percentile": 0.4077,
+                "severity_score": 0.4077
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 211.774062,
+              "true_positive_p25": 141.083036,
+              "true_positive_p75": 251.800133,
+              "historical_percentile": 0.4077,
+              "severity_score": 0.4077
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 131,
+            "coverage": 0.3141,
+            "true_positive_count": 120
+          },
+          "metadata": {
+            "indicator": "^MOVE",
+            "family": "volatility",
+            "threshold_type": "danger",
+            "value": 0.923077,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 131,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "level_percentile",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.5581,
+                "precision": 0.916,
+                "recall": 0.4013,
+                "false_positive_rate": 0.0932,
+                "average_lead_weeks": 1.0583,
+                "coverage": 0.3141,
+                "predicted_count": 131,
+                "true_positive_count": 120
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 5.3,
+                "interpretability": "anchored_transform",
+                "reasons": [
+                  "candidate_quantile_does_not_match_stage_severity"
+                ],
+                "anchors": [
+                  {
+                    "metric": "current",
+                    "mode": "derived_current",
+                    "true_positive_median": 211.774062,
+                    "true_positive_p25": 141.083036,
+                    "true_positive_p75": 251.800133,
+                    "historical_percentile": 0.4077,
+                    "severity_score": 0.4077
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "extreme": {
+          "feature": "roc_8w",
+          "threshold": 0.057487,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.2991,
+            "precision": 0.2273,
+            "recall": 0.4375,
+            "false_positive_rate": 0.2755,
+            "average_lead_weeks": 2.3143,
+            "coverage": 0.3008,
+            "predicted_count": 154,
+            "true_positive_count": 35
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 4.5,
+            "interpretability": "raw",
+            "reasons": [
+              "false_positive_rate_is_too_high_for_stage",
+              "candidate_quantile_does_not_match_stage_severity",
+              "extreme_stage_is_too_frequent"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_8w",
+                "mode": "raw",
+                "true_positive_median": 0.113538,
+                "true_positive_p25": 0.083338,
+                "true_positive_p75": 0.127407,
+                "historical_percentile": 0.8652,
+                "severity_score": 0.8652
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_8w",
+              "mode": "raw",
+              "true_positive_median": 0.113538,
+              "true_positive_p25": 0.083338,
+              "true_positive_p75": 0.127407,
+              "historical_percentile": 0.8652,
+              "severity_score": 0.8652
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 154,
+            "coverage": 0.3008,
+            "true_positive_count": 35
+          },
+          "metadata": {
+            "indicator": "^MOVE",
+            "family": "volatility",
+            "threshold_type": "extreme",
+            "value": 0.057487,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 154,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "roc_8w",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.2991,
+                "precision": 0.2273,
+                "recall": 0.4375,
+                "false_positive_rate": 0.2755,
+                "average_lead_weeks": 2.3143,
+                "coverage": 0.3008,
+                "predicted_count": 154,
+                "true_positive_count": 35
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 4.5,
+                "interpretability": "raw",
+                "reasons": [
+                  "false_positive_rate_is_too_high_for_stage",
+                  "candidate_quantile_does_not_match_stage_severity",
+                  "extreme_stage_is_too_frequent"
+                ],
+                "anchors": [
+                  {
+                    "metric": "roc_8w",
+                    "mode": "raw",
+                    "true_positive_median": 0.113538,
+                    "true_positive_p25": 0.083338,
+                    "true_positive_p75": 0.127407,
+                    "historical_percentile": 0.8652,
+                    "severity_score": 0.8652
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "CL=F": {
+      "weight": 0.9,
+      "ordering_checks": [
+        {
+          "target": "warning_target",
+          "predicted_count": 139,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "danger_target",
+          "predicted_count": 139,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "extreme_target",
+          "predicted_count": 156,
+          "status": "warning",
+          "detail": "predicted_count_is_not_monotonic"
+        }
+      ],
+      "thresholds": {
+        "warning": {
+          "feature": "roc_z_8w",
+          "threshold": 0.54197,
+          "direction": "higher",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.4907,
+            "precision": 0.9496,
+            "recall": 0.3308,
+            "false_positive_rate": 0.1129,
+            "average_lead_weeks": 1.1742,
+            "coverage": 0.3015,
+            "predicted_count": 139,
+            "true_positive_count": 132
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.3,
+            "interpretability": "anchored_transform",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "roc_8w",
+                "mode": "derived_roc",
+                "true_positive_median": 0.137229,
+                "true_positive_p25": 0.091774,
+                "true_positive_p75": 0.186957,
+                "historical_percentile": 0.8535,
+                "severity_score": 0.8535
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_8w",
+              "mode": "derived_roc",
+              "true_positive_median": 0.137229,
+              "true_positive_p25": 0.091774,
+              "true_positive_p75": 0.186957,
+              "historical_percentile": 0.8535,
+              "severity_score": 0.8535
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 139,
+            "coverage": 0.3015,
+            "true_positive_count": 132
+          },
+          "metadata": {
+            "indicator": "CL=F",
+            "family": "commodity_oil",
+            "threshold_type": "warning",
+            "value": 0.54197,
+            "source": "historical_quantile",
+            "confidence": "medium",
+            "sample_count": 139,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "adopt",
+            "allow_final_action": true,
+            "allow_extreme_stage": true,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "passes_backtest_and_actual_value_check",
+            "evidence": {
+              "feature": "roc_z_8w",
+              "direction": "higher",
+              "decision": "adopt",
+              "selection_mode": "adopt",
+              "coverage_forced": false,
+              "backtest_metrics": {
+                "full_f1": 0.4907,
+                "precision": 0.9496,
+                "recall": 0.3308,
+                "false_positive_rate": 0.1129,
+                "average_lead_weeks": 1.1742,
+                "coverage": 0.3015,
+                "predicted_count": 139,
+                "true_positive_count": 132
+              },
+              "actual_value_check": {
+                "status": "pass",
+                "sanity_score": 6.3,
+                "interpretability": "anchored_transform",
+                "reasons": [],
+                "anchors": [
+                  {
+                    "metric": "roc_8w",
+                    "mode": "derived_roc",
+                    "true_positive_median": 0.137229,
+                    "true_positive_p25": 0.091774,
+                    "true_positive_p75": 0.186957,
+                    "historical_percentile": 0.8535,
+                    "severity_score": 0.8535
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "danger": {
+          "feature": "roc_z_8w",
+          "threshold": 0.54197,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.4896,
+            "precision": 0.8489,
+            "recall": 0.344,
+            "false_positive_rate": 0.178,
+            "average_lead_weeks": 1.2881,
+            "coverage": 0.3015,
+            "predicted_count": 139,
+            "true_positive_count": 118
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.3,
+            "interpretability": "anchored_transform",
+            "reasons": [
+              "candidate_quantile_does_not_match_stage_severity"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_8w",
+                "mode": "derived_roc",
+                "true_positive_median": 0.143895,
+                "true_positive_p25": 0.095109,
+                "true_positive_p75": 0.185854,
+                "historical_percentile": 0.8594,
+                "severity_score": 0.8594
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_8w",
+              "mode": "derived_roc",
+              "true_positive_median": 0.143895,
+              "true_positive_p25": 0.095109,
+              "true_positive_p75": 0.185854,
+              "historical_percentile": 0.8594,
+              "severity_score": 0.8594
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 139,
+            "coverage": 0.3015,
+            "true_positive_count": 118
+          },
+          "metadata": {
+            "indicator": "CL=F",
+            "family": "commodity_oil",
+            "threshold_type": "danger",
+            "value": 0.54197,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 139,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "roc_z_8w",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.4896,
+                "precision": 0.8489,
+                "recall": 0.344,
+                "false_positive_rate": 0.178,
+                "average_lead_weeks": 1.2881,
+                "coverage": 0.3015,
+                "predicted_count": 139,
+                "true_positive_count": 118
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 5.3,
+                "interpretability": "anchored_transform",
+                "reasons": [
+                  "candidate_quantile_does_not_match_stage_severity"
+                ],
+                "anchors": [
+                  {
+                    "metric": "roc_8w",
+                    "mode": "derived_roc",
+                    "true_positive_median": 0.143895,
+                    "true_positive_p25": 0.095109,
+                    "true_positive_p75": 0.185854,
+                    "historical_percentile": 0.8594,
+                    "severity_score": 0.8594
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "extreme": {
+          "feature": "roc_2w",
+          "threshold": 0.032979,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.2521,
+            "precision": 0.1923,
+            "recall": 0.3659,
+            "false_positive_rate": 0.289,
+            "average_lead_weeks": 2.2667,
+            "coverage": 0.3012,
+            "predicted_count": 156,
+            "true_positive_count": 30
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 4.5,
+            "interpretability": "raw",
+            "reasons": [
+              "false_positive_rate_is_too_high_for_stage",
+              "candidate_quantile_does_not_match_stage_severity",
+              "extreme_stage_is_too_frequent"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_2w",
+                "mode": "raw",
+                "true_positive_median": 0.069195,
+                "true_positive_p25": 0.049168,
+                "true_positive_p75": 0.089095,
+                "historical_percentile": 0.8571,
+                "severity_score": 0.8571
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_2w",
+              "mode": "raw",
+              "true_positive_median": 0.069195,
+              "true_positive_p25": 0.049168,
+              "true_positive_p75": 0.089095,
+              "historical_percentile": 0.8571,
+              "severity_score": 0.8571
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 156,
+            "coverage": 0.3012,
+            "true_positive_count": 30
+          },
+          "metadata": {
+            "indicator": "CL=F",
+            "family": "commodity_oil",
+            "threshold_type": "extreme",
+            "value": 0.032979,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 156,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "roc_2w",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.2521,
+                "precision": 0.1923,
+                "recall": 0.3659,
+                "false_positive_rate": 0.289,
+                "average_lead_weeks": 2.2667,
+                "coverage": 0.3012,
+                "predicted_count": 156,
+                "true_positive_count": 30
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 4.5,
+                "interpretability": "raw",
+                "reasons": [
+                  "false_positive_rate_is_too_high_for_stage",
+                  "candidate_quantile_does_not_match_stage_severity",
+                  "extreme_stage_is_too_frequent"
+                ],
+                "anchors": [
+                  {
+                    "metric": "roc_2w",
+                    "mode": "raw",
+                    "true_positive_median": 0.069195,
+                    "true_positive_p25": 0.049168,
+                    "true_positive_p75": 0.089095,
+                    "historical_percentile": 0.8571,
+                    "severity_score": 0.8571
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "BZ=F": {
+      "weight": 1.0,
+      "ordering_checks": [
+        {
+          "target": "warning_target",
+          "predicted_count": 156,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "danger_target",
+          "predicted_count": 126,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "extreme_target",
+          "predicted_count": 156,
+          "status": "warning",
+          "detail": "predicted_count_is_not_monotonic"
+        }
+      ],
+      "thresholds": {
+        "warning": {
+          "feature": "roc_2w",
+          "threshold": 0.026248,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.451,
+            "precision": 0.8846,
+            "recall": 0.3026,
+            "false_positive_rate": 0.2903,
+            "average_lead_weeks": 1.1232,
+            "coverage": 0.3012,
+            "predicted_count": 156,
+            "true_positive_count": 138
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.5,
+            "interpretability": "raw",
+            "reasons": [
+              "full_sample_f1_is_too_far_below_best_candidate"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_2w",
+                "mode": "raw",
+                "true_positive_median": 0.052133,
+                "true_positive_p25": 0.040001,
+                "true_positive_p75": 0.074062,
+                "historical_percentile": 0.8533,
+                "severity_score": 0.8533
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_2w",
+              "mode": "raw",
+              "true_positive_median": 0.052133,
+              "true_positive_p25": 0.040001,
+              "true_positive_p75": 0.074062,
+              "historical_percentile": 0.8533,
+              "severity_score": 0.8533
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 156,
+            "coverage": 0.3012,
+            "true_positive_count": 138
+          },
+          "metadata": {
+            "indicator": "BZ=F",
+            "family": "commodity_oil",
+            "threshold_type": "warning",
+            "value": 0.026248,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 156,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "roc_2w",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.451,
+                "precision": 0.8846,
+                "recall": 0.3026,
+                "false_positive_rate": 0.2903,
+                "average_lead_weeks": 1.1232,
+                "coverage": 0.3012,
+                "predicted_count": 156,
+                "true_positive_count": 138
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 5.5,
+                "interpretability": "raw",
+                "reasons": [
+                  "full_sample_f1_is_too_far_below_best_candidate"
+                ],
+                "anchors": [
+                  {
+                    "metric": "roc_2w",
+                    "mode": "raw",
+                    "true_positive_median": 0.052133,
+                    "true_positive_p25": 0.040001,
+                    "true_positive_p75": 0.074062,
+                    "historical_percentile": 0.8533,
+                    "severity_score": 0.8533
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "danger": {
+          "feature": "level_percentile",
+          "threshold": 0.759615,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.4941,
+            "precision": 0.8333,
+            "recall": 0.3512,
+            "false_positive_rate": 0.178,
+            "average_lead_weeks": 1.1238,
+            "coverage": 0.3022,
+            "predicted_count": 126,
+            "true_positive_count": 105
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 4.3,
+            "interpretability": "anchored_transform",
+            "reasons": [
+              "full_sample_f1_is_too_far_below_best_candidate",
+              "candidate_quantile_does_not_match_stage_severity"
+            ],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 132.869568,
+                "true_positive_p25": 120.610421,
+                "true_positive_p75": 137.609073,
+                "historical_percentile": 0.8615,
+                "severity_score": 0.8615
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 132.869568,
+              "true_positive_p25": 120.610421,
+              "true_positive_p75": 137.609073,
+              "historical_percentile": 0.8615,
+              "severity_score": 0.8615
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 126,
+            "coverage": 0.3022,
+            "true_positive_count": 105
+          },
+          "metadata": {
+            "indicator": "BZ=F",
+            "family": "commodity_oil",
+            "threshold_type": "danger",
+            "value": 0.759615,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 126,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "level_percentile",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.4941,
+                "precision": 0.8333,
+                "recall": 0.3512,
+                "false_positive_rate": 0.178,
+                "average_lead_weeks": 1.1238,
+                "coverage": 0.3022,
+                "predicted_count": 126,
+                "true_positive_count": 105
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 4.3,
+                "interpretability": "anchored_transform",
+                "reasons": [
+                  "full_sample_f1_is_too_far_below_best_candidate",
+                  "candidate_quantile_does_not_match_stage_severity"
+                ],
+                "anchors": [
+                  {
+                    "metric": "current",
+                    "mode": "derived_current",
+                    "true_positive_median": 132.869568,
+                    "true_positive_p25": 120.610421,
+                    "true_positive_p75": 137.609073,
+                    "historical_percentile": 0.8615,
+                    "severity_score": 0.8615
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "extreme": {
+          "feature": "roc_1w",
+          "threshold": 0.02089,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.2101,
+            "precision": 0.1603,
+            "recall": 0.3049,
+            "false_positive_rate": 0.2998,
+            "average_lead_weeks": 2.28,
+            "coverage": 0.3006,
+            "predicted_count": 156,
+            "true_positive_count": 25
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 3.5,
+            "interpretability": "raw",
+            "reasons": [
+              "precision_is_too_low_for_stage",
+              "false_positive_rate_is_too_high_for_stage",
+              "candidate_quantile_does_not_match_stage_severity",
+              "extreme_stage_is_too_frequent"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_1w",
+                "mode": "raw",
+                "true_positive_median": 0.038878,
+                "true_positive_p25": 0.028617,
+                "true_positive_p75": 0.043042,
+                "historical_percentile": 0.8478,
+                "severity_score": 0.8478
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_1w",
+              "mode": "raw",
+              "true_positive_median": 0.038878,
+              "true_positive_p25": 0.028617,
+              "true_positive_p75": 0.043042,
+              "historical_percentile": 0.8478,
+              "severity_score": 0.8478
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 156,
+            "coverage": 0.3006,
+            "true_positive_count": 25
+          },
+          "metadata": {
+            "indicator": "BZ=F",
+            "family": "commodity_oil",
+            "threshold_type": "extreme",
+            "value": 0.02089,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 156,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "roc_1w",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.2101,
+                "precision": 0.1603,
+                "recall": 0.3049,
+                "false_positive_rate": 0.2998,
+                "average_lead_weeks": 2.28,
+                "coverage": 0.3006,
+                "predicted_count": 156,
+                "true_positive_count": 25
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 3.5,
+                "interpretability": "raw",
+                "reasons": [
+                  "precision_is_too_low_for_stage",
+                  "false_positive_rate_is_too_high_for_stage",
+                  "candidate_quantile_does_not_match_stage_severity",
+                  "extreme_stage_is_too_frequent"
+                ],
+                "anchors": [
+                  {
+                    "metric": "roc_1w",
+                    "mode": "raw",
+                    "true_positive_median": 0.038878,
+                    "true_positive_p25": 0.028617,
+                    "true_positive_p75": 0.043042,
+                    "historical_percentile": 0.8478,
+                    "severity_score": 0.8478
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "DX-Y.NYB": {
+      "weight": 0.85,
+      "ordering_checks": [
+        {
+          "target": "warning_target",
+          "predicted_count": 139,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "danger_target",
+          "predicted_count": 156,
+          "status": "warning",
+          "detail": "predicted_count_is_not_monotonic"
+        },
+        {
+          "target": "extreme_target",
+          "predicted_count": 71,
+          "status": "ok",
+          "detail": ""
+        }
+      ],
+      "thresholds": {
+        "warning": {
+          "feature": "roc_z_8w",
+          "threshold": 0.521102,
+          "direction": "higher",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.4498,
+            "precision": 0.8705,
+            "recall": 0.3033,
+            "false_positive_rate": 0.2903,
+            "average_lead_weeks": 1.2066,
+            "coverage": 0.3015,
+            "predicted_count": 139,
+            "true_positive_count": 121
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.3,
+            "interpretability": "anchored_transform",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "roc_8w",
+                "mode": "derived_roc",
+                "true_positive_median": 0.027688,
+                "true_positive_p25": 0.017842,
+                "true_positive_p75": 0.041688,
+                "historical_percentile": 0.8047,
+                "severity_score": 0.8047
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_8w",
+              "mode": "derived_roc",
+              "true_positive_median": 0.027688,
+              "true_positive_p25": 0.017842,
+              "true_positive_p75": 0.041688,
+              "historical_percentile": 0.8047,
+              "severity_score": 0.8047
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 139,
+            "coverage": 0.3015,
+            "true_positive_count": 121
+          },
+          "metadata": {
+            "indicator": "DX-Y.NYB",
+            "family": "fx",
+            "threshold_type": "warning",
+            "value": 0.521102,
+            "source": "historical_quantile",
+            "confidence": "medium",
+            "sample_count": 139,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "adopt",
+            "allow_final_action": true,
+            "allow_extreme_stage": true,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "passes_backtest_and_actual_value_check",
+            "evidence": {
+              "feature": "roc_z_8w",
+              "direction": "higher",
+              "decision": "adopt",
+              "selection_mode": "adopt",
+              "coverage_forced": false,
+              "backtest_metrics": {
+                "full_f1": 0.4498,
+                "precision": 0.8705,
+                "recall": 0.3033,
+                "false_positive_rate": 0.2903,
+                "average_lead_weeks": 1.2066,
+                "coverage": 0.3015,
+                "predicted_count": 139,
+                "true_positive_count": 121
+              },
+              "actual_value_check": {
+                "status": "pass",
+                "sanity_score": 6.3,
+                "interpretability": "anchored_transform",
+                "reasons": [],
+                "anchors": [
+                  {
+                    "metric": "roc_8w",
+                    "mode": "derived_roc",
+                    "true_positive_median": 0.027688,
+                    "true_positive_p25": 0.017842,
+                    "true_positive_p75": 0.041688,
+                    "historical_percentile": 0.8047,
+                    "severity_score": 0.8047
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "danger": {
+          "feature": "roc_2w",
+          "threshold": 0.009136,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.446,
+            "precision": 0.7949,
+            "recall": 0.31,
+            "false_positive_rate": 0.2712,
+            "average_lead_weeks": 1.121,
+            "coverage": 0.3012,
+            "predicted_count": 156,
+            "true_positive_count": 124
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 4.5,
+            "interpretability": "raw",
+            "reasons": [
+              "false_positive_rate_is_too_high_for_stage",
+              "candidate_quantile_does_not_match_stage_severity"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_2w",
+                "mode": "raw",
+                "true_positive_median": 0.016641,
+                "true_positive_p25": 0.011965,
+                "true_positive_p75": 0.020686,
+                "historical_percentile": 0.8514,
+                "severity_score": 0.8514
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_2w",
+              "mode": "raw",
+              "true_positive_median": 0.016641,
+              "true_positive_p25": 0.011965,
+              "true_positive_p75": 0.020686,
+              "historical_percentile": 0.8514,
+              "severity_score": 0.8514
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 156,
+            "coverage": 0.3012,
+            "true_positive_count": 124
+          },
+          "metadata": {
+            "indicator": "DX-Y.NYB",
+            "family": "fx",
+            "threshold_type": "danger",
+            "value": 0.009136,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 156,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "roc_2w",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.446,
+                "precision": 0.7949,
+                "recall": 0.31,
+                "false_positive_rate": 0.2712,
+                "average_lead_weeks": 1.121,
+                "coverage": 0.3012,
+                "predicted_count": 156,
+                "true_positive_count": 124
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 4.5,
+                "interpretability": "raw",
+                "reasons": [
+                  "false_positive_rate_is_too_high_for_stage",
+                  "candidate_quantile_does_not_match_stage_severity"
+                ],
+                "anchors": [
+                  {
+                    "metric": "roc_2w",
+                    "mode": "raw",
+                    "true_positive_median": 0.016641,
+                    "true_positive_p25": 0.011965,
+                    "true_positive_p75": 0.020686,
+                    "historical_percentile": 0.8514,
+                    "severity_score": 0.8514
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "extreme": {
+          "feature": "roc_z_1w",
+          "threshold": 1.018123,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.2014,
+            "precision": 0.1972,
+            "recall": 0.2059,
+            "false_positive_rate": 0.1425,
+            "average_lead_weeks": 2.2857,
+            "coverage": 0.1517,
+            "predicted_count": 71,
+            "true_positive_count": 14
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.3,
+            "interpretability": "anchored_transform",
+            "reasons": [
+              "candidate_quantile_does_not_match_stage_severity"
+            ],
+            "anchors": [
+              {
+                "metric": "roc_1w",
+                "mode": "derived_roc",
+                "true_positive_median": 0.016081,
+                "true_positive_p25": 0.012865,
+                "true_positive_p75": 0.019287,
+                "historical_percentile": 0.921,
+                "severity_score": 0.921
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "roc_1w",
+              "mode": "derived_roc",
+              "true_positive_median": 0.016081,
+              "true_positive_p25": 0.012865,
+              "true_positive_p75": 0.019287,
+              "historical_percentile": 0.921,
+              "severity_score": 0.921
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 71,
+            "coverage": 0.1517,
+            "true_positive_count": 14
+          },
+          "metadata": {
+            "indicator": "DX-Y.NYB",
+            "family": "fx",
+            "threshold_type": "extreme",
+            "value": 1.018123,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 71,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "roc_z_1w",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.2014,
+                "precision": 0.1972,
+                "recall": 0.2059,
+                "false_positive_rate": 0.1425,
+                "average_lead_weeks": 2.2857,
+                "coverage": 0.1517,
+                "predicted_count": 71,
+                "true_positive_count": 14
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 5.3,
+                "interpretability": "anchored_transform",
+                "reasons": [
+                  "candidate_quantile_does_not_match_stage_severity"
+                ],
+                "anchors": [
+                  {
+                    "metric": "roc_1w",
+                    "mode": "derived_roc",
+                    "true_positive_median": 0.016081,
+                    "true_positive_p25": 0.012865,
+                    "true_positive_p75": 0.019287,
+                    "historical_percentile": 0.921,
+                    "severity_score": 0.921
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "^TNX": {
+      "weight": 1.05,
+      "ordering_checks": [
+        {
+          "target": "warning_target",
+          "predicted_count": 129,
+          "status": "ok",
+          "detail": ""
+        },
+        {
+          "target": "danger_target",
+          "predicted_count": 207,
+          "status": "warning",
+          "detail": "predicted_count_is_not_monotonic"
+        },
+        {
+          "target": "extreme_target",
+          "predicted_count": 52,
+          "status": "ok",
+          "detail": ""
+        }
+      ],
+      "thresholds": {
+        "warning": {
+          "feature": "level_percentile",
+          "threshold": 0.884615,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.4587,
+            "precision": 0.8605,
+            "recall": 0.3127,
+            "false_positive_rate": 0.2903,
+            "average_lead_weeks": 1.1802,
+            "coverage": 0.3094,
+            "predicted_count": 129,
+            "true_positive_count": 111
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 5.3,
+            "interpretability": "anchored_transform",
+            "reasons": [
+              "full_sample_f1_is_too_far_below_best_candidate"
+            ],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 118.238885,
+                "true_positive_p25": 114.935165,
+                "true_positive_p75": 123.815937,
+                "historical_percentile": 0.6154,
+                "severity_score": 0.6154
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 118.238885,
+              "true_positive_p25": 114.935165,
+              "true_positive_p75": 123.815937,
+              "historical_percentile": 0.6154,
+              "severity_score": 0.6154
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 129,
+            "coverage": 0.3094,
+            "true_positive_count": 111
+          },
+          "metadata": {
+            "indicator": "^TNX",
+            "family": "rates",
+            "threshold_type": "warning",
+            "value": 0.884615,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 129,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "level_percentile",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.4587,
+                "precision": 0.8605,
+                "recall": 0.3127,
+                "false_positive_rate": 0.2903,
+                "average_lead_weeks": 1.1802,
+                "coverage": 0.3094,
+                "predicted_count": 129,
+                "true_positive_count": 111
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 5.3,
+                "interpretability": "anchored_transform",
+                "reasons": [
+                  "full_sample_f1_is_too_far_below_best_candidate"
+                ],
+                "anchors": [
+                  {
+                    "metric": "current",
+                    "mode": "derived_current",
+                    "true_positive_median": 118.238885,
+                    "true_positive_p25": 114.935165,
+                    "true_positive_p75": 123.815937,
+                    "historical_percentile": 0.6154,
+                    "severity_score": 0.6154
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "danger": {
+          "feature": "adverse_persistence_8",
+          "threshold": 5.0,
+          "direction": "higher",
+          "decision": "fallback_review",
+          "selection_mode": "fallback_review",
+          "coverage_forced": true,
+          "reason": "coverage_fallback_from_review",
+          "backtest_metrics": {
+            "full_f1": 0.5748,
+            "precision": 0.8357,
+            "recall": 0.438,
+            "false_positive_rate": 0.2881,
+            "average_lead_weeks": 1.1329,
+            "coverage": 0.4035,
+            "predicted_count": 207,
+            "true_positive_count": 173
+          },
+          "actual_value_check": {
+            "status": "review",
+            "sanity_score": 3.45,
+            "interpretability": "persistence",
+            "reasons": [
+              "false_positive_rate_is_too_high_for_stage",
+              "actual_value_anchor_is_not_available"
+            ],
+            "anchors": []
+          },
+          "raw_value_reference": [],
+          "frequency_profile": {
+            "predicted_count": 207,
+            "coverage": 0.4035,
+            "true_positive_count": 173
+          },
+          "metadata": {
+            "indicator": "^TNX",
+            "family": "rates",
+            "threshold_type": "danger",
+            "value": 5.0,
+            "source": "fallback_review",
+            "confidence": "fallback_review",
+            "sample_count": 207,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "fallback_review",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+            "evidence": {
+              "feature": "adverse_persistence_8",
+              "direction": "higher",
+              "decision": "fallback_review",
+              "selection_mode": "fallback_review",
+              "coverage_forced": true,
+              "backtest_metrics": {
+                "full_f1": 0.5748,
+                "precision": 0.8357,
+                "recall": 0.438,
+                "false_positive_rate": 0.2881,
+                "average_lead_weeks": 1.1329,
+                "coverage": 0.4035,
+                "predicted_count": 207,
+                "true_positive_count": 173
+              },
+              "actual_value_check": {
+                "status": "review",
+                "sanity_score": 3.45,
+                "interpretability": "persistence",
+                "reasons": [
+                  "false_positive_rate_is_too_high_for_stage",
+                  "actual_value_anchor_is_not_available"
+                ],
+                "anchors": []
+              }
+            }
+          }
+        },
+        "extreme": {
+          "feature": "level_percentile",
+          "threshold": 0.980769,
+          "direction": "higher",
+          "decision": "adopt",
+          "selection_mode": "adopt",
+          "coverage_forced": false,
+          "reason": "passes_backtest_and_actual_value_check",
+          "backtest_metrics": {
+            "full_f1": 0.3036,
+            "precision": 0.3269,
+            "recall": 0.2833,
+            "false_positive_rate": 0.098,
+            "average_lead_weeks": 2.3529,
+            "coverage": 0.1247,
+            "predicted_count": 52,
+            "true_positive_count": 17
+          },
+          "actual_value_check": {
+            "status": "pass",
+            "sanity_score": 6.3,
+            "interpretability": "anchored_transform",
+            "reasons": [],
+            "anchors": [
+              {
+                "metric": "current",
+                "mode": "derived_current",
+                "true_positive_median": 117.099886,
+                "true_positive_p25": 114.956965,
+                "true_positive_p75": 123.81536,
+                "historical_percentile": 0.5596,
+                "severity_score": 0.5596
+              }
+            ]
+          },
+          "raw_value_reference": [
+            {
+              "metric": "current",
+              "mode": "derived_current",
+              "true_positive_median": 117.099886,
+              "true_positive_p25": 114.956965,
+              "true_positive_p75": 123.81536,
+              "historical_percentile": 0.5596,
+              "severity_score": 0.5596
+            }
+          ],
+          "frequency_profile": {
+            "predicted_count": 52,
+            "coverage": 0.1247,
+            "true_positive_count": 17
+          },
+          "metadata": {
+            "indicator": "^TNX",
+            "family": "rates",
+            "threshold_type": "extreme",
+            "value": 0.980769,
+            "source": "historical_quantile",
+            "confidence": "low",
+            "sample_count": 52,
+            "completed_4w_count": 0,
+            "completed_13w_count": 0,
+            "completed_26w_count": 0,
+            "completed_52w_count": 0,
+            "review_status": "adopt",
+            "allow_final_action": false,
+            "allow_extreme_stage": false,
+            "generated_at": "2026-05-15T19:57:23+09:00",
+            "reason": "weak evidence or review status prevents final-action use.",
+            "evidence": {
+              "feature": "level_percentile",
+              "direction": "higher",
+              "decision": "adopt",
+              "selection_mode": "adopt",
+              "coverage_forced": false,
+              "backtest_metrics": {
+                "full_f1": 0.3036,
+                "precision": 0.3269,
+                "recall": 0.2833,
+                "false_positive_rate": 0.098,
+                "average_lead_weeks": 2.3529,
+                "coverage": 0.1247,
+                "predicted_count": 52,
+                "true_positive_count": 17
+              },
+              "actual_value_check": {
+                "status": "pass",
+                "sanity_score": 6.3,
+                "interpretability": "anchored_transform",
+                "reasons": [],
+                "anchors": [
+                  {
+                    "metric": "current",
+                    "mode": "derived_current",
+                    "true_positive_median": 117.099886,
+                    "true_positive_p25": 114.956965,
+                    "true_positive_p75": 123.81536,
+                    "historical_percentile": 0.5596,
+                    "severity_score": 0.5596
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

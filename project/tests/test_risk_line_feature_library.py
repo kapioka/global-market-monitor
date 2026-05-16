@@ -1,0 +1,40 @@
+from __future__ import annotations
+
+import pandas as pd
+
+from project.risk_line_feature_library import build_risk_line_feature_frames
+
+
+def test_build_risk_line_feature_frames_returns_all_ten_indicator_frames():
+    index = pd.date_range("2020-01-03", periods=140, freq="W-FRI")
+    prices = pd.DataFrame(
+        {
+            "SPY": [100.0 + i * 0.4 for i in range(140)],
+            "HYG": [80.0 + i * 0.08 for i in range(140)],
+            "LQD": [100.0 + i * 0.03 for i in range(140)],
+            "^VIX": [18.0 + (i % 7) * 0.6 for i in range(140)],
+            "^MOVE": [100.0 + (i % 8) * 1.2 for i in range(140)],
+            "CL=F": [70.0 + i * 0.25 for i in range(140)],
+            "BZ=F": [74.0 + i * 0.28 for i in range(140)],
+            "DX-Y.NYB": [94.0 + i * 0.06 for i in range(140)],
+            "^TNX": [2.0 + i * 0.015 for i in range(140)],
+        },
+        index=index,
+        dtype=float,
+    )
+
+    frames = build_risk_line_feature_frames(prices, zscore_window=26, percentile_window=52)
+
+    assert set(frames) == {"SPY", "HYG", "LQD", "HYG/LQD", "^VIX", "^MOVE", "CL=F", "BZ=F", "DX-Y.NYB", "^TNX"}
+    assert {"roc_1w", "roc_z_4w", "level_percentile", "adverse_persistence_4", "drawdown_and_roc_4w"}.issubset(frames["SPY"].columns)
+    assert "drawdown_and_roc_4w" in frames["HYG"].columns
+    assert "drawdown_and_roc_4w" in frames["LQD"].columns
+    assert "level_and_roc_4w" in frames["HYG/LQD"].columns
+    assert "level_and_roc_8w" in frames["HYG/LQD"].columns
+    assert "level_and_roc_4w" in frames["^VIX"].columns
+    assert "level_and_roc_8w" in frames["^VIX"].columns
+    assert "level_and_roc_4w" in frames["^MOVE"].columns
+    assert "level_and_roc_4w" in frames["CL=F"].columns
+    assert "level_and_roc_4w" in frames["BZ=F"].columns
+    assert "level_and_roc_4w" in frames["DX-Y.NYB"].columns
+    assert "level_and_roc_4w" in frames["^TNX"].columns
