@@ -42,6 +42,11 @@ python -m project.run_action_validation
 ```
 
 `project/reports/validation_prices.json` 以外を使う場合は、`--price-points-json` で明示します。
+別ベンチマークと比較する場合は、benchmark 側の価格 JSON も渡します。
+
+```bash
+python -m project.run_action_validation --price-points-json project/reports/validation_prices_acwi.json --benchmark-price-points-json project/reports/validation_prices_spy.json
+```
 
 価格 JSON は、次の exporter で作成できます。
 
@@ -52,8 +57,7 @@ python -m project.validation_price_export --ticker ACWI --output project/reports
 exporter は sample fallback を使いません。proxy fallback を検証データとして許可する場合は、`--allow-proxy` を明示します。
 価格 JSON が存在しない場合、runner は `missing_price_points` を返します。スタックトレースではなく、価格 JSON を先に作るための案内を表示します。
 
-価格 JSON は、`[{"date": "YYYY-MM-DD", "price": 100.0}]` の配列、または `{"prices": [...]}` の形式を受け付けます。価格系列は、検証したいベンチマークに合わせて明示的に用意します。
-現時点の `benchmark_returns` と `excess_returns` は、独立した別ベンチマーク比較ではなく、同一価格系列を基準にした placeholder です。別 benchmark price JSON による比較は次フェーズで追加します。
+価格 JSON は、`[{"date": "YYYY-MM-DD", "price": 100.0}]` の配列、または `{"prices": [...]}` の形式を受け付けます。価格系列は、検証したい対象と比較したい benchmark に合わせて明示的に用意します。`--benchmark-price-points-json` を指定した場合、`benchmark_returns` は別系列から計算し、`excess_returns` は対象リターンから benchmark リターンを差し引いて出します。指定しない場合は従来互換として対象価格系列を benchmark として扱います。
 
 ## 現時点の限界
 

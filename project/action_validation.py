@@ -15,13 +15,20 @@ HORIZONS_DAYS = {
 RALLY_THRESHOLD = 0.05
 
 
-def build_action_validation(history_entries: Iterable[dict[str, Any]], price_points: Iterable[dict[str, Any]]) -> dict[str, Any]:
+def build_action_validation(
+    history_entries: Iterable[dict[str, Any]],
+    price_points: Iterable[dict[str, Any]],
+    benchmark_price_points: Iterable[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     entries = _normalize_history(history_entries)
     prices = _normalize_prices(price_points)
+    benchmark_prices = _normalize_prices(benchmark_price_points or price_points)
+    benchmark_source = "external" if benchmark_price_points is not None else "target_price_series"
     if not entries or len(prices) < 2:
         return {
             "status": "insufficient_data",
             "reason": "history or price data is insufficient",
+            "benchmark_source": benchmark_source,
             "action_summary": {},
             "cases": [],
         }
@@ -35,12 +42,21 @@ def build_action_validation(history_entries: Iterable[dict[str, Any]], price_poi
         max_drawdowns = {}
         benchmark_returns = {}
         excess_returns = {}
+        current_benchmark_price = _price_at_or_after(benchmark_prices, entry["date"])
         for label, days in HORIZONS_DAYS.items():
             future_price = _price_at_or_after(prices, entry["date"], offset_days=days)
             forward_return = _forward_return(current_price["price"], future_price["price"]) if future_price else None
+            future_benchmark_price = _price_at_or_after(benchmark_prices, entry["date"], offset_days=days)
+            benchmark_return = (
+                _forward_return(current_benchmark_price["price"], future_benchmark_price["price"])
+                if current_benchmark_price and future_benchmark_price
+                else None
+            )
             forward_returns[label] = forward_return
-            benchmark_returns[label] = forward_return
-            excess_returns[label] = 0.0 if forward_return is not None else None
+            benchmark_returns[label] = benchmark_return
+            excess_returns[label] = (
+                round(forward_return - benchmark_return, 6) if forward_return is not None and benchmark_return is not None else None
+            )
             max_drawdowns[label] = _max_drawdown_between(prices, current_price["date"], future_price["date"]) if future_price else None
         cases.append(
             {
@@ -59,12 +75,14 @@ def build_action_validation(history_entries: Iterable[dict[str, Any]], price_poi
         return {
             "status": "insufficient_data",
             "reason": "no history entries could be aligned with price data",
+            "benchmark_source": benchmark_source,
             "action_summary": {},
             "cases": [],
         }
 
     return {
         "status": "ok",
+        "benchmark_source": benchmark_source,
         "action_summary": _summarize_cases(cases),
         "diagnostics": _build_diagnostics(cases),
         "cases": cases,
@@ -150,6 +168,7 @@ def _summarize_cases(cases: list[dict[str, Any]]) -> dict[str, Any]:
         horizon_summary = {}
         for horizon in HORIZONS_DAYS:
             values = [case["forward_returns"][horizon] for case in action_cases if case["forward_returns"].get(horizon) is not None]
+            excess_values = [case["excess_returns"][horizon] for case in action_cases if case["excess_returns"].get(horizon) is not None]
             drawdowns = [case["max_drawdowns"][horizon] for case in action_cases if case["max_drawdowns"].get(horizon) is not None]
             horizon_summary[horizon] = {
                 "count": len(values),
@@ -161,7 +180,10 @@ def _summarize_cases(cases: list[dict[str, Any]]) -> dict[str, Any]:
                 "max_gain": max(values) if values else None,
                 "mean_max_drawdown": round(sum(drawdowns) / len(drawdowns), 6) if drawdowns else None,
                 "worst_max_drawdown": min(drawdowns) if drawdowns else None,
-                "mean_excess_return": 0.0 if values else None,
+                "mean_excess_return": round(sum(excess_values) / len(excess_values), 6) if excess_values else None,
+                "median_excess_return": round(median(excess_values), 6) if excess_values else None,
+                "worst_excess_return": min(excess_values) if excess_values else None,
+                "excess_win_rate": round(sum(1 for value in excess_values if value > 0) / len(excess_values), 6) if excess_values else None,
             }
         summary[action] = {
             "count": len(action_cases),

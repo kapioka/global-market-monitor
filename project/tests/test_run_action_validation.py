@@ -45,6 +45,37 @@ def test_run_action_validation_writes_reports(tmp_path: Path) -> None:
     assert (reports_dir / "action_validation.md").exists()
 
 
+def test_run_action_validation_accepts_benchmark_price_points(tmp_path: Path) -> None:
+    history_dir = tmp_path / "history"
+    reports_dir = tmp_path / "reports"
+    history_dir.mkdir()
+    (history_dir / "report_2026-01-02_073000.json").write_text(json.dumps(_history_payload(), ensure_ascii=False), encoding="utf-8")
+    prices_path = tmp_path / "prices.json"
+    prices_path.write_text(json.dumps([{"date": "2026-01-02", "price": 100.0}, {"date": "2026-04-06", "price": 110.0}]), encoding="utf-8")
+    benchmark_path = tmp_path / "benchmark.json"
+    benchmark_path.write_text(json.dumps([{"date": "2026-01-02", "price": 200.0}, {"date": "2026-04-06", "price": 220.0}]), encoding="utf-8")
+
+    result = run_action_validation(history_dir, prices_path, reports_dir, benchmark_path)
+
+    assert result["status"] == "ok"
+    assert result["benchmark_price_point_count"] == 2
+    payload = json.loads((reports_dir / "action_validation.json").read_text(encoding="utf-8"))
+    assert payload["benchmark_source"] == "external"
+
+
+def test_run_action_validation_reports_missing_benchmark_without_traceback(tmp_path: Path) -> None:
+    history_dir = tmp_path / "history"
+    reports_dir = tmp_path / "reports"
+    history_dir.mkdir()
+    prices_path = tmp_path / "prices.json"
+    prices_path.write_text(json.dumps([{"date": "2026-01-02", "price": 100.0}, {"date": "2026-04-06", "price": 110.0}]), encoding="utf-8")
+
+    result = run_action_validation(history_dir, prices_path, reports_dir, tmp_path / "missing.json")
+
+    assert result["status"] == "missing_benchmark_price_points"
+    assert "benchmark validation price file is missing" in result["message"]
+
+
 def test_main_accepts_price_points_json_object(tmp_path: Path, capsys) -> None:
     history_dir = tmp_path / "history"
     reports_dir = tmp_path / "reports"

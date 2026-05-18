@@ -44,6 +44,8 @@ def test_risk_lines_marks_extreme_when_credit_and_volatility_break_together():
 
     assert result["stage_key"] == "extreme_danger_line_reached"
     assert result["extreme_count"] >= 1
+    assert any(row.get("type") == "indicator" and row.get("indicator") == "BZ=F" for row in result["trigger_path"])
+    assert any(row.get("type") == "composite_score" for row in result["trigger_path"])
 
 def test_risk_lines_returns_decision_overlay_fields():
     regime = {

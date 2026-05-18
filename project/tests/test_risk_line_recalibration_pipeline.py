@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from project.risk_line_recalibration_pipeline import (
     build_risk_line_recalibration_payload,
     render_risk_line_recalibration_summary_markdown,
@@ -65,3 +67,51 @@ def test_build_risk_line_recalibration_payload(monkeypatch):
 
     assert payload["summary"]["data_source"] == "sample"
     assert "SPY" in payload["proposed_thresholds"]["indicators"]
+
+
+def test_write_recalibration_outputs_does_not_update_proposed_by_default(tmp_path, monkeypatch):
+    reports_dir = tmp_path / "reports"
+    proposed_path = tmp_path / "risk_line_thresholds_proposed.json"
+    writes = []
+    payload = {
+        "summary": {"data_source": "sample", "active_version": "a1", "proposed_version": "p1", "decision_counts": {}, "diff_summary": {}},
+        "diff": {"active_version": "a1", "proposed_version": "p1", "summary": {}, "changes": []},
+        "proposed_thresholds": {"threshold_set": {"version": "p1"}, "indicators": {}},
+    }
+
+    monkeypatch.setattr("project.risk_line_recalibration_pipeline.load_config", lambda path: {"paths": {"reports_dir": str(reports_dir)}})
+    monkeypatch.setattr("project.risk_line_recalibration_pipeline.build_risk_line_recalibration_payload", lambda config, sample_only=False: payload)
+    monkeypatch.setattr("project.risk_line_recalibration_pipeline.PROPOSED_THRESHOLDS_PATH", proposed_path)
+    monkeypatch.setattr("project.risk_line_recalibration_pipeline.write_threshold_payload", lambda path, data: writes.append((path, data)))
+
+    from project.risk_line_recalibration_pipeline import write_risk_line_recalibration_outputs
+
+    outputs = write_risk_line_recalibration_outputs(tmp_path / "config.yaml", sample_only=True)
+
+    assert outputs["proposed_json"] is None
+    assert writes == []
+    assert outputs["proposed_snapshot_json"].exists()
+    assert json.loads(outputs["proposed_snapshot_json"].read_text(encoding="utf-8"))["threshold_set"]["version"] == "p1"
+
+
+def test_write_recalibration_outputs_updates_proposed_with_explicit_flag(tmp_path, monkeypatch):
+    reports_dir = tmp_path / "reports"
+    proposed_path = tmp_path / "risk_line_thresholds_proposed.json"
+    writes = []
+    payload = {
+        "summary": {"data_source": "sample", "active_version": "a1", "proposed_version": "p1", "decision_counts": {}, "diff_summary": {}},
+        "diff": {"active_version": "a1", "proposed_version": "p1", "summary": {}, "changes": []},
+        "proposed_thresholds": {"threshold_set": {"version": "p1"}, "indicators": {}},
+    }
+
+    monkeypatch.setattr("project.risk_line_recalibration_pipeline.load_config", lambda path: {"paths": {"reports_dir": str(reports_dir)}})
+    monkeypatch.setattr("project.risk_line_recalibration_pipeline.build_risk_line_recalibration_payload", lambda config, sample_only=False: payload)
+    monkeypatch.setattr("project.risk_line_recalibration_pipeline.PROPOSED_THRESHOLDS_PATH", proposed_path)
+    monkeypatch.setattr("project.risk_line_recalibration_pipeline.write_threshold_payload", lambda path, data: writes.append((path, data)))
+
+    from project.risk_line_recalibration_pipeline import write_risk_line_recalibration_outputs
+
+    outputs = write_risk_line_recalibration_outputs(tmp_path / "config.yaml", write_proposed=True)
+
+    assert outputs["proposed_json"] == proposed_path
+    assert writes == [(proposed_path, payload["proposed_thresholds"])]

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
+import time
 from collections import Counter
 from copy import deepcopy
 from datetime import datetime
@@ -18,7 +20,7 @@ from project.pipeline import resample_weekly_closes
 from project.risk_line_threshold_store import ACTIVE_THRESHOLDS_PATH, PROPOSED_THRESHOLDS_PATH
 from project.risk_lines import evaluate_risk_lines
 from project.spot_signal import evaluate_spot_signal
-from project.stress_monitor import build_stress_monitor, default_risk_indicator_map
+from project.stress_monitor import LEVEL_LABELS, _build_feature_values, _stress_state_for_row, build_stress_monitor, default_risk_indicator_map
 
 PROPOSED_CANDIDATES = (
     "stage_limited",
@@ -26,6 +28,7 @@ PROPOSED_CANDIDATES = (
     "ignore_fallback_extreme",
     "candidate_v2_combined",
 )
+LOGGER = logging.getLogger(__name__)
 
 
 def run_threshold_historical_replay(
@@ -34,75 +37,145 @@ def run_threshold_historical_replay(
     proposed_thresholds_path: str | Path = PROPOSED_THRESHOLDS_PATH,
     prices_csv: str | Path | None = None,
     reports_dir: str | Path | None = None,
+    max_history: int | None = None,
+    skip_candidate_details: bool = False,
+    no_trigger_path_diff: bool = False,
+    timeout_seconds: float | None = None,
 ) -> dict[str, Any]:
-    config = load_config(config_path)
-    reports_path = Path(reports_dir or config["paths"]["reports_dir"])
-    price_points_path = reports_path / "validation_prices.json"
-    if not price_points_path.exists():
-        return {
-            "status": "missing_price_points",
-            "message": "validation price file is missing. Run python -m project.validation_price_export first.",
-            "price_points_json": str(price_points_path),
-        }
-    history_dir = reports_path / "history"
-    if not history_dir.exists() or not list(history_dir.glob("report_*.json")):
-        return {
-            "status": "missing_history",
-            "message": "historical report JSON files are missing. Run python project/main.py --sample-only or a live scheduled run first.",
-            "history_dir": str(history_dir),
-        }
-    market_snapshot_path = Path(prices_csv) if prices_csv else _latest_market_snapshot_or_none(Path(config["paths"]["cache_dir"]))
-    if market_snapshot_path is None:
-        return {
-            "status": "missing_market_snapshot",
-            "message": "market snapshot CSV is missing. Run python project/main.py --sample-only or a live data fetch first.",
-            "market_snapshot_dir": str(Path(config["paths"]["cache_dir"]) / "market_snapshots"),
-        }
-    history_entries = _load_history_entries(history_dir)
-    if not history_entries:
-        return {
-            "status": "missing_history",
-            "message": "historical report JSON files could not be loaded.",
-            "history_dir": str(history_dir),
-        }
-    price_points = _load_price_points(price_points_path)
-    prices = _load_prices(market_snapshot_path)
+    started = time.perf_counter()
+    diagnostics: dict[str, Any] = {}
 
-    active_payload = _load_json(active_thresholds_path)
-    proposed_payload = _load_json(proposed_thresholds_path)
+    def mark(name: str, section_started: float) -> None:
+        diagnostics[f"{name}_seconds"] = round(time.perf_counter() - section_started, 3)
 
-    active = _run_set("active", config, prices, history_entries, price_points, active_payload)
-    proposed = _run_set("proposed", config, prices, history_entries, price_points, proposed_payload)
-    candidates = _derive_candidate_sets(proposed, proposed_payload)
-    diff = _build_diff(active, proposed)
-    candidate_comparison = _build_candidate_comparison(active, proposed, candidates)
-    changed_cases = _build_changed_case_diagnostics(active, proposed)
+    def progress(message: str) -> None:
+        LOGGER.info("threshold replay: %s", message)
 
-    reports_path.mkdir(parents=True, exist_ok=True)
-    active_path = reports_path / "threshold_historical_replay_active.json"
-    proposed_path = reports_path / "threshold_historical_replay_proposed.json"
-    diff_path = reports_path / "threshold_historical_replay_diff.json"
-    candidate_path = reports_path / "threshold_candidate_comparison.json"
-    changed_cases_path = reports_path / "threshold_changed_cases.json"
-    changed_cases_md_path = reports_path / "threshold_changed_cases.md"
-    active_path.write_text(json.dumps(active, ensure_ascii=False, indent=2), encoding="utf-8")
-    proposed_path.write_text(json.dumps(proposed, ensure_ascii=False, indent=2), encoding="utf-8")
-    diff_path.write_text(json.dumps(diff, ensure_ascii=False, indent=2), encoding="utf-8")
-    candidate_path.write_text(json.dumps(candidate_comparison, ensure_ascii=False, indent=2), encoding="utf-8")
-    changed_cases_path.write_text(json.dumps(changed_cases, ensure_ascii=False, indent=2), encoding="utf-8")
-    changed_cases_md_path.write_text(_render_changed_cases_markdown(changed_cases), encoding="utf-8")
-    return {
-        "status": "ok",
-        "active_path": str(active_path),
-        "proposed_path": str(proposed_path),
-        "diff_path": str(diff_path),
-        "candidate_path": str(candidate_path),
-        "changed_cases_path": str(changed_cases_path),
-        "decision": diff["decision"],
-        "total_history_count": diff["summary"]["total_history_count"],
-        "final_action_changed_count": diff["summary"]["final_action_changed_count"],
-        "risk_stage_changed_count": diff["summary"]["risk_stage_changed_count"],
-    }
+    def check_timeout() -> None:
+        if timeout_seconds is not None and time.perf_counter() - started > timeout_seconds:
+            diagnostics["total_seconds"] = round(time.perf_counter() - started, 3)
+            diagnostics["timeout_seconds"] = timeout_seconds
+            raise TimeoutError(f"threshold replay exceeded timeout_seconds={timeout_seconds}")
+
+    try:
+        progress("starting")
+        section_started = time.perf_counter()
+        config = load_config(config_path)
+        reports_path = Path(reports_dir or config["paths"]["reports_dir"])
+        price_points_path = reports_path / "validation_prices.json"
+        if not price_points_path.exists():
+            return {
+                "status": "missing_price_points",
+                "message": "validation price file is missing. Run python -m project.validation_price_export first.",
+                "price_points_json": str(price_points_path),
+            }
+        history_dir = reports_path / "history"
+        if not history_dir.exists() or not list(history_dir.glob("report_*.json")):
+            return {
+                "status": "missing_history",
+                "message": "historical report JSON files are missing. Run python project/main.py --sample-only or a live scheduled run first.",
+                "history_dir": str(history_dir),
+            }
+        market_snapshot_path = Path(prices_csv) if prices_csv else _latest_market_snapshot_or_none(Path(config["paths"]["cache_dir"]))
+        if market_snapshot_path is None:
+            return {
+                "status": "missing_market_snapshot",
+                "message": "market snapshot CSV is missing. Run python project/main.py --sample-only or a live data fetch first.",
+                "market_snapshot_dir": str(Path(config["paths"]["cache_dir"]) / "market_snapshots"),
+            }
+        history_entries = _load_history_entries(history_dir)
+        if max_history is not None:
+            history_entries = history_entries[-max_history:]
+        if not history_entries:
+            return {
+                "status": "missing_history",
+                "message": "historical report JSON files could not be loaded.",
+                "history_dir": str(history_dir),
+            }
+        progress(f"loaded {len(history_entries)} history records")
+        price_points = _load_price_points(price_points_path)
+        prices = _load_prices(market_snapshot_path)
+
+        active_payload = _load_json(active_thresholds_path)
+        proposed_payload = _load_json(proposed_thresholds_path)
+        monitor_feature_cache = _build_monitor_feature_cache(config, prices, history_entries)
+        mark("history_loading", section_started)
+        check_timeout()
+
+        section_started = time.perf_counter()
+        active = _run_set("active", config, prices, history_entries, price_points, active_payload, monitor_feature_cache=monitor_feature_cache)
+        mark("active_replay", section_started)
+        progress("active done")
+        check_timeout()
+
+        section_started = time.perf_counter()
+        proposed = _run_set("proposed", config, prices, history_entries, price_points, proposed_payload, monitor_feature_cache=monitor_feature_cache)
+        mark("proposed_replay", section_started)
+        progress("proposed done")
+        check_timeout()
+
+        section_started = time.perf_counter()
+        candidates = {} if skip_candidate_details else _derive_candidate_sets(proposed, proposed_payload)
+        mark("candidate_replay", section_started)
+        progress("candidate details skipped" if skip_candidate_details else "candidate details done")
+        check_timeout()
+
+        section_started = time.perf_counter()
+        diff = _build_diff(active, proposed)
+        candidate_comparison = _build_candidate_comparison(active, proposed, candidates)
+        mark("diff_generation", section_started)
+
+        section_started = time.perf_counter()
+        changed_cases = _build_changed_case_diagnostics(active, proposed, include_trigger_path_diff=not no_trigger_path_diff)
+        mark("changed_cases_generation", section_started)
+        progress("changed cases done")
+        check_timeout()
+
+        section_started = time.perf_counter()
+        reports_path.mkdir(parents=True, exist_ok=True)
+        active_path = reports_path / "threshold_historical_replay_active.json"
+        proposed_path = reports_path / "threshold_historical_replay_proposed.json"
+        diff_path = reports_path / "threshold_historical_replay_diff.json"
+        candidate_path = reports_path / "threshold_candidate_comparison.json"
+        changed_cases_path = reports_path / "threshold_changed_cases.json"
+        changed_cases_md_path = reports_path / "threshold_changed_cases.md"
+        active_path.write_text(json.dumps(active, ensure_ascii=False, indent=2), encoding="utf-8")
+        proposed_path.write_text(json.dumps(proposed, ensure_ascii=False, indent=2), encoding="utf-8")
+        diff_path.write_text(json.dumps(diff, ensure_ascii=False, indent=2), encoding="utf-8")
+        candidate_path.write_text(json.dumps(candidate_comparison, ensure_ascii=False, indent=2), encoding="utf-8")
+        changed_cases_path.write_text(json.dumps(changed_cases, ensure_ascii=False, indent=2), encoding="utf-8")
+        changed_cases_md_path.write_text(_render_changed_cases_markdown(changed_cases), encoding="utf-8")
+        mark("report_writing", section_started)
+        diagnostics["total_seconds"] = round(time.perf_counter() - started, 3)
+        diagnostics["history_count"] = len(history_entries)
+        diagnostics["max_history"] = max_history
+        diagnostics["skip_candidate_details"] = skip_candidate_details
+        diagnostics["trigger_path_diff_enabled"] = not no_trigger_path_diff
+        progress("writing reports done")
+        return {
+            "status": "ok",
+            "active_path": str(active_path),
+            "proposed_path": str(proposed_path),
+            "diff_path": str(diff_path),
+            "candidate_path": str(candidate_path),
+            "changed_cases_path": str(changed_cases_path),
+            "decision": diff["decision"],
+            "total_history_count": diff["summary"]["total_history_count"],
+            "final_action_changed_count": diff["summary"]["final_action_changed_count"],
+            "risk_stage_changed_count": diff["summary"]["risk_stage_changed_count"],
+            "runtime_diagnostics": diagnostics,
+        }
+    except TimeoutError as exc:
+        diagnostics.setdefault("total_seconds", round(time.perf_counter() - started, 3))
+        diagnostics.setdefault("timeout_seconds", timeout_seconds)
+        diagnostics["max_history"] = max_history
+        diagnostics["skip_candidate_details"] = skip_candidate_details
+        diagnostics["trigger_path_diff_enabled"] = not no_trigger_path_diff
+        return {
+            "status": "timeout",
+            "message": str(exc),
+            "runtime_diagnostics": diagnostics,
+        }
 
 
 def _run_set(
@@ -113,12 +186,21 @@ def _run_set(
     price_points: list[dict[str, Any]],
     threshold_payload: dict[str, Any],
     candidate: str | None = None,
+    monitor_feature_cache: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     cases = []
     replay_entries = []
     for entry in history_entries:
         generated_at = datetime.fromisoformat(str(entry["generated_at"]))
-        report = _replay_report(config, prices, entry, generated_at, threshold_payload, candidate=candidate)
+        report = _replay_report(
+            config,
+            prices,
+            entry,
+            generated_at,
+            threshold_payload,
+            candidate=candidate,
+            monitor_feature_cache=monitor_feature_cache,
+        )
         action = _final_action(report)
         risk_lines = report.get("risk_lines", {})
         case = {
@@ -135,6 +217,7 @@ def _run_set(
             "composite_risk_score": risk_lines.get("composite_risk_score"),
             "danger_lines": risk_lines.get("danger_lines", []),
             "extreme_lines": risk_lines.get("extreme_lines", []),
+            "trigger_path": risk_lines.get("trigger_path", []),
             "indicators": _compact_indicators(risk_lines.get("indicators", [])),
             "candidate_adjustments": risk_lines.get("candidate_adjustments", []),
             "policy_reasons": ((report.get("spot_signal") or {}).get("action_decision") or {}).get("policy_reasons", []),
@@ -162,16 +245,25 @@ def _replay_report(
     generated_at: datetime,
     threshold_payload: dict[str, Any],
     candidate: str | None = None,
+    monitor_feature_cache: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     cutoff = generated_at.replace(hour=23, minute=59, second=59, microsecond=999999)
-    weekly_prices = resample_weekly_closes(prices.loc[prices.index <= cutoff])
-    risk_monitor = build_stress_monitor(
-        weekly_prices,
-        default_risk_indicator_map(config),
-        config["data"].get("monitor_windows_weeks", {"short": 1, "medium": 4, "long": 12}),
-        int(config["data"].get("zscore_window_weeks", 52)),
-        threshold_definitions=threshold_payload.get("indicators", {}),
-    )
+    if monitor_feature_cache is not None:
+        risk_monitor = _build_stress_monitor_from_feature_cache(
+            monitor_feature_cache,
+            cutoff,
+            threshold_payload.get("indicators", {}),
+        )
+    else:
+        cutoff = generated_at.replace(hour=23, minute=59, second=59, microsecond=999999)
+        weekly_prices = resample_weekly_closes(prices.loc[prices.index <= cutoff])
+        risk_monitor = build_stress_monitor(
+            weekly_prices,
+            default_risk_indicator_map(config),
+            config["data"].get("monitor_windows_weeks", {"short": 1, "medium": 4, "long": 12}),
+            int(config["data"].get("zscore_window_weeks", 52)),
+            threshold_definitions=threshold_payload.get("indicators", {}),
+        )
     regime = history_entry.get("regime", {})
     cycle = history_entry.get("cycle", {})
     credit_monitor = history_entry.get("credit_monitor", [])
@@ -262,6 +354,7 @@ def _set_stage(risk_lines: dict[str, Any], stage_key: str) -> None:
     if stage_key == "danger_line_reached":
         risk_lines["decision_level"] = "block"
         risk_lines["decision_summary"] = "候補ポリシーにより extreme から danger に抑制しましたが、市場ストレスは強い状態です。"
+    risk_lines.setdefault("trigger_path", []).append({"type": "candidate_adjustment", "stage": stage_key})
 
 
 def _clear_extreme_exception(risk_lines: dict[str, Any]) -> bool:
@@ -454,7 +547,11 @@ def _candidate_summary_row(payload: dict[str, Any], active: dict[str, Any]) -> d
     }
 
 
-def _build_changed_case_diagnostics(active: dict[str, Any], proposed: dict[str, Any]) -> dict[str, Any]:
+def _build_changed_case_diagnostics(
+    active: dict[str, Any],
+    proposed: dict[str, Any],
+    include_trigger_path_diff: bool = True,
+) -> dict[str, Any]:
     active_by_date = {case["date"]: case for case in active["cases"]}
     proposed_by_date = {case["date"]: case for case in proposed["cases"]}
     active_returns = _validation_cases_by_date(active.get("validation", {}))
@@ -468,18 +565,19 @@ def _build_changed_case_diagnostics(active: dict[str, Any], proposed: dict[str, 
         ):
             continue
         validation_case = active_returns.get(date_value, {})
-        changed.append(
-            {
-                "date": date_value,
-                "history_file": proposed_case.get("source_history"),
-                "active": _case_diagnostic(active_case),
-                "proposed": _case_diagnostic(proposed_case),
-                "contributing_indicators": _contributing_indicators(active_case, proposed_case),
-                "forward_returns": validation_case.get("forward_returns", {}),
-                "max_drawdowns": validation_case.get("max_drawdowns", {}),
-                "classification": _changed_case_classification(validation_case),
-            }
-        )
+        row = {
+            "date": date_value,
+            "history_file": proposed_case.get("source_history"),
+            "active": _case_diagnostic(active_case),
+            "proposed": _case_diagnostic(proposed_case),
+            "contributing_indicators": _contributing_indicators(active_case, proposed_case),
+            "forward_returns": validation_case.get("forward_returns", {}),
+            "max_drawdowns": validation_case.get("max_drawdowns", {}),
+            "classification": _changed_case_classification(validation_case),
+        }
+        if include_trigger_path_diff:
+            row["trigger_path_diff"] = _trigger_path_diff(active_case, proposed_case)
+        changed.append(row)
     return {"status": "ok", "changed_count": len(changed), "cases": changed}
 
 
@@ -492,7 +590,29 @@ def _case_diagnostic(case: dict[str, Any]) -> dict[str, Any]:
         "extreme_count": case.get("extreme_count"),
         "danger_lines": case.get("danger_lines", []),
         "extreme_lines": case.get("extreme_lines", []),
+        "trigger_path": case.get("trigger_path", []),
     }
+
+
+def _trigger_path_diff(active_case: dict[str, Any], proposed_case: dict[str, Any]) -> dict[str, Any]:
+    active_keys = {_trigger_key(row): row for row in active_case.get("trigger_path", [])}
+    proposed_keys = {_trigger_key(row): row for row in proposed_case.get("trigger_path", [])}
+    added = [proposed_keys[key] for key in sorted(set(proposed_keys) - set(active_keys))]
+    removed = [active_keys[key] for key in sorted(set(active_keys) - set(proposed_keys))]
+    family_summary = Counter(
+        str(row.get("family", "other")) for row in proposed_case.get("trigger_path", []) if row.get("type") == "indicator"
+    )
+    return {
+        "active_trigger_path": active_case.get("trigger_path", []),
+        "proposed_trigger_path": proposed_case.get("trigger_path", []),
+        "added_contributors": added,
+        "removed_contributors": removed,
+        "family_summary": dict(family_summary),
+    }
+
+
+def _trigger_key(row: dict[str, Any]) -> str:
+    return "|".join(str(row.get(key, "")) for key in ("type", "indicator", "name", "stage"))
 
 
 def _contributing_indicators(active_case: dict[str, Any], proposed_case: dict[str, Any]) -> list[dict[str, Any]]:
@@ -550,8 +670,12 @@ def _render_changed_cases_markdown(payload: dict[str, Any]) -> str:
         contributors = ", ".join(
             f"{row['ticker']} {row.get('active_level')}->{row.get('proposed_level')}" for row in case.get("contributing_indicators", [])[:4]
         )
+        trigger_added = ", ".join(
+            str(row.get("indicator") or row.get("name") or row.get("type"))
+            for row in (case.get("trigger_path_diff", {}).get("added_contributors") or [])[:4]
+        )
         lines.append(
-            "| {date} | {active_action}/{active_stage} | {proposed_action}/{proposed_stage} | {active_score} | {proposed_score} | {danger}/{extreme} | `{classification}` | {contributors} |".format(
+            "| {date} | {active_action}/{active_stage} | {proposed_action}/{proposed_stage} | {active_score} | {proposed_score} | {danger}/{extreme} | `{classification}` | {contributors}{trigger_suffix} |".format(
                 date=case["date"],
                 active_action=active["final_action"],
                 active_stage=active["risk_stage"],
@@ -563,6 +687,7 @@ def _render_changed_cases_markdown(payload: dict[str, Any]) -> str:
                 extreme=proposed["extreme_count"],
                 classification=case["classification"],
                 contributors=contributors or "-",
+                trigger_suffix=f" / trigger+ {trigger_added}" if trigger_added else "",
             )
         )
     return "\n".join(lines) + "\n"
@@ -620,6 +745,116 @@ def _load_prices(path: Path) -> pd.DataFrame:
     return frame.sort_index()
 
 
+def _build_monitor_feature_cache(config: dict[str, Any], prices: pd.DataFrame, history_entries: list[dict[str, Any]]) -> dict[str, Any]:
+    max_cutoff = max(datetime.fromisoformat(str(entry["generated_at"])) for entry in history_entries).replace(
+        hour=23,
+        minute=59,
+        second=59,
+        microsecond=999999,
+    )
+    weekly_prices = resample_weekly_closes(prices.loc[prices.index <= max_cutoff])
+    indicator_map = default_risk_indicator_map(config)
+    windows = config["data"].get("monitor_windows_weeks", {"short": 1, "medium": 4, "long": 12})
+    zscore_window = int(config["data"].get("zscore_window_weeks", 52))
+    items: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for ticker in indicator_map.values():
+        if ticker in seen or ticker not in weekly_prices.columns:
+            continue
+        seen.add(ticker)
+        series = weekly_prices[ticker].dropna().astype(float)
+        if not series.empty:
+            items.append(_feature_cache_item(series, ticker, windows, zscore_window))
+
+    hyg = indicator_map.get("HYG", "HYG")
+    lqd = indicator_map.get("LQD", "LQD")
+    if hyg in weekly_prices.columns and lqd in weekly_prices.columns:
+        ratio = weekly_prices[hyg].astype(float) / weekly_prices[lqd].astype(float)
+        ratio = ratio.replace([float("inf"), float("-inf")], pd.NA).dropna()
+        if not ratio.empty:
+            items.append(_feature_cache_item(ratio, "HYG/LQD", windows, zscore_window, label="ハイイールド債/投資適格債 比率"))
+    return {"items": items}
+
+
+def _feature_cache_item(
+    series: pd.Series,
+    ticker: str,
+    windows: dict[str, int],
+    zscore_window: int,
+    label: str | None = None,
+) -> dict[str, Any]:
+    features = _build_feature_values(series, windows, zscore_window)
+    return {
+        "ticker": ticker,
+        "label": label,
+        "series": series,
+        "feature_series": features["_series"],
+    }
+
+
+def _build_stress_monitor_from_feature_cache(
+    feature_cache: dict[str, Any],
+    cutoff: datetime,
+    threshold_definitions: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows = []
+    for item in feature_cache.get("items", []):
+        features = _features_at_cutoff(item, cutoff)
+        if not features:
+            continue
+        ticker = str(item["ticker"])
+        state = _stress_state_for_row(ticker, features, threshold_definitions)
+        rows.append(
+            {
+                "ticker": ticker,
+                "ticker_name_ja": item.get("label") or _ticker_label_for_replay(ticker),
+                "current": round(float(features["current"]), 4),
+                "change_1w": round(float(features["change_1w"]), 4),
+                "change_4w": round(float(features["change_4w"]), 4),
+                "change_12w": round(float(features["change_12w"]), 4),
+                "zscore": round(float(features["level_zscore"]), 4),
+                "recent_values": [round(float(value), 4) for value in item["series"][item["series"].index <= cutoff].tail(5).tolist()],
+                "signal_label": state["signal_label"],
+                "line_level": state["line_level"],
+                "line_level_label": LEVEL_LABELS[state["line_level"]],
+                "line_reason": state["line_reason"],
+                "warning_line": state["warning_line"],
+                "danger_line": state["danger_line"],
+                "extreme_line": state["extreme_line"],
+                "recent_warning_hits": state["recent_warning_hits"],
+                "recent_danger_hits": state["recent_danger_hits"],
+                "recent_extreme_hits": state["recent_extreme_hits"],
+                "weight": state["weight"],
+                "pressure_score": round(state["pressure_score"], 4),
+                "health_score": round(1.0 - state["pressure_score"], 4),
+            }
+        )
+    order = {ticker: index for index, ticker in enumerate(threshold_definitions.keys())}
+    rows.sort(key=lambda row: order.get(str(row.get("ticker", "")), 999))
+    return rows
+
+
+def _features_at_cutoff(item: dict[str, Any], cutoff: datetime) -> dict[str, Any] | None:
+    series = item["series"][item["series"].index <= cutoff]
+    if series.empty:
+        return None
+    feature_series = {}
+    features = {"current": float(series.iloc[-1])}
+    for name, values in item["feature_series"].items():
+        trimmed = values[values.index <= cutoff]
+        feature_series[name] = trimmed
+        clean = trimmed.dropna()
+        features[name] = float(clean.iloc[-1]) if not clean.empty else float("nan")
+    features["_series"] = feature_series
+    return features
+
+
+def _ticker_label_for_replay(ticker: str) -> str:
+    from project.ticker_labels import ticker_label_ja
+
+    return ticker_label_ja(ticker)
+
+
 def _latest_market_snapshot(cache_dir: Path) -> Path:
     candidates = sorted((cache_dir / "market_snapshots").glob("market_snapshot_*.csv"), key=lambda path: path.stat().st_mtime, reverse=True)
     if not candidates:
@@ -672,12 +907,22 @@ def _original_action(report: dict[str, Any]) -> str:
 
 
 def main() -> int:
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser(description="Replay historical reports with active/proposed risk-line thresholds.")
     parser.add_argument("--config", default="project/config.yaml")
     parser.add_argument("--active-thresholds", default=str(ACTIVE_THRESHOLDS_PATH))
     parser.add_argument("--proposed-thresholds", default=str(PROPOSED_THRESHOLDS_PATH))
     parser.add_argument("--prices-csv", default=None)
     parser.add_argument("--reports-dir", default=None)
+    parser.add_argument("--max-history", type=int, default=None)
+    parser.add_argument(
+        "--changed-cases-only",
+        action="store_true",
+        help="Focus on active/proposed changed-case diagnostics and skip candidate comparison details.",
+    )
+    parser.add_argument("--skip-candidate-details", action="store_true", help="Skip candidate comparison details for faster replay.")
+    parser.add_argument("--no-trigger-path-diff", action="store_true")
+    parser.add_argument("--timeout-seconds", type=float, default=None)
     args = parser.parse_args()
     result = run_threshold_historical_replay(
         config_path=args.config,
@@ -685,6 +930,10 @@ def main() -> int:
         proposed_thresholds_path=args.proposed_thresholds,
         prices_csv=args.prices_csv,
         reports_dir=args.reports_dir,
+        max_history=args.max_history,
+        skip_candidate_details=args.skip_candidate_details or args.changed_cases_only,
+        no_trigger_path_diff=args.no_trigger_path_diff,
+        timeout_seconds=args.timeout_seconds,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0

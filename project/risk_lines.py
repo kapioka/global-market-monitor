@@ -122,6 +122,18 @@ def evaluate_risk_lines(
         missing_indicators=missing_indicators,
         vix_persist_danger=vix_persist_danger,
     )
+    trigger_path = _build_trigger_path(
+        rows=rows,
+        stage_key=stage_key,
+        composite_risk_score=composite_risk_score,
+        danger_hits=danger_hits,
+        extreme_hits=extreme_hits,
+        vix_persist_danger=vix_persist_danger,
+        vix_persist_extreme=vix_persist_extreme,
+        credit_initial=credit_initial,
+        danger_line=danger_line,
+        extreme_line=extreme_line,
+    )
     summary = _summary_for_stage(stage_key, reasons, strict_missing)
     strict_judgement_available = len(strict_missing) == 0
     precision_label = "厳密判定可" if strict_judgement_available else "厳密判定不可"
@@ -157,7 +169,69 @@ def evaluate_risk_lines(
         "decision_level": decision_level,
         "decision_flags": decision_flags,
         "decision_summary": decision_summary,
+        "trigger_path": trigger_path,
     }
+
+
+def _build_trigger_path(
+    rows: list[dict[str, Any]],
+    stage_key: str,
+    composite_risk_score: float,
+    danger_hits: list[dict[str, Any]],
+    extreme_hits: list[dict[str, Any]],
+    vix_persist_danger: bool,
+    vix_persist_extreme: bool,
+    credit_initial: bool,
+    danger_line: bool,
+    extreme_line: bool,
+) -> list[dict[str, Any]]:
+    path: list[dict[str, Any]] = []
+    material_rows = danger_hits if stage_key == "extreme_danger_line_reached" else danger_hits
+    if stage_key in {"caution", "credit_spillover_initial"}:
+        material_rows = [row for row in rows if _level_rank(row.get("line_level")) >= 1]
+    for row in sorted(material_rows, key=lambda item: float(item.get("pressure_score", 0.0) or 0.0), reverse=True):
+        path.append(
+            {
+                "type": "indicator",
+                "indicator": row.get("ticker"),
+                "name": row.get("ticker_name_ja", row.get("ticker")),
+                "family": _indicator_family(str(row.get("ticker", ""))),
+                "stage": row.get("line_level"),
+                "contribution": round(float(row.get("pressure_score", 0.0) or 0.0) * float(row.get("weight", 1.0) or 1.0), 6),
+                "pressure_score": row.get("pressure_score"),
+                "source": "active",
+            }
+        )
+    overlays = [
+        ("vix_danger_persistence", vix_persist_danger),
+        ("vix_extreme_persistence", vix_persist_extreme),
+        ("credit_spillover_initial", credit_initial),
+        ("danger_line_rule", danger_line),
+        ("extreme_line_rule", extreme_line),
+    ]
+    for name, matched in overlays:
+        if matched:
+            path.append({"type": "overlay", "name": name, "matched": True})
+    threshold = {"extreme_danger_line_reached": 78.0, "danger_line_reached": 62.0, "caution": 35.0}.get(stage_key)
+    if threshold is not None or composite_risk_score >= 35:
+        path.append({"type": "composite_score", "score": composite_risk_score, "threshold": threshold})
+    return path
+
+
+def _indicator_family(ticker: str) -> str:
+    if ticker in {"CL=F", "BZ=F"}:
+        return "commodity_oil"
+    if ticker in {"^VIX", "^MOVE"}:
+        return "volatility"
+    if ticker in {"HYG", "LQD", "HYG/LQD"}:
+        return "credit"
+    if ticker in {"^TNX"}:
+        return "rates"
+    if ticker in {"DX-Y.NYB"}:
+        return "currency"
+    if ticker in {"SPY"}:
+        return "equity"
+    return "other"
 
 
 def _build_reasons(

@@ -143,12 +143,16 @@ def run_periodic_risk_line_maintenance_with_progress(
         should_generate = True
     if should_generate:
         emit("3/4", "generating recalibration proposal")
-        write_risk_line_recalibration_outputs(config_path, sample_only=sample_only)
+        write_proposed = bool(policy.get("write_proposed_thresholds", False)) and not sample_only
+        outputs = write_risk_line_recalibration_outputs(config_path, sample_only=sample_only, write_proposed=write_proposed)
         status = load_risk_line_review_status(reports_dir, active_payload, policy, as_of=as_of)
         status["proposal_generated_this_run"] = True
+        status["proposed_thresholds_written"] = bool(outputs.get("proposed_json"))
+        status["proposed_thresholds_snapshot"] = str(outputs.get("proposed_snapshot_json")) if outputs.get("proposed_snapshot_json") else None
     else:
         emit("3/4", "proposal generation not required")
         status["proposal_generated_this_run"] = False
+        status["proposed_thresholds_written"] = False
     emit("4/4", "threshold maintenance completed", proposal_generated=status["proposal_generated_this_run"])
     status["maintenance"] = {
         "status": "completed",

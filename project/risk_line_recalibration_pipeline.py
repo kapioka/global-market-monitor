@@ -20,9 +20,14 @@ SUMMARY_JSON = "risk_line_recalibration_summary.json"
 SUMMARY_MD = "risk_line_recalibration_summary.md"
 DIFF_JSON = "risk_line_threshold_diff.json"
 DIFF_MD = "risk_line_threshold_diff.md"
+PROPOSED_SNAPSHOT_JSON = "risk_line_thresholds_proposed_snapshot.json"
 
 
-def write_risk_line_recalibration_outputs(config_path: str | Path, sample_only: bool = False) -> dict[str, Path]:
+def write_risk_line_recalibration_outputs(
+    config_path: str | Path,
+    sample_only: bool = False,
+    write_proposed: bool = False,
+) -> dict[str, Path | None]:
     config = load_config(config_path)
     reports_dir = Path(config["paths"]["reports_dir"])
     reports_dir.mkdir(parents=True, exist_ok=True)
@@ -32,19 +37,25 @@ def write_risk_line_recalibration_outputs(config_path: str | Path, sample_only: 
     summary_md = reports_dir / SUMMARY_MD
     diff_json = reports_dir / DIFF_JSON
     diff_md = reports_dir / DIFF_MD
+    proposed_snapshot_json = reports_dir / PROPOSED_SNAPSHOT_JSON
 
     summary_json.write_text(json.dumps(payload["summary"], ensure_ascii=False, indent=2), encoding="utf-8")
     summary_md.write_text(render_risk_line_recalibration_summary_markdown(payload["summary"]), encoding="utf-8")
     diff_json.write_text(json.dumps(payload["diff"], ensure_ascii=False, indent=2), encoding="utf-8")
     diff_md.write_text(render_risk_line_threshold_diff_markdown(payload["diff"]), encoding="utf-8")
-    write_threshold_payload(PROPOSED_THRESHOLDS_PATH, payload["proposed_thresholds"])
+    proposed_snapshot_json.write_text(json.dumps(payload["proposed_thresholds"], ensure_ascii=False, indent=2), encoding="utf-8")
+    proposed_json = None
+    if write_proposed:
+        write_threshold_payload(PROPOSED_THRESHOLDS_PATH, payload["proposed_thresholds"])
+        proposed_json = PROPOSED_THRESHOLDS_PATH
 
     return {
         "summary_json": summary_json,
         "summary_md": summary_md,
         "diff_json": diff_json,
         "diff_md": diff_md,
-        "proposed_json": PROPOSED_THRESHOLDS_PATH,
+        "proposed_snapshot_json": proposed_snapshot_json,
+        "proposed_json": proposed_json,
     }
 
 

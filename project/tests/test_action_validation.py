@@ -62,3 +62,31 @@ def test_build_action_validation_handles_insufficient_data():
     result = build_action_validation([], [])
 
     assert result["status"] == "insufficient_data"
+
+
+def test_build_action_validation_calculates_external_benchmark_excess_return():
+    history = [
+        {
+            "generated_at": "2026-01-01T07:30:00",
+            "spot_signal": {"action_decision": {"action": "buy_window"}},
+            "data_reliability": {"level": "high"},
+        }
+    ]
+    prices = [
+        {"date": "2026-01-01T00:00:00", "price": 100.0},
+        {"date": "2026-01-30T00:00:00", "price": 110.0},
+    ]
+    benchmark_prices = [
+        {"date": "2026-01-01T00:00:00", "price": 200.0},
+        {"date": "2026-01-30T00:00:00", "price": 210.0},
+    ]
+
+    result = build_action_validation(history, prices, benchmark_prices)
+
+    case = result["cases"][0]
+    assert result["benchmark_source"] == "external"
+    assert case["forward_returns"]["4w"] == 0.1
+    assert case["benchmark_returns"]["4w"] == 0.05
+    assert case["excess_returns"]["4w"] == 0.05
+    assert result["action_summary"]["buy_window"]["horizons"]["4w"]["mean_excess_return"] == 0.05
+    assert result["action_summary"]["buy_window"]["horizons"]["4w"]["excess_win_rate"] == 1.0

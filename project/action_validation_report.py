@@ -28,6 +28,7 @@ def render_action_validation_markdown(payload: dict[str, Any]) -> str:
         "# action validation",
         "",
         f"- status: {payload.get('status', '-')}",
+        f"- benchmark_source: {payload.get('benchmark_source', '-')}",
     ]
     if payload.get("reason"):
         lines.append(f"- reason: {payload.get('reason')}")
@@ -40,7 +41,7 @@ def render_action_validation_markdown(payload: dict[str, Any]) -> str:
         horizons = item.get("horizons", {})
         for horizon, horizon_item in horizons.items():
             lines.append(
-                f"  - {horizon}: count={horizon_item.get('count', 0)} / mean={_format_return(horizon_item.get('mean_return'))} / median={_format_return(horizon_item.get('median_return'))} / win_rate={_format_return(horizon_item.get('win_rate'))} / max_dd={_format_return(horizon_item.get('worst_max_drawdown'))}"
+                f"  - {horizon}: count={horizon_item.get('count', 0)} / mean={_format_return(horizon_item.get('mean_return'))} / median={_format_return(horizon_item.get('median_return'))} / win_rate={_format_return(horizon_item.get('win_rate'))} / excess_mean={_format_return(horizon_item.get('mean_excess_return'))} / excess_win_rate={_format_return(horizon_item.get('excess_win_rate'))} / max_dd={_format_return(horizon_item.get('worst_max_drawdown'))}"
             )
     diagnostics = payload.get("diagnostics", {})
     if diagnostics:
@@ -80,6 +81,9 @@ def render_action_validation_csv(payload: dict[str, Any]) -> str:
         "mean_max_drawdown",
         "worst_max_drawdown",
         "mean_excess_return",
+        "median_excess_return",
+        "worst_excess_return",
+        "excess_win_rate",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames, lineterminator="\n")
     writer.writeheader()
@@ -95,6 +99,7 @@ def _summary_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return {
         "status": payload.get("status"),
         "reason": payload.get("reason"),
+        "benchmark_source": payload.get("benchmark_source"),
         "action_summary": payload.get("action_summary", {}),
         "diagnostics": payload.get("diagnostics", {}),
     }

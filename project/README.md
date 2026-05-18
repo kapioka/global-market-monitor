@@ -121,6 +121,14 @@ Python の呼び出し方が環境によって違う場合は、次でも構い�
 py -3 -m pip install -r project/requirements.txt
 ```
 
+再現性を優先して、現在の検証済み環境に近い依存でそろえる場合は lock file を使います。
+
+```bash
+python -m pip install -r project/requirements-lock.txt
+```
+
+`requirements-lock.txt` は、作成環境での再現性を優先した固定依存です。Windows / Python バージョン / 手元環境の影響を受けるため、別OSや別Python minor versionでは `requirements.txt` の方が安定する場合があります。通常は `requirements.txt`、同じ環境を再現したいときは `requirements-lock.txt` を使ってください。
+
 ## 実行方法
 
 ### 通常実行
@@ -313,11 +321,19 @@ python -m project.run_action_validation
 python -m project.run_action_validation --price-points-json project/reports/validation_prices.json
 ```
 
+別ベンチマークとの excess return を確認する場合:
+
+```bash
+python -m project.validation_price_export --ticker ACWI --output project/reports/validation_prices_acwi.json
+python -m project.validation_price_export --ticker SPY --output project/reports/validation_prices_spy.json
+python -m project.run_action_validation --price-points-json project/reports/validation_prices_acwi.json --benchmark-price-points-json project/reports/validation_prices_spy.json
+```
+
 この exporter は sample fallback を使いません。代替ティッカーによる proxy fallback を検証データとして許可する場合だけ、明示的に `--allow-proxy` を指定します。
 
 `project/reports/validation_prices.json` が存在しない場合、runner は `missing_price_points` を返します。その場合は exporter を先に実行するか、`--price-points-json` で別の価格 JSON を指定してください。
 
-現時点の `benchmark_returns` と `excess_returns` は、独立した別ベンチマーク比較ではなく、同一価格系列を基準にした placeholder です。別 benchmark price JSON を受け取る比較は次フェーズで扱います。
+`--benchmark-price-points-json` を指定すると、`benchmark_returns` は別価格系列で計算し、`excess_returns` は対象リターンから benchmark リターンを差し引きます。指定しない場合は従来互換として、対象価格系列を benchmark として扱います。
 
 出力される検証ファイル:
 

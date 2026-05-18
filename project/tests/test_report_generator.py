@@ -309,6 +309,9 @@ def _report() -> dict:
 def test_render_markdown_uses_real_newlines():
     text = render_markdown(_report())
     assert "`n" not in text
+    assert "## まず見る要約" in text
+    assert "- 最終判断: 監視" in text
+    assert "危険ライン trigger path" in text
     assert "\n## サマリー\n" in text
     assert "データ取得状況" in text
     assert "接続診断" in text
@@ -328,6 +331,14 @@ def test_render_markdown_uses_real_newlines():
     assert "相対広がり指標: watch_share=0.75 / promising_share=0.25" in text
     assert "相対広がり要約: 裾野は十分 / 有望比率は中程度" in text
     assert "単独主導内訳: 集中=中 / 裾野不足=中 / 先頭優位=高" in text
+
+
+def test_render_html_includes_first_read_summary():
+    text = render_markdown(_report())
+    html = render_html(_report())
+
+    assert "first-read-summary" in html
+    assert "まず見る要約" in html
     assert "米国大型株ETF" in text
     assert "信用監視" in text
     assert "インフレ監視" in text

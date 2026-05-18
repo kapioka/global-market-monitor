@@ -231,6 +231,45 @@ def _threshold_rule_certification_html(report: dict[str, Any]) -> str:
     """
 
 
+def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
+    spot_signal = report.get("spot_signal", {}) or {}
+    action_decision = spot_signal.get("action_decision", {}) or {}
+    risk_lines = report.get("risk_lines", {}) or {}
+    reliability = report.get("data_reliability", {}) or {}
+    threshold_usage = report.get("threshold_usage", {}) or {}
+    proposed_mode = "診断のみ"
+    if (report.get("threshold_rule_certification") or {}).get("summary"):
+        proposed_mode = "診断のみ（rule単位で検証中）"
+    reason = ", ".join(action_decision.get("policy_reasons", [])[:2]) or reliability.get("cap_reason") or spot_signal.get("reason") or "-"
+    return [
+        ("最終判断", _jp_action(str(action_decision.get("action", spot_signal.get("action", "-"))))),
+        ("判断理由", str(reason)),
+        ("市場レジーム", _jp_regime(str((report.get("regime") or {}).get("regime_label", "-")))),
+        ("危険ライン", str(risk_lines.get("stage_key", "-"))),
+        ("実運用閾値", str(threshold_usage.get("final_action_threshold_set", "active"))),
+        ("proposed / candidate", proposed_mode),
+        ("次に見る項目", "データ品質 / 危険ライン trigger path / セクター内部構造"),
+    ]
+
+
+def _first_read_summary_markdown_lines(report: dict[str, Any]) -> list[str]:
+    lines = ["## まず見る要約"]
+    lines.extend(f"- {label}: {value}" for label, value in _first_read_summary_items(report))
+    return lines
+
+
+def _first_read_summary_html(report: dict[str, Any]) -> str:
+    items = "".join(
+        f"<li><span>{html.escape(label)}</span><strong>{html.escape(value)}</strong></li>" for label, value in _first_read_summary_items(report)
+    )
+    return f"""
+      <section class=\"first-read-summary\">
+        <h2>まず見る要約</h2>
+        <ul>{items}</ul>
+      </section>
+    """
+
+
 def _threshold_usage_markdown_lines(report: dict[str, Any]) -> list[str]:
     usage = report.get("threshold_usage") or {}
     rule_certification = report.get("threshold_rule_certification") or {}
@@ -301,6 +340,8 @@ def render_markdown(report: dict[str, Any]) -> str:
 
     lines = [
         f"# {report['title']}",
+        "",
+        *_first_read_summary_markdown_lines(report),
         "",
         "## サマリー",
         f"- 生成時刻: {report['generated_at']}",
@@ -1621,6 +1662,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     )
     history_payload = _build_history_embed_payload(history_entries or [])
     history_payload_json = json.dumps(history_payload, ensure_ascii=False).replace("</", "<\\/")
+    first_read_summary_html = _first_read_summary_html(report)
     primary_candidate_chips = (
         "".join(
             f"<span class='candidate-chip'>{html.escape(str(item.get('ticker', '-')))}</span>"
@@ -1930,7 +1972,13 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .status-box:first-child {{ border-left:0; padding-left:0; }}
     .status-box .k {{ font-size:12px; color:var(--muted); font-weight:700; }}
     .status-box .v {{ margin-top:4px; font-size:14px; font-weight:800; color:#1f3b67; }}
-    .dashboard-grid {{ display:flex; gap:16px; align-items:stretch; margin-bottom:32px; }}
+    .dashboard-grid {{ display:flex; gap:16px; align-items:stretch; margin-bottom:32px; flex-wrap:wrap; }}
+    .first-read-summary {{ flex: 0 0 100%; max-width:100%; box-sizing:border-box; background: rgba(255,255,255,0.94); border:1px solid var(--line); border-radius:16px; padding:16px 18px; }}
+    .first-read-summary h2 {{ margin:0 0 10px; font-size:16px; color:#102a43; }}
+    .first-read-summary ul {{ display:grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap:8px 12px; list-style:none; padding:0; margin:0; }}
+    .first-read-summary li {{ display:grid; gap:3px; min-width:0; }}
+    .first-read-summary span {{ color:var(--muted); font-size:12px; font-weight:700; }}
+    .first-read-summary strong {{ color:#102a43; font-size:13px; line-height:1.35; overflow-wrap:anywhere; }}
     .hero-card, .decision-card, .mini-panel, .overview-panel, .support-panel {{ background: rgba(255,255,255,0.9); border:1px solid var(--line); border-radius:20px; }}
     .hero-card, .decision-card {{ padding: 17px 22px; }}
     .hero-card {{ flex:1.22 1 0; }}
@@ -2092,6 +2140,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       .grid {{ grid-template-columns: 1fr; }}
       .summary-main {{ grid-template-columns: 1fr; }}
       .summary-metrics {{ grid-template-columns: 1fr; }}
+      .first-read-summary ul {{ grid-template-columns:1fr; }}
       .sector-overview-layout {{ grid-template-columns:1fr; gap:12px; }}
       .overview-panel-head {{ align-items:flex-start; }}
       .momentum-side {{ justify-content:flex-start; }}
@@ -2132,6 +2181,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     </div>
 
     <div class=\"dashboard-grid\">
+      {first_read_summary_html}
       <section class=\"hero-card\">
         <div class=\"hero-label\">市場レジーム</div>
         <div class=\"hero-main\">

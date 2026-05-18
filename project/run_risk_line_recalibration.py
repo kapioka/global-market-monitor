@@ -14,9 +14,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Build risk-line recalibration outputs and proposed thresholds.")
     parser.add_argument("--config", type=Path, default=Path(__file__).resolve().parent / "config.yaml")
     parser.add_argument("--sample-only", action="store_true")
+    parser.add_argument("--write-proposed", action="store_true", help="Also update project/risk_line_thresholds_proposed.json.")
     args = parser.parse_args()
 
-    outputs = write_risk_line_recalibration_outputs(args.config, sample_only=args.sample_only)
+    outputs = write_risk_line_recalibration_outputs(args.config, sample_only=args.sample_only, write_proposed=args.write_proposed)
     for path in outputs.values():
         print(path)
     return 0
