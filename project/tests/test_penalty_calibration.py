@@ -8,7 +8,7 @@ import uuid
 from project.penalty_calibration import build_penalty_calibration_report, render_penalty_calibration_markdown
 
 
-TEST_TMP_ROOT = Path(__file__).resolve().parent / "_tmp"
+TEST_TMP_ROOT = Path(__file__).resolve().parents[2] / ".tmp" / "pytest" / "manual" / "penalty_calibration"
 
 
 def make_test_dir(name: str) -> Path:

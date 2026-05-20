@@ -23,7 +23,7 @@ from project.pipeline import load_action_validation_summary
 import pandas as pd
 
 
-TEST_TMP_ROOT = Path(__file__).resolve().parents[2] / ".test_tmp_main"
+TEST_TMP_ROOT = Path(__file__).resolve().parents[2] / ".tmp" / "pytest" / "manual" / "main"
 
 
 def make_test_dir(name: str) -> Path:

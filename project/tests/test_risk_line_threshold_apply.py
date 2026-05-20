@@ -7,7 +7,7 @@ import uuid
 from project.risk_line_threshold_apply import apply_proposed_thresholds
 
 
-TEST_TMP_ROOT = Path(__file__).resolve().parents[2] / ".test_tmp_threshold_apply"
+TEST_TMP_ROOT = Path(__file__).resolve().parents[2] / ".tmp" / "pytest" / "manual" / "threshold_apply"
 
 
 def test_apply_proposed_thresholds_writes_log(monkeypatch):

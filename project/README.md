@@ -129,6 +129,23 @@ python -m pip install -r project/requirements-lock.txt
 
 `requirements-lock.txt` は、作成環境での再現性を優先した固定依存です。Windows / Python バージョン / 手元環境の影響を受けるため、別OSや別Python minor versionでは `requirements.txt` の方が安定する場合があります。通常は `requirements.txt`、同じ環境を再現したいときは `requirements-lock.txt` を使ってください。
 
+### 依存関係の脆弱性監査
+
+`pip-audit` で lock file を監査するとき、CUDA ローカルビルド表記の pin が PyPI の解決条件と合わず、監査前の dry-run 解決で止まることがあります。その場合は、監査不能項目を分離して残りの pinned dependencies を監査します。
+
+```powershell
+.\scripts\audit_python_dependencies.ps1
+```
+
+生成される主なファイル:
+
+- `.tmp\pip-audit\requirements-lock.pip-audit.txt`
+  - `pip-audit --no-deps` に渡す監査可能な requirements
+- `.tmp\pip-audit\requirements-lock.pip-audit-excluded.md`
+  - `torch==2.8.0+cu129` など、PyPI 既定 index では解決できないローカルビルド表記の除外理由
+
+除外分は「脆弱性なし」ではありません。配布元や実際のインストール元に合わせて別途確認する監査不能項目です。
+
 ## 実行方法
 
 ### 通常実行
