@@ -13,6 +13,7 @@ HORIZONS_DAYS = {
     "52w": 364,
 }
 RALLY_THRESHOLD = 0.05
+KNOWN_ACTIONS = ("wait", "watch", "buy_candidate", "buy_window")
 
 
 def build_action_validation(
@@ -164,7 +165,8 @@ def _summarize_cases(cases: list[dict[str, Any]]) -> dict[str, Any]:
         by_action[case["action"]].append(case)
 
     summary = {}
-    for action, action_cases in sorted(by_action.items()):
+    for action in sorted(set(KNOWN_ACTIONS).union(by_action)):
+        action_cases = by_action.get(action, [])
         horizon_summary = {}
         for horizon in HORIZONS_DAYS:
             values = [case["forward_returns"][horizon] for case in action_cases if case["forward_returns"].get(horizon) is not None]
@@ -195,20 +197,35 @@ def _summarize_cases(cases: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _build_diagnostics(cases: list[dict[str, Any]]) -> dict[str, Any]:
     buy_window_13w = _returns_for_action(cases, "buy_window", "13w")
+    buy_candidate_13w = _returns_for_action(cases, "buy_candidate", "13w")
     wait_13w = _returns_for_action(cases, "wait", "13w")
     watch_cases = [case for case in cases if case["action"] == "watch"]
+    buy_candidate_cases = [case for case in cases if case["action"] == "buy_candidate"]
     watch_promotions = 0
+    candidate_promotions = 0
+    candidate_fallbacks = 0
     for index, case in enumerate(cases):
         if case["action"] != "watch":
+            pass
+        elif (following := cases[index + 1 :]) and following[0]["action"] in {"buy_candidate", "buy_window"}:
+            watch_promotions += 1
+        if case["action"] != "buy_candidate":
             continue
         following = cases[index + 1 :]
         if following and following[0]["action"] == "buy_window":
-            watch_promotions += 1
+            candidate_promotions += 1
+        if following and following[0]["action"] == "wait":
+            candidate_fallbacks += 1
 
     return {
         "buy_window_negative_rate_13w": _rate(buy_window_13w, lambda value: value < 0),
+        "buy_candidate_negative_rate_13w": _rate(buy_candidate_13w, lambda value: value < 0),
+        "buy_candidate_false_positive_rate_13w": _rate(buy_candidate_13w, lambda value: value < 0),
         "wait_missed_rally_rate_13w": _rate(wait_13w, lambda value: value >= RALLY_THRESHOLD),
         "watch_to_buy_window_promotion_rate": round(watch_promotions / len(watch_cases), 6) if watch_cases else None,
+        "buy_candidate_to_buy_window_transition_count": candidate_promotions,
+        "buy_candidate_to_wait_fallback_count": candidate_fallbacks,
+        "buy_candidate_count": len(buy_candidate_cases),
         "watch_count": len(watch_cases),
     }
 

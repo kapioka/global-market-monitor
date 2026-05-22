@@ -241,8 +241,26 @@ def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
     if (report.get("threshold_rule_certification") or {}).get("summary"):
         proposed_mode = "診断のみ（rule単位で検証中）"
     reason = ", ".join(action_decision.get("policy_reasons", [])[:2]) or reliability.get("cap_reason") or spot_signal.get("reason") or "-"
+    action_layers = spot_signal.get("action_layers") or {}
+    diagnostics = report.get("buy_window_diagnostics") or {}
+    fx_policy_diagnostics = report.get("fx_policy_diagnostics") or {}
+    zero_reasons = diagnostics.get("buy_window_zero_reason_summary") or []
     return [
+        ("市場だけ見た判定", _jp_action(str(action_layers.get("market_raw_action", action_decision.get("market_raw_action", "-"))))),
+        ("リスク調整後", _jp_action(str(action_layers.get("risk_adjusted_action", action_decision.get("risk_adjusted_action", "-"))))),
         ("最終判断", _jp_action(str(action_decision.get("action", spot_signal.get("action", "-"))))),
+        ("raw/final buy_window", f"{diagnostics.get('raw_buy_window_count', 0)} / {diagnostics.get('final_buy_window_count', 0)}"),
+        ("raw/final buy_candidate", f"{diagnostics.get('raw_buy_candidate_count', 0)} / {diagnostics.get('final_buy_candidate_count', 0)}"),
+        (
+            "raw buy_window 降格",
+            str(int(diagnostics.get("raw_buy_window_to_watch_count", 0) or 0) + int(diagnostics.get("raw_buy_window_to_wait_count", 0) or 0)),
+        ),
+        ("買い場候補", "あり" if action_layers.get("market_raw_action") == "buy_candidate" or action_layers.get("risk_adjusted_action") == "buy_candidate" else "なし"),
+        ("buy_window が出ない主因", str(zero_reasons[0]) if zero_reasons else "-"),
+        (
+            "FX soft-cap診断",
+            f"{_jp_action(str(fx_policy_diagnostics.get('current_final_action', '-')))} -> {_jp_action(str(fx_policy_diagnostics.get('fx_soft_cap_action', '-')))} / diagnostic only",
+        ),
         ("判断理由", str(reason)),
         ("市場レジーム", _jp_regime(str((report.get("regime") or {}).get("regime_label", "-")))),
         ("危険ライン", str(risk_lines.get("stage_key", "-"))),
@@ -256,6 +274,78 @@ def _first_read_summary_markdown_lines(report: dict[str, Any]) -> list[str]:
     lines = ["## まず見る要約"]
     lines.extend(f"- {label}: {value}" for label, value in _first_read_summary_items(report))
     return lines
+
+
+def _buy_window_diagnostics_markdown_lines(report: dict[str, Any]) -> list[str]:
+    diagnostics = report.get("buy_window_diagnostics") or {}
+    if not diagnostics or diagnostics.get("status") in {None, "not_available"}:
+        return []
+    blockers = diagnostics.get("blocker_counts") or {}
+    top_blockers = sorted(blockers.items(), key=lambda item: int(item[1] or 0), reverse=True)[:3]
+    lines = [
+        "## Buy Window Diagnostics",
+        f"- raw buy_window: {diagnostics.get('raw_buy_window_count', 0)}",
+        f"- buy_candidate: {diagnostics.get('raw_buy_candidate_count', 0)}",
+        f"- final buy_window: {diagnostics.get('final_buy_window_count', 0)}",
+        f"- final buy_candidate: {diagnostics.get('final_buy_candidate_count', 0)}",
+        f"- raw buy_window final downgrade: {int(diagnostics.get('raw_buy_window_to_watch_count', 0) or 0) + int(diagnostics.get('raw_buy_window_to_wait_count', 0) or 0)}",
+        f"- FXによる買い場降格: {(report.get('japan_fx_downgrade_diagnostics') or {}).get('raw_buy_window_downgraded_by_fx_count', 0)}件",
+        f"- buy_candidate near-miss: {(report.get('buy_candidate_near_miss') or {}).get('near_miss_count', 0)}件",
+        f"- 主な不足条件: {(report.get('buy_candidate_near_miss') or {}).get('top_missing_condition', '-')}",
+        "- FX policy diagnostics: current policy unchanged; candidate policy is diagnostic only.",
+        f"- FX soft-cap diagnostic: current={_jp_action(str((report.get('fx_policy_diagnostics') or {}).get('current_final_action', '-')))} / soft_cap={_jp_action(str((report.get('fx_policy_diagnostics') or {}).get('fx_soft_cap_action', '-')))} / affects final action=false",
+        "- FX soft-cap watchlist: tracked={tracked} / ready={ready} / waiting={waiting} / decision={decision} / diagnostic only".format(
+            tracked=(report.get("fx_soft_cap_watchlist") or {}).get("tracked_case_count", 0),
+            ready=(report.get("fx_soft_cap_watchlist") or {}).get("ready_for_review_count", 0),
+            waiting=(report.get("fx_soft_cap_watchlist") or {}).get("waiting_future_data_count", 0),
+            decision=(report.get("fx_soft_cap_watchlist") or {}).get("adoption_decision", "hold"),
+        ),
+        "- FX soft-cap historical replay: weeks={weeks} / candidates={candidates} / decision={decision} / diagnostic only".format(
+            weeks=(report.get("fx_soft_cap_historical_replay") or {}).get("total_replay_weeks", 0),
+            candidates=(report.get("fx_soft_cap_historical_replay") or {}).get("fx_soft_cap_buy_candidate_count", 0),
+            decision=(report.get("fx_soft_cap_historical_replay") or {}).get("adoption_decision", "hold"),
+        ),
+        "- Conditional FX soft-cap diagnostics: best={best} / decision={decision} / affects final action=false".format(
+            best=(report.get("fx_conditional_soft_cap_replay") or {}).get("best_candidate", "-"),
+            decision=(report.get("fx_conditional_soft_cap_replay") or {}).get("adoption_decision", "hold"),
+        ),
+        "- FX soft-cap DD guard diagnostics: best={best} / worstDD={before}->{after} / decision={decision} / affects final action=false".format(
+            best=(report.get("fx_soft_cap_dd_guard_replay") or {}).get("best_guard", "-"),
+            before=_format_percent((report.get("fx_soft_cap_dd_guard_replay") or {}).get("base_worst_dd_13w")),
+            after=_format_percent((report.get("fx_soft_cap_dd_guard_replay") or {}).get("best_worst_dd_13w")),
+            decision=(report.get("fx_soft_cap_dd_guard_replay") or {}).get("adoption_decision", "hold"),
+        ),
+        "- FX soft-cap balanced guard: count={count} / missed_good={missed} / decision={decision} / affects final action=false".format(
+            count=(report.get("fx_soft_cap_balanced_guard") or {}).get("buy_candidate_count", 0),
+            missed=(report.get("fx_soft_cap_balanced_guard") or {}).get("missed_good_count", 0),
+            decision=(report.get("fx_soft_cap_balanced_guard") or {}).get("adoption_decision", "hold"),
+        ),
+        "- FX soft-cap long-range diagnostics: best={best} / weeks={weeks} / decision={decision} / affects final action=false".format(
+            best=(report.get("fx_soft_cap_long_range_guard_replay") or {}).get("best_candidate", "-"),
+            weeks=(report.get("fx_soft_cap_long_range_guard_replay") or {}).get("usable_weeks", 0),
+            decision=(report.get("fx_soft_cap_long_range_guard_replay") or {}).get("adoption_decision", "hold"),
+        ),
+        "- Regime-aware FX diagnostics: best={best} / weeks={weeks} / decision={decision} / affects final action=false".format(
+            best=(report.get("regime_aware_fx_policy_replay") or {}).get("best_candidate", "-"),
+            weeks=(report.get("regime_aware_fx_policy_replay") or {}).get("usable_weeks", 0),
+            decision=(report.get("regime_aware_fx_policy_replay") or {}).get("adoption_decision", "hold"),
+        ),
+        "- 主な阻害要因:",
+    ]
+    if top_blockers:
+        lines.extend(f"  - {key}: {value}" for key, value in top_blockers)
+    else:
+        lines.append("  - -")
+    return lines
+
+
+def _format_percent(value: Any) -> str:
+    if value is None:
+        return "-"
+    try:
+        return f"{float(value):.2%}"
+    except (TypeError, ValueError):
+        return str(value)
 
 
 def _first_read_summary_html(report: dict[str, Any]) -> str:
@@ -342,6 +432,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"# {report['title']}",
         "",
         *_first_read_summary_markdown_lines(report),
+        *_buy_window_diagnostics_markdown_lines(report),
         "",
         "## サマリー",
         f"- 生成時刻: {report['generated_at']}",

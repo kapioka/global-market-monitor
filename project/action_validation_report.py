@@ -50,6 +50,9 @@ def render_action_validation_markdown(payload: dict[str, Any]) -> str:
                 "",
                 "## diagnostics",
                 f"- buy_window_negative_rate_13w: {_format_return(diagnostics.get('buy_window_negative_rate_13w'))}",
+                f"- buy_candidate_negative_rate_13w: {_format_return(diagnostics.get('buy_candidate_negative_rate_13w'))}",
+                f"- buy_candidate_to_buy_window_transition_count: {diagnostics.get('buy_candidate_to_buy_window_transition_count', 0)}",
+                f"- buy_candidate_to_wait_fallback_count: {diagnostics.get('buy_candidate_to_wait_fallback_count', 0)}",
                 f"- wait_missed_rally_rate_13w: {_format_return(diagnostics.get('wait_missed_rally_rate_13w'))}",
                 f"- watch_to_buy_window_promotion_rate: {_format_return(diagnostics.get('watch_to_buy_window_promotion_rate'))}",
             ]

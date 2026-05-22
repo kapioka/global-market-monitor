@@ -41,6 +41,7 @@ def evaluate_spot_signal(
     sector_adjustment, sector_adjustment_explain = _sector_spot_adjustment(sector_rotation, sector_config, regime.get("regime_label"))
     japan_risk_penalty = _japan_risk_penalty(japan_risk, japan_risk_config)
     adjusted_score = min(max(total - regime_penalty - japan_risk_penalty + sector_adjustment, 0.0), 1.0)
+    market_raw_action = _market_raw_action(adjusted_score, regime, thresholds)
     legacy_action = _action_for_state(adjusted_score, regime, thresholds, risk_lines)
     second_leg_risk = _second_leg_risk(regime, cycle, risk_lines)
     credit_summary = summarize_credit_monitor(credit_monitor)
@@ -48,8 +49,9 @@ def evaluate_spot_signal(
 
     evidence = dict(recovery_evidence or _fallback_recovery_evidence(score, regime, cycle, credit_monitor, sector_rotation))
     blocker = _build_blocker_assessment(regime, risk_lines, sector_rotation, japan_risk)
-    action_decision = _build_action_decision(evidence, blocker)
+    action_decision = _build_action_decision(evidence, blocker, market_raw_action=market_raw_action)
     action_decision = _apply_reliability_cap(action_decision, reliability_policy)
+    action_layers = _build_action_layers(action_decision)
 
     rationale = [
         market_regime_rationale(regime["regime_label"]),
@@ -85,6 +87,7 @@ def evaluate_spot_signal(
         "recovery_evidence": evidence,
         "blocker_assessment": blocker,
         "action_decision": action_decision,
+        "action_layers": action_layers,
         "rationale": rationale,
     }
 
@@ -133,6 +136,7 @@ def _build_blocker_assessment(
         summary = "危険ライン判定がないため、強い blocker は確認されていません。"
 
     credit_flag = str(regime.get("credit_regime_flag", "neutral"))
+    inflation_flag = str(regime.get("inflation_regime_flag", "neutral"))
     if credit_flag == "credit_stress_severe" and "credit_stress_severe" not in flags:
         flags.append("credit_stress_severe")
         level = "block"
@@ -141,6 +145,11 @@ def _build_blocker_assessment(
         flags.append("credit_stress_moderate")
         level = "caution"
         summary = "信用悪化の火種が残るため、改善が見えても慎重に扱うべき状態です。"
+    if inflation_flag.startswith("inflation_shock") and "inflation_shock" not in flags:
+        flags.append("inflation_shock")
+        if level == "none":
+            level = "caution"
+            summary = "インフレ圧力が強く、買い場候補は慎重に扱うべき状態です。"
 
     signals = dict((sector_rotation or {}).get("integration_signals", {}))
     if signals.get("single_sector_dominance_warning") and "single_sector_dominance_warning" not in flags:
@@ -199,7 +208,12 @@ def _japan_risk_penalty(japan_risk: Mapping[str, Any] | None, config: Mapping[st
     return 0.0
 
 
-def _build_action_decision(recovery_evidence: Mapping[str, Any], blocker_assessment: Mapping[str, Any]) -> dict[str, Any]:
+def _build_action_decision(
+    recovery_evidence: Mapping[str, Any],
+    blocker_assessment: Mapping[str, Any],
+    *,
+    market_raw_action: str,
+) -> dict[str, Any]:
     grade = str(recovery_evidence.get("grade", "weak"))
     evidence_score = float(recovery_evidence.get("score", 0.0) or 0.0)
     blocker_level = str(blocker_assessment.get("level", "none"))
@@ -210,6 +224,9 @@ def _build_action_decision(recovery_evidence: Mapping[str, Any], blocker_assessm
     elif grade == "confirmed" and blocker_level == "none":
         action = "buy_window"
         mode = "evidence_confirmed"
+    elif grade == "building" and blocker_level == "none":
+        action = "buy_candidate"
+        mode = "evidence_building_candidate"
     elif grade in {"building", "confirmed"}:
         action = "watch"
         mode = "evidence_building_with_caution" if blocker_level == "caution" else "evidence_building"
@@ -218,6 +235,8 @@ def _build_action_decision(recovery_evidence: Mapping[str, Any], blocker_assessm
         mode = "insufficient_recovery_evidence"
 
     return {
+        "market_raw_action": market_raw_action,
+        "risk_adjusted_action": action,
         "raw_action": action,
         "action": action,
         "raw_confidence": round(evidence_score, 4),
@@ -228,11 +247,44 @@ def _build_action_decision(recovery_evidence: Mapping[str, Any], blocker_assessm
         "max_action": "buy_window",
         "mode": mode,
         "reason_path": [grade, blocker_level],
+        "layer_reasons": {
+            "market_raw_action": [f"adjusted_score_action:{market_raw_action}"],
+            "risk_adjusted_action": [grade, blocker_level],
+            "final_action": [],
+        },
     }
 
 
 def _apply_reliability_cap(action_decision: dict[str, Any], reliability_policy: Mapping[str, Any] | None) -> dict[str, Any]:
     return apply_reliability_policy(action_decision, reliability_policy)
+
+
+def _build_action_layers(action_decision: Mapping[str, Any]) -> dict[str, Any]:
+    layer_reasons = dict(action_decision.get("layer_reasons", {}) or {})
+    final_reasons = list(action_decision.get("policy_reasons", []) or [])
+    if not final_reasons:
+        final_reasons = [str(action_decision.get("mode", "final_policy"))]
+    layer_reasons["final_action"] = final_reasons
+    return {
+        "market_raw_action": action_decision.get("market_raw_action", action_decision.get("raw_action", "wait")),
+        "risk_adjusted_action": action_decision.get("risk_adjusted_action", action_decision.get("raw_action", "wait")),
+        "final_action": action_decision.get("final_action", action_decision.get("action", "wait")),
+        "layer_reasons": layer_reasons,
+    }
+
+
+def _market_raw_action(adjusted_score: float, regime: Mapping[str, Any], thresholds: Mapping[str, float]) -> str:
+    buy = float(thresholds.get("spot_score_buy", 0.65))
+    watch = float(thresholds.get("spot_score_watch", 0.45))
+    candidate_floor = watch + ((buy - watch) * 0.6)
+    blocked_regimes = {"risk_off", "credit_stress", "stagflation_warning"}
+    if adjusted_score >= buy and str(regime.get("regime_label")) not in blocked_regimes:
+        return "buy_window"
+    if adjusted_score >= candidate_floor:
+        return "buy_candidate"
+    if adjusted_score >= watch:
+        return "watch"
+    return "wait"
 
 
 def _credit_recovery_hint(credit_monitor: list[dict[str, Any]]) -> float:

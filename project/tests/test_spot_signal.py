@@ -27,6 +27,9 @@ def test_spot_signal_buy_window_for_strong_score():
     }
     result = evaluate_spot_signal(score, regime, cycle, credit_monitor, inflation_monitor, thresholds)
     assert result["action"] == "buy_window"
+    assert result["action_layers"]["market_raw_action"] == "buy_window"
+    assert result["action_layers"]["risk_adjusted_action"] == "buy_window"
+    assert result["action_layers"]["final_action"] == "buy_window"
     assert result["action_decision"]["raw_action"] == "buy_window"
     assert result["action_decision"]["reliability_cap_applied"] is False
     assert "インフレ" in result["rationale"][-1]
@@ -66,6 +69,9 @@ def test_spot_signal_caps_buy_window_to_watch_when_reliability_requires_it():
     )
 
     assert result["action"] == "watch"
+    assert result["action_layers"]["market_raw_action"] == "buy_window"
+    assert result["action_layers"]["risk_adjusted_action"] == "buy_window"
+    assert result["action_layers"]["final_action"] == "watch"
     assert result["action_decision"]["raw_action"] == "buy_window"
     assert result["action_decision"]["action"] == "watch"
     assert result["action_decision"]["confidence"] == 0.45
@@ -107,6 +113,7 @@ def test_spot_signal_maps_diagnostic_only_cap_to_wait_action():
     )
 
     assert result["action"] == "wait"
+    assert result["action_layers"]["final_action"] == "wait"
     assert result["action_decision"]["max_action"] == "diagnostic_only"
     assert result["action_decision"]["confidence"] == 0.0
     assert result["action_decision"]["reliability_cap_applied"] is True
@@ -509,3 +516,29 @@ def test_spot_signal_structured_decision_blocks_on_extreme_risk():
     assert result["action"] == "wait"
     assert result["blocker_assessment"]["level"] == "block"
     assert result["action_decision"]["action"] == "wait"
+
+
+def test_spot_signal_adds_buy_candidate_between_watch_and_buy_window():
+    result = evaluate_spot_signal(
+        score={"total_score": 0.58, "credit_stress_component": 0.5},
+        regime={"regime_label": "risk_on", "max_drawdown": -0.05},
+        cycle={"phase_label": "upswing"},
+        credit_monitor=[],
+        inflation_monitor=[],
+        thresholds={
+            "spot_score_buy": 0.65,
+            "spot_score_watch": 0.45,
+            "drawdown_alert": -0.12,
+            "penalty_transition": 0.02,
+            "penalty_risk_off": 0.06,
+            "penalty_risk_off_relief": 0.02,
+            "penalty_risk_off_relief_score_min": 0.48,
+        },
+        recovery_evidence={"score": 0.58, "grade": "building", "summary": "形成中です。"},
+        reliability_policy={"max_action": "buy_window", "confidence_cap": 1.0, "degrade_reasons": []},
+    )
+
+    assert result["action"] == "buy_candidate"
+    assert result["action_layers"]["market_raw_action"] == "buy_candidate"
+    assert result["action_layers"]["risk_adjusted_action"] == "buy_candidate"
+    assert result["action_layers"]["final_action"] == "buy_candidate"

@@ -37,6 +37,13 @@ v0.7.0 では、データ品質ガード、action validation、threshold replay�
 - proposed / candidate / rule certification は final action に自動反映しない
 - active threshold は実運用値、fallback_review は診断のみ
 
+v0.7.x では、`fx_soft_cap` を diagnostic-only として追跡します。
+
+- `fx_soft_cap` は final action には影響しない
+- watchlist で current cases の future data を追跡
+- historical backfill / replay で過去類似ケースを補助検証
+- replay 結果だけで threshold JSON や final action policy を変更しない
+
 v0.6.0 では、補足レポートを5画面の補足ダッシュボードとして再設計しています。
 
 - 履歴、判定、セクター、市場監視、監査を画面切り替えで確認
@@ -404,3 +411,13 @@ pwsh -File project/build_distribution.ps1
 
 このアプリは、投資の正解を出すためのものではありません。
 数字を並べて判断を固定するのではなく、「今どんな状態かを落ち着いて確認する」ための道具として使うのが前提です。
+## buy_window sparsity diagnostics
+
+`buy_window` が少ない場合は、閾値を直接緩めずに診断します。
+
+```powershell
+python -m project.buy_window_diagnostics
+python -m project.buy_window_calibration
+```
+
+`buy_candidate` は `watch` と `buy_window` の中間ラベルです。買い推奨ではなく、買い場候補の確認用です。

@@ -10,10 +10,12 @@ pytest-cache-files-*/
 
 # Local runtime / packaging
 project/.runtime/
+.runtime/
 build/
 dist/
 release/
 github_upload/
+*.zip
 
 # Local cache / logs
 project/cache/

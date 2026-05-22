@@ -74,6 +74,8 @@ exporter は sample fallback を使いません。proxy fallback を検証デー
 README やリリースノートでは、次の表現を守ります。
 
 - `buy_window` は購入指示ではなく、追加確認の候補状態として説明する
+- `buy_candidate` は買い場候補であり、買い指示ではない
+- raw action と final action は分けて読み、どの安全ガードで弱まったかを確認する
 - sample-only は診断用であり、投資判断の根拠にしない
 - データ品質が悪い日は `buy_window` を抑制する
 - 検証結果は参考情報であり、将来成績を保証しない

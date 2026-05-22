@@ -36,6 +36,8 @@ def test_build_action_validation_summarizes_forward_returns_by_action():
     assert result["action_summary"]["buy_window"]["horizons"]["13w"]["max_gain"] == 0.3
     assert result["cases"][0]["max_drawdowns"]["13w"] == 0.0
     assert result["action_summary"]["watch"]["reliability_capped_count"] == 1
+    assert "buy_candidate" in result["action_summary"]
+    assert result["action_summary"]["buy_candidate"]["count"] == 0
     assert result["diagnostics"]["buy_window_negative_rate_13w"] == 0.0
 
 

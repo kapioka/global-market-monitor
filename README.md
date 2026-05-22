@@ -20,6 +20,7 @@ Global Market Monitor は、相場の流れを毎週まとめて確認するた�
 - 追加投資のタイミングを補助的に判断する
 - HTML / Markdown レポートを自動生成する
 - 補足ダッシュボードで履歴、判定、セクター、市場監視、監査を切り替えて確認する
+- 過去価格の backfill / replay で diagnostic-only の FX soft-cap 候補を検証する
 
 ## こんな人向けです
 
@@ -57,6 +58,18 @@ python -m pip install -r project/requirements-lock.txt
 ```
 
 このスクリプトは `.tmp\pip-audit\requirements-lock.pip-audit.txt` を生成し、`torch==2.8.0+cu129` のようなローカルビルド表記は `.tmp\pip-audit\requirements-lock.pip-audit-excluded.md` に理由付きで記録します。除外分は脆弱性なしという意味ではなく、配布元に合わせて別途確認する監査不能項目です。
+
+### Historical replay
+
+`fx_soft_cap` は final action には採用せず、historical replay と watchlist で検証します。
+
+```powershell
+python -m project.historical_price_backfill --start 2024-01-01 --end 2026-05-21 --output project/cache/historical_prices.csv
+python -m project.historical_feature_builder --input project/cache/historical_prices.csv --output project/cache/historical_features.csv
+python -m project.fx_soft_cap_historical_replay --features project/cache/historical_features.csv
+```
+
+`project/cache` と generated reports は原則コミットしません。threshold JSON と final action policy はこの replay では変更しません。
 
 Python が複数入っている場合は、次でも動きます。
 
@@ -193,6 +206,9 @@ Playwright CLI が使える環境では、補足ダッシュボードの5画面�
 - 投資判断を保証するものではありません
 - 売買判断の自動化エンジンではありません
 - `buy_window` は購入指示ではなく、追加確認の候補状態です
+- `buy_candidate` は買い場候補であり、買い指示ではありません
+- raw / risk-adjusted / final action を分けて、強い判定がどこで弱まったかを確認できます
+- `fx_soft_cap` は診断専用です。final action には影響せず、為替リスクありの買い候補を検証するために使います。
 - データ取得元の都合で、一時的に取得に失敗することがあります
 - 実データ取得に失敗した場合は、サンプルデータへフォールバックする設計が一部入っています
 - サンプルデータや重要系列の欠損がある場合は、強い判断を出さないように制限します

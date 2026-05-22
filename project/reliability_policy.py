@@ -182,6 +182,8 @@ def apply_reliability_policy(action_decision: Mapping[str, Any], reliability: Ma
     result = dict(action_decision)
     result.update(
         {
+            "market_raw_action": action_decision.get("market_raw_action", original_action),
+            "risk_adjusted_action": action_decision.get("risk_adjusted_action", original_action),
             "original_action": original_action,
             "final_action": final_action,
             "raw_action": original_action,

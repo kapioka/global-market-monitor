@@ -5,11 +5,13 @@ ACTION_RANK = {
     "diagnostic_only": 0,
     "wait": 1,
     "watch": 2,
-    "buy_window": 3,
+    "buy_candidate": 3,
+    "buy_window": 4,
 }
 
 ACTION_LABELS_JA = {
     "buy_window": "買い検討ゾーン",
+    "buy_candidate": "買い場候補",
     "watch": "監視継続",
     "wait": "待機",
     "diagnostic_only": "診断用",
