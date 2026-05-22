@@ -9,6 +9,7 @@ from typing import Any
 from project.alerts import build_alerts
 from project.analogue_search import find_analogues
 from project.asset_compare import compare_asset_classes
+from project.buy_decision_card import build_buy_decision_card
 from project.credit_monitor import build_credit_monitor
 from project.cycle_analysis import analyze_cycle
 from project.data_fetcher import FetchResult, fetch_market_data
@@ -268,7 +269,7 @@ def build_report(
     )
     decision_attribution = build_decision_attribution(spot_signal, risk_lines, reliability)
     fx_policy_diagnostics = build_fx_policy_diagnostics(spot_signal, japan_risk)
-    return {
+    report = {
         "title": config["app"]["report_title"],
         "generated_at": generated_at_for_date(config, as_of_date),
         "history_alignment": history_alignment or {},
@@ -317,6 +318,8 @@ def build_report(
         "warnings": warnings,
         "data_availability": fetch.acquisition_log,
     }
+    report["buy_decision_card"] = build_buy_decision_card(report)
+    return report
 
 
 def _runtime_context() -> dict[str, Any]:
@@ -371,7 +374,13 @@ def load_buy_window_diagnostics_summary(reports_dir: str | Path | None) -> dict[
 def build_fx_policy_diagnostics(spot_signal: dict[str, Any], japan_risk: dict[str, Any]) -> dict[str, Any]:
     action_decision = spot_signal.get("action_decision") or {}
     blocker = spot_signal.get("blocker_assessment") or {}
-    raw_action = str(action_decision.get("market_raw_action") or action_decision.get("raw_action") or spot_signal.get("legacy_action") or spot_signal.get("action") or "wait")
+    raw_action = str(
+        action_decision.get("market_raw_action")
+        or action_decision.get("raw_action")
+        or spot_signal.get("legacy_action")
+        or spot_signal.get("action")
+        or "wait"
+    )
     current_final = str(action_decision.get("final_action") or action_decision.get("action") or spot_signal.get("action") or "wait")
     classification = classify_fx_policy(japan_risk, blocker)
     soft_cap = apply_fx_policy_candidate(raw_action, classification, "fx_soft_cap")

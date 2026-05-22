@@ -253,9 +253,18 @@ def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
         ("raw/final buy_candidate", f"{diagnostics.get('raw_buy_candidate_count', 0)} / {diagnostics.get('final_buy_candidate_count', 0)}"),
         (
             "raw buy_window 降格",
-            str(int(diagnostics.get("raw_buy_window_to_watch_count", 0) or 0) + int(diagnostics.get("raw_buy_window_to_wait_count", 0) or 0)),
+            str(
+                int(diagnostics.get("raw_buy_window_to_watch_count", 0) or 0) + int(diagnostics.get("raw_buy_window_to_wait_count", 0) or 0)
+            ),
         ),
-        ("買い場候補", "あり" if action_layers.get("market_raw_action") == "buy_candidate" or action_layers.get("risk_adjusted_action") == "buy_candidate" else "なし"),
+        (
+            "買い場候補",
+            (
+                "あり"
+                if action_layers.get("market_raw_action") == "buy_candidate" or action_layers.get("risk_adjusted_action") == "buy_candidate"
+                else "なし"
+            ),
+        ),
         ("buy_window が出ない主因", str(zero_reasons[0]) if zero_reasons else "-"),
         (
             "FX soft-cap診断",
@@ -273,6 +282,24 @@ def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
 def _first_read_summary_markdown_lines(report: dict[str, Any]) -> list[str]:
     lines = ["## まず見る要約"]
     lines.extend(f"- {label}: {value}" for label, value in _first_read_summary_items(report))
+    return lines
+
+
+def _buy_decision_card_markdown_lines(report: dict[str, Any]) -> list[str]:
+    card = report.get("buy_decision_card") or {}
+    if not card:
+        return []
+    lines = [
+        "## Buy Decision Card / 買い判断カード",
+        f"- 最終判断: {_jp_action(str(card.get('final_action', '-')))}",
+        f"- 市場だけ見た判定: {_jp_action(str(card.get('market_raw_action', '-')))}",
+        f"- リスク調整後: {_jp_action(str(card.get('risk_adjusted_action', '-')))}",
+        f"- 買い候補度: {card.get('buy_readiness_score', 0)} / 100 ({card.get('readiness_level', '-')})",
+        f"- 主な阻害要因: {card.get('primary_blocker') or 'なし'}",
+    ]
+    for index, row in enumerate((card.get("unlock_conditions") or [])[:3], start=1):
+        lines.append(f"- 次に見る条件 {index}: {row.get('condition')} -> {row.get('target_state')}")
+    lines.append("- このカードは説明用であり、final_actionには影響しません。")
     return lines
 
 
@@ -350,12 +377,37 @@ def _format_percent(value: Any) -> str:
 
 def _first_read_summary_html(report: dict[str, Any]) -> str:
     items = "".join(
-        f"<li><span>{html.escape(label)}</span><strong>{html.escape(value)}</strong></li>" for label, value in _first_read_summary_items(report)
+        f"<li><span>{html.escape(label)}</span><strong>{html.escape(value)}</strong></li>"
+        for label, value in _first_read_summary_items(report)
     )
     return f"""
       <section class=\"first-read-summary\">
         <h2>まず見る要約</h2>
         <ul>{items}</ul>
+      </section>
+    """
+
+
+def _buy_decision_card_html(report: dict[str, Any]) -> str:
+    card = report.get("buy_decision_card") or {}
+    if not card:
+        return ""
+    unlock_items = "".join(
+        f"<li><span>{html.escape(str(row.get('condition', '-')))}</span><strong>{html.escape(str(row.get('target_state', '-')))}</strong></li>"
+        for row in (card.get("unlock_conditions") or [])[:3]
+    )
+    return f"""
+      <section class=\"first-read-summary\">
+        <h2>Buy Decision Card / 買い判断カード</h2>
+        <ul>
+          <li><span>最終判断</span><strong>{html.escape(_jp_action(str(card.get('final_action', '-'))))}</strong></li>
+          <li><span>市場だけ見た判定</span><strong>{html.escape(_jp_action(str(card.get('market_raw_action', '-'))))}</strong></li>
+          <li><span>リスク調整後</span><strong>{html.escape(_jp_action(str(card.get('risk_adjusted_action', '-'))))}</strong></li>
+          <li><span>買い候補度</span><strong>{html.escape(str(card.get('buy_readiness_score', 0)))} / 100</strong></li>
+          <li><span>主な阻害要因</span><strong>{html.escape(str(card.get('primary_blocker') or 'なし'))}</strong></li>
+          {unlock_items}
+          <li><span>final action 影響</span><strong>false / 説明用</strong></li>
+        </ul>
       </section>
     """
 
@@ -432,6 +484,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"# {report['title']}",
         "",
         *_first_read_summary_markdown_lines(report),
+        "",
+        *_buy_decision_card_markdown_lines(report),
         *_buy_window_diagnostics_markdown_lines(report),
         "",
         "## サマリー",
@@ -1754,6 +1808,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     history_payload = _build_history_embed_payload(history_entries or [])
     history_payload_json = json.dumps(history_payload, ensure_ascii=False).replace("</", "<\\/")
     first_read_summary_html = _first_read_summary_html(report)
+    buy_decision_card_html = _buy_decision_card_html(report)
     primary_candidate_chips = (
         "".join(
             f"<span class='candidate-chip'>{html.escape(str(item.get('ticker', '-')))}</span>"
@@ -2273,6 +2328,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
 
     <div class=\"dashboard-grid\">
       {first_read_summary_html}
+      {buy_decision_card_html}
       <section class=\"hero-card\">
         <div class=\"hero-label\">市場レジーム</div>
         <div class=\"hero-main\">

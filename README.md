@@ -21,6 +21,7 @@ Global Market Monitor は、相場の流れを毎週まとめて確認するた�
 - HTML / Markdown レポートを自動生成する
 - 補足ダッシュボードで履歴、判定、セクター、市場監視、監査を切り替えて確認する
 - 過去価格の backfill / replay で diagnostic-only の FX soft-cap 候補を検証する
+- Buy Decision Card で final / raw / risk-adjusted の違い、買い候補度、主な阻害要因、次に見る条件を確認する
 
 ## こんな人向けです
 
@@ -207,6 +208,7 @@ Playwright CLI が使える環境では、補足ダッシュボードの5画面�
 - 売買判断の自動化エンジンではありません
 - `buy_window` は購入指示ではなく、追加確認の候補状態です
 - `buy_candidate` は買い場候補であり、買い指示ではありません
+- `buy_readiness_score` と unlock_conditions は説明用です。final action を変更しません
 - raw / risk-adjusted / final action を分けて、強い判定がどこで弱まったかを確認できます
 - `fx_soft_cap` は診断専用です。final action には影響せず、為替リスクありの買い候補を検証するために使います。
 - データ取得元の都合で、一時的に取得に失敗することがあります

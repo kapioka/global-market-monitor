@@ -1,5 +1,15 @@
 # report reading notes
 
+## Buy Decision Card
+
+`Buy Decision Card / 買い判断カード` は、買い判断の経路を短く読むための説明カードです。
+
+`final_action` が正式判断です。`market_raw_action` と `risk_adjusted_action` は、買いに近い市場シグナルがどこで弱まったかを見るための補助表示です。
+
+`buy_readiness_score` は買い候補への近さを 0〜100 で表す説明用スコアです。final action には影響しません。
+
+`unlock_conditions` は次に確認する条件であり、自動買い条件ではありません。
+
 ## Buy Window Diagnostics
 
 `raw buy_window` は市場だけを見た買い場候補、`final buy_window` は安全ガードまで通した最終表示です。

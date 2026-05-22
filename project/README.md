@@ -40,6 +40,7 @@ v0.7.0 では、データ品質ガード、action validation、threshold replay�
 v0.7.x では、`fx_soft_cap` を diagnostic-only として追跡します。
 
 - `fx_soft_cap` は final action には影響しない
+- `Buy Decision Card` / `buy_readiness_score` / `unlock_conditions` は説明用で、final action には影響しない
 - watchlist で current cases の future data を追跡
 - historical backfill / replay で過去類似ケースを補助検証
 - replay 結果だけで threshold JSON や final action policy を変更しない
