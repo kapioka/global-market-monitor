@@ -13,6 +13,7 @@
 - Push performed: no
 - Security fixes required: no
 - History rewrite required: no
+- Reusable audit tooling: added after the initial v0.7.2 release audit
 
 ## Checks
 
@@ -25,11 +26,14 @@
 
 ### Secret scan
 
-- External tools:
-  - `gitleaks`: not installed
-  - `trufflehog`: not installed
-  - `detect-secrets`: not installed
+- Reusable script: `scripts/security_audit.ps1 -Strict`
+- External / optional tools:
+  - `gitleaks`: not installed, recorded as missing and covered by fallback scans
+  - `trufflehog`: not installed, recorded as missing and covered by fallback scans
+  - `detect-secrets`: installed from `requirements-security.txt` and executed
+- `detect-secrets` result: pass, `finding_count: 0`
 - Fallback `git grep` scan: no credential values found
+- Strong secret pattern scan: pass, `hit_count: 0`
 - PowerShell source scan: no credential values found
 - Workspace `check_secrets.ps1` with explicit repo root completed.
 
@@ -73,15 +77,28 @@ Notes:
 - `python -m pip check` reported an environment-level conflict:
   - `argostranslate 1.9.6` requires `sentencepiece==0.2.0`, but installed `sentencepiece` is `0.2.1`
 - `argostranslate` and `sentencepiece` are not listed in this project's requirements files, so this is treated as a global environment note, not a release blocker.
-- `pip-audit` is not installed in this environment, so a `pip-audit` run was not performed.
+- `pip-audit` was installed from `requirements-security.txt`.
+- `pip-audit -r project/requirements.txt`: pass, no known vulnerabilities found.
+- `pip-audit` on the filtered lock input: pass, no known vulnerabilities found.
 - Requirements scan found no TimesFM, torch, jax, flax, or tensorflow dependency in project requirements.
+
+### Audit tooling
+
+- Added `scripts/security_audit.ps1` for repeatable pre-publish checks.
+- Added `requirements-security.txt` for Python security tooling:
+  - `detect-secrets==1.5.0`
+  - `pip-audit==2.10.0`
+- Added `docs/security_audit_tooling.md` with usage, strict mode, missing-tool handling, and push checklist.
+- Audit outputs are written under `.tmp/security/` and are not source-controlled.
 
 ### Final validation
 
 - `python -m compileall -q project`: pass
   - Note: existing `.runtime` listing warnings were printed, exit code 0.
 - `python -m pytest project/tests --basetemp .tmp/pytest/v072_release`: 282 passed
+- `python -m pytest project/tests --basetemp .tmp/pytest/v072_security_tooling`: 282 passed
 - `python project/main.py --sample-only`: pass
+- `scripts/security_audit.ps1 -Strict`: pass, `publish_readiness: pass`
 - `python -m project.buy_decision_audit`: pass
 - `python -m project.validation_price_export`: pass
 - `python -m project.run_action_validation`: pass
@@ -95,8 +112,7 @@ Notes:
 
 ## Remaining Known Limitations
 
-- External secret scanners were not available locally.
-- `pip-audit` was not available locally.
+- `gitleaks` and `trufflehog` were not available locally. The reusable audit script records them as missing and runs fallback scans.
 - Ignored archive and visual-evidence folders exist in the workspace but are not tracked in the release source set.
 - `fx_soft_cap`, DD guard, and regime-aware candidates remain diagnostic-only / hold.
 
