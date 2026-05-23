@@ -31,6 +31,7 @@ python -m mypy .
 powershell -ExecutionPolicy Bypass -File scripts\security_audit.ps1 -Python "python" -ExpectedTag "<release-tag>" -Strict
 python scripts\create_release_package.py --dry-run
 python scripts\create_release_package.py
+python scripts\verify_release_package.py --package release\global-market-monitor-<release-tag>-source.zip --expected-tag <release-tag>
 ```
 
 For a v0.7.3 publish check, use `-ExpectedTag "v0.7.3"`. For the next release, pass the actual target tag as `-ExpectedTag "<release-tag>"`.
@@ -65,6 +66,14 @@ Open `PACKAGE_MANIFEST.json` inside the generated source archive and confirm:
 - `.git` is excluded.
 - `.env` and secret-adjacent file types are excluded.
 - Real reports, live cache, private local config, and personal data are excluded.
+
+For v0.7.6 and later, use the verification script to automate this check:
+
+```powershell
+python scripts\verify_release_package.py --package release\global-market-monitor-<release-tag>-source.zip --expected-tag <release-tag> --expected-commit <commit>
+```
+
+If `--expected-commit` is omitted, the script still displays the manifest commit and validates required files and forbidden entries.
 
 Forbidden entry examples:
 

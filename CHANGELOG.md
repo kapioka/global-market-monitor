@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.7.6 - Release Package Manifest Verification
+
+### Added
+
+- Added release package verification tooling for source archives.
+- Added automated checks for package manifest tag, commit, file count, required files, and forbidden entries.
+- Added tests for release package verification behavior.
+
+### Changed
+
+- Linked publish readiness guidance to the release package verification command.
+
+### Security
+
+- Documented and automated checks for generated/cache, `.git`, `.env`, release recursion, and secret-adjacent package entries.
+
 ## v0.7.5 - Secret Scanner Adoption Decision
 
 ### Added

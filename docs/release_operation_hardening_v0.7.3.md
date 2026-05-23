@@ -36,6 +36,14 @@ The package script uses tracked source files from Git and rejects tracked files 
 - `github_upload/`
 - `archive/`
 
+For v0.7.6 and later, verify the generated archive before publishing:
+
+```powershell
+python scripts\verify_release_package.py --package release\global-market-monitor-<release-tag>-source.zip --expected-tag <release-tag>
+```
+
+This checks the package manifest, release tag, optional commit prefix, required release docs, and forbidden generated/cache/secret-adjacent entries.
+
 ## Security Audit Operation
 
 `scripts/security_audit.ps1` runs local and CI-friendly checks:
