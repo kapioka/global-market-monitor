@@ -37,6 +37,13 @@ v0.7.0 では、データ品質ガード、action validation、threshold replay�
 - proposed / candidate / rule certification は final action に自動反映しない
 - active threshold は実運用値、fallback_review は診断のみ
 
+v0.7.2 は Buy Decision Clarity release です。買い判断を緩めず、`final_action` が正式判断であることを保ったまま、買い判断の経路、阻害要因、次に確認する条件を読みやすくします。
+
+- Buy Decision Card は final / raw / risk-adjusted action の違いを短く表示する
+- `buy_readiness_score` は説明用で、確率、期待リターン、投資成功率ではない
+- next review conditions / unlock_conditions は次に確認する条件であり、自動買い条件ではない
+- `buy_decision_audit` は詳細確認用で、final action には影響しない
+
 v0.7.x では、`fx_soft_cap` を diagnostic-only として追跡します。
 
 - `fx_soft_cap` は final action には影響しない

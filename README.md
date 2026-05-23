@@ -23,6 +23,16 @@ Global Market Monitor は、相場の流れを毎週まとめて確認するた�
 - 過去価格の backfill / replay で diagnostic-only の FX soft-cap 候補を検証する
 - Buy Decision Card で final / raw / risk-adjusted の違い、買い候補度、主な阻害要因、次に見る条件を確認する
 
+## v0.7.2 Buy Decision Clarity
+
+v0.7.2 は、買い判断を緩める版ではありません。正式判断は引き続き `final_action` です。
+
+- Buy Decision Card で、final / raw / risk-adjusted の違いを短く確認できます
+- `buy_readiness_score` は説明用で、成功確率・期待リターン・投資成功率ではありません
+- next review conditions / `unlock_conditions` は次に確認する条件であり、自動買い条件ではありません
+- `fx_soft_cap` / regime-aware FX candidates は diagnostic-only / hold のままです
+- TimesFM は通常機能に含めていません
+
 ## こんな人向けです
 
 - 毎週の相場チェックを手作業でやっていて時間がかかる人
