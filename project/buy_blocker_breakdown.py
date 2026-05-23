@@ -64,6 +64,8 @@ def build_buy_blocker_breakdown(report: dict[str, Any]) -> dict[str, Any]:
 def _add_data_quality(blockers: dict[str, dict[str, Any]], reliability: dict[str, Any], action_decision: dict[str, Any]) -> None:
     if str(reliability.get("level", "")).lower() == "low" or not reliability.get("decision_allowed", True):
         _add(blockers, "data_quality", "block", str(reliability.get("reason") or "data quality blocks decision"), "final")
+    if int(reliability.get("sample_fallback_count", 0) or 0) > 0:
+        _add(blockers, "sample_only", "caution", "sample_fallback_present", "final")
     if action_decision.get("reliability_cap_applied"):
         reasons = action_decision.get("policy_reasons") or action_decision.get("cap_reason") or reliability.get("degrade_reasons") or []
         for reason in reasons or ["reliability policy cap applied"]:

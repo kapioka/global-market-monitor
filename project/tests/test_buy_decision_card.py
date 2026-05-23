@@ -24,3 +24,22 @@ def test_buy_decision_card_summarizes_layers_and_unlock_conditions() -> None:
     assert card["primary_blocker"] == "fx_risk"
     assert card["unlock_conditions"]
     assert card["affects_final_action"] is False
+    assert "not a probability" in card["readiness_score_note"]
+
+
+def test_buy_decision_card_marks_sample_only_context() -> None:
+    card = build_buy_decision_card(
+        {
+            "spot_signal": {
+                "action": "wait",
+                "action_layers": {"market_raw_action": "wait", "risk_adjusted_action": "wait", "final_action": "wait"},
+                "action_decision": {"reliability_cap_applied": True, "cap_reason": ["sample_fallback_present"]},
+            },
+            "data_reliability": {"level": "medium", "decision_allowed": True, "sample_fallback_count": 1},
+            "risk_lines": {"stage_key": "normal"},
+        }
+    )
+
+    assert card["final_action"] == "wait"
+    assert card["primary_blocker"] == "sample_only"
+    assert "sample fallback" in str(card["sample_only_note"])

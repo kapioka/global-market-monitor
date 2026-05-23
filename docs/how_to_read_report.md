@@ -6,9 +6,9 @@
 
 `final_action` が正式判断です。`market_raw_action` と `risk_adjusted_action` は、買いに近い市場シグナルがどこで弱まったかを見るための補助表示です。
 
-`buy_readiness_score` は買い候補への近さを 0〜100 で表す説明用スコアです。final action には影響しません。
+`buy_readiness_score` は買い候補への近さを 0〜100 で表す説明用スコアです。成功確率、期待リターン、投資成功率ではありません。final action には影響しません。
 
-`unlock_conditions` は次に確認する条件であり、自動買い条件ではありません。
+`unlock_conditions` は次に確認する条件であり、自動買い条件ではありません。改善した場合も、レポートを再実行して final_action を確認する必要があります。
 
 ## Buy Window Diagnostics
 

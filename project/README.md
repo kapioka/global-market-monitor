@@ -41,6 +41,8 @@ v0.7.x では、`fx_soft_cap` を diagnostic-only として追跡します。
 
 - `fx_soft_cap` は final action には影響しない
 - `Buy Decision Card` / `buy_readiness_score` / `unlock_conditions` は説明用で、final action には影響しない
+- `buy_readiness_score` は確率、期待リターン、投資成功率ではない
+- unlock_conditions は次に確認する条件であり、自動買い条件ではない
 - watchlist で current cases の future data を追跡
 - historical backfill / replay で過去類似ケースを補助検証
 - replay 結果だけで threshold JSON や final action policy を変更しない

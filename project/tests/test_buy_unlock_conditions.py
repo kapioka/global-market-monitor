@@ -22,3 +22,4 @@ def test_buy_unlock_conditions_fallback() -> None:
 
     assert payload["primary_blocker"] == "unknown"
     assert payload["unlock_conditions"]
+    assert payload["affects_final_action"] is False

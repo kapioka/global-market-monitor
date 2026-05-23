@@ -45,7 +45,18 @@ def build_buy_decision_card(report: dict[str, Any]) -> dict[str, Any]:
         "secondary_blockers": blockers.get("secondary_blockers", []),
         "blocker_breakdown": blockers,
         "unlock_conditions": unlock.get("unlock_conditions", []),
+        "readiness_score_note": "buy_readiness_score is not a probability, expected return, or success rate. It only explains how many buy-decision conditions are aligned.",
+        "confirmation_conditions_label": "次に確認する条件",
+        "sample_only_note": _sample_only_note(report, blockers),
         "policy_status": "explanatory_only",
         "affects_final_action": False,
         "caveat": "This card explains buy-decision clarity and does not change final_action.",
     }
+
+
+def _sample_only_note(report: dict[str, Any], blockers: dict[str, Any]) -> str | None:
+    reliability = report.get("data_reliability") or {}
+    reasons = blockers.get("blocker_reasons") or {}
+    if int(reliability.get("sample_fallback_count", 0) or 0) > 0 or "sample_only" in reasons:
+        return "sample-only または sample fallback を含むため、final_action は安全側に制限されています。ライブの買いシグナルとして読まないでください。"
+    return None

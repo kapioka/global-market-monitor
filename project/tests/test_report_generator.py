@@ -3,7 +3,6 @@ from __future__ import annotations
 from project.report_generator import render_html, render_markdown, render_supplement_dashboard_html
 
 
-
 def _report() -> dict:
     return {
         "title": "Test Report",
@@ -29,13 +28,26 @@ def _report() -> dict:
             "momentum_12w": 0.12,
             "max_drawdown": -0.05,
             "credit_regime_flag": "neutral",
-            "sector_adjustment_explain": [{"signal": "cap", "delta": 0.02}, {"signal": "single_sector_dominance_warning", "delta": -0.01, "strength": "weak"}],
+            "sector_adjustment_explain": [
+                {"signal": "cap", "delta": 0.02},
+                {"signal": "single_sector_dominance_warning", "delta": -0.01, "strength": "weak"},
+            ],
         },
         "cycle": {"phase_label": "upswing", "phase_angle_deg": 10},
-        "score": {"total_score": 0.7, "credit_stress_component": 0.62, "sector_integration_explain": [{"signal": "cap", "delta": -0.03}, {"signal": "broad_improvement", "delta": 0.14}]},
+        "score": {
+            "total_score": 0.7,
+            "credit_stress_component": 0.62,
+            "sector_integration_explain": [{"signal": "cap", "delta": -0.03}, {"signal": "broad_improvement", "delta": 0.14}],
+        },
         "risk_thresholds": {"version": "2026-04-05-active-v1", "generated_at": "2026-04-05T12:00:00+09:00"},
-        "risk_threshold_drift": {"summary": {"stable_count": 7, "watch_count": 2, "review_count": 1, "unavailable_count": 0, "review_targets": ["^VIX:danger"]}},
-        "risk_threshold_review": {"status": "review", "review_recommended": True, "reasons": ["recalibration_due:120d", "drift_review_targets:^VIX:danger"]},
+        "risk_threshold_drift": {
+            "summary": {"stable_count": 7, "watch_count": 2, "review_count": 1, "unavailable_count": 0, "review_targets": ["^VIX:danger"]}
+        },
+        "risk_threshold_review": {
+            "status": "review",
+            "review_recommended": True,
+            "reasons": ["recalibration_due:120d", "drift_review_targets:^VIX:danger"],
+        },
         "risk_threshold_maintenance": {"status": "completed", "elapsed_seconds": 2.4, "proposal_generated_this_run": True},
         "risk_lines": {
             "stage_key": "credit_spillover_initial",
@@ -92,6 +104,34 @@ def _report() -> dict:
                 "インフレ面では大きな加速はまだ見えず、継続監視の段階です。",
             ],
         },
+        "buy_decision_card": {
+            "final_action": "watch",
+            "market_raw_action": "buy_window",
+            "risk_adjusted_action": "watch",
+            "buy_readiness_score": 72,
+            "readiness_level": "near_candidate",
+            "primary_blocker": "fx_risk",
+            "secondary_blockers": ["sample_only"],
+            "unlock_conditions": [
+                {
+                    "condition": "foreign_asset_fx_headwind の解消",
+                    "target_state": "headwind flag clears",
+                    "reason": "FX caution is the primary blocker.",
+                },
+                {
+                    "condition": "USDJPY 4w change の沈静化",
+                    "target_state": "change returns within threshold",
+                    "reason": "FX shock should be rechecked before any candidate review.",
+                },
+            ],
+            "confirmation_conditions_label": "次に確認する条件",
+            "readiness_score_note": (
+                "buy_readiness_score is not a probability, expected return, or success rate. "
+                "It only explains how many buy-decision conditions are aligned."
+            ),
+            "sample_only_note": "sample-only のため final_action は wait に固定されています。",
+            "affects_final_action": False,
+        },
         "sector_rotation": {
             "table": [
                 {
@@ -116,7 +156,21 @@ def _report() -> dict:
                 }
             ],
         },
-        "internal_structure": {"structure_label": "Broad Improvement", "reason": "複数セクターで改善が広がっています。", "structure": {"breadth": "broad", "leadership": "balanced", "stability": "stable"}, "structure_detail": {"consistency": "aligned", "momentum_quality": "stable"}, "dominant_sector": "XLP", "dominance_strength": "weak", "dominance_components": {"concentration": "medium", "breadth_deficit": "medium", "top_gap": "high"}, "dominance_reason_short": "少数セクターへ資金が集まっています、裾野の広がりはやや不足しています、先頭セクターの優位が明確です", "single_sector_dominance": True, "dispersion_score": 0.56, "watch_share": 0.75, "promising_share": 0.25, "counts": {"promising": 1, "watch": 0, "wait": 0, "peakout": 0}},
+        "internal_structure": {
+            "structure_label": "Broad Improvement",
+            "reason": "複数セクターで改善が広がっています。",
+            "structure": {"breadth": "broad", "leadership": "balanced", "stability": "stable"},
+            "structure_detail": {"consistency": "aligned", "momentum_quality": "stable"},
+            "dominant_sector": "XLP",
+            "dominance_strength": "weak",
+            "dominance_components": {"concentration": "medium", "breadth_deficit": "medium", "top_gap": "high"},
+            "dominance_reason_short": "少数セクターへ資金が集まっています、裾野の広がりはやや不足しています、先頭セクターの優位が明確です",
+            "single_sector_dominance": True,
+            "dispersion_score": 0.56,
+            "watch_share": 0.75,
+            "promising_share": 0.25,
+            "counts": {"promising": 1, "watch": 0, "wait": 0, "peakout": 0},
+        },
         "next_candidates": [{"ticker": "XLP", "sector_name_ja": "生活必需品", "candidate_label": "有望"}],
         "peakout_sectors": [{"ticker": "XLE", "sector_name_ja": "エネルギー", "candidate_label": "失速警戒"}],
         "market_structure_comment": "複数セクターで改善が広がっており、内部の裾野が広がっています。",
@@ -310,6 +364,9 @@ def test_render_markdown_uses_real_newlines():
     text = render_markdown(_report())
     assert "`n" not in text
     assert "## まず見る要約" in text
+    assert "Buy Decision Card / 買い判断カード" in text
+    assert "成功確率・期待リターン・投資成功率ではありません" in text
+    assert "TimesFM" not in text
     assert "- 最終判断: 監視" in text
     assert "危険ライン trigger path" in text
     assert "\n## サマリー\n" in text
@@ -397,10 +454,10 @@ def test_render_html_contains_japanese_explanations():
     assert "騙し上昇の警戒" in html
     assert "レジーム減点はなく、判定用スコアは 0.70" in html
     assert "ステータス<strong>要確認</strong>" in html
-    assert "<div class=\"l\">安定</div>" in html
-    assert "<div class=\"l\">監視</div>" in html
-    assert "<div class=\"l\">要確認</div>" in html
-    assert "<div class=\"l\">未取得</div>" in html
+    assert '<div class="l">安定</div>' in html
+    assert '<div class="l">監視</div>' in html
+    assert '<div class="l">要確認</div>' in html
+    assert '<div class="l">未取得</div>' in html
     assert "しきい値レビュー" in html
     assert "先回り候補" in html
     assert "レジーム先回り" in html
@@ -408,7 +465,7 @@ def test_render_html_contains_japanese_explanations():
     assert "legacy 買い検討ゾーン" in html
     assert "レジーム減点 0.0" in html
     assert "補足レポート 以下は監査性と詳細確認" not in html
-    assert "<section class=\"section\">" not in html
+    assert '<section class="section">' not in html
     assert "historyEmbedPayload" not in html
     assert "threshold proposal" not in html
 

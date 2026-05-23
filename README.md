@@ -208,7 +208,8 @@ Playwright CLI が使える環境では、補足ダッシュボードの5画面�
 - 売買判断の自動化エンジンではありません
 - `buy_window` は購入指示ではなく、追加確認の候補状態です
 - `buy_candidate` は買い場候補であり、買い指示ではありません
-- `buy_readiness_score` と unlock_conditions は説明用です。final action を変更しません
+- `buy_readiness_score` は成功確率・期待リターン・投資成功率ではありません。買い判断に近い条件の揃い具合を示す説明用スコアです
+- unlock_conditions は「次に確認する条件」であり、自動買い条件ではありません
 - raw / risk-adjusted / final action を分けて、強い判定がどこで弱まったかを確認できます
 - `fx_soft_cap` は診断専用です。final action には影響せず、為替リスクありの買い候補を検証するために使います。
 - データ取得元の都合で、一時的に取得に失敗することがあります

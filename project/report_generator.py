@@ -295,10 +295,13 @@ def _buy_decision_card_markdown_lines(report: dict[str, Any]) -> list[str]:
         f"- 市場だけ見た判定: {_jp_action(str(card.get('market_raw_action', '-')))}",
         f"- リスク調整後: {_jp_action(str(card.get('risk_adjusted_action', '-')))}",
         f"- 買い候補度: {card.get('buy_readiness_score', 0)} / 100 ({card.get('readiness_level', '-')})",
+        "- 注記: 買い候補度は成功確率・期待リターン・投資成功率ではありません。条件の揃い具合を示す説明用スコアです。",
         f"- 主な阻害要因: {card.get('primary_blocker') or 'なし'}",
     ]
     for index, row in enumerate((card.get("unlock_conditions") or [])[:3], start=1):
         lines.append(f"- 次に見る条件 {index}: {row.get('condition')} -> {row.get('target_state')}")
+    if card.get("sample_only_note"):
+        lines.append(f"- sample-only注意: {card.get('sample_only_note')}")
     lines.append("- このカードは説明用であり、final_actionには影響しません。")
     return lines
 
@@ -404,8 +407,10 @@ def _buy_decision_card_html(report: dict[str, Any]) -> str:
           <li><span>市場だけ見た判定</span><strong>{html.escape(_jp_action(str(card.get('market_raw_action', '-'))))}</strong></li>
           <li><span>リスク調整後</span><strong>{html.escape(_jp_action(str(card.get('risk_adjusted_action', '-'))))}</strong></li>
           <li><span>買い候補度</span><strong>{html.escape(str(card.get('buy_readiness_score', 0)))} / 100</strong></li>
+          <li><span>スコア注記</span><strong>成功確率・期待リターンではありません</strong></li>
           <li><span>主な阻害要因</span><strong>{html.escape(str(card.get('primary_blocker') or 'なし'))}</strong></li>
           {unlock_items}
+          <li><span>sample-only注意</span><strong>{html.escape(str(card.get('sample_only_note') or '-'))}</strong></li>
           <li><span>final action 影響</span><strong>false / 説明用</strong></li>
         </ul>
       </section>

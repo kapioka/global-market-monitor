@@ -34,8 +34,8 @@ def build_buy_decision_audit(report: dict[str, Any]) -> dict[str, Any]:
         "regime_aware_diagnostics_summary": report.get("regime_aware_fx_policy_replay", {}),
         "why_not_buy_window": _why_not_buy_window(card),
         "caveats": [
-            "buy_readiness_score is explanatory only.",
-            "unlock_conditions are not automatic buy instructions.",
+            "buy_readiness_score is explanatory only. It is not a probability, expected return, or success rate.",
+            "unlock_conditions are next review conditions, not automatic buy instructions.",
             "final_action remains controlled by active thresholds and reliability_policy.",
         ],
     }
@@ -65,8 +65,10 @@ def render_buy_decision_audit_markdown(payload: dict[str, Any]) -> str:
         f"- market_raw_action: {card.get('market_raw_action')}",
         f"- risk_adjusted_action: {card.get('risk_adjusted_action')}",
         f"- buy_readiness_score: {card.get('buy_readiness_score')} / 100",
+        "- score_note: not a probability, expected return, or success rate",
         f"- readiness_level: {card.get('readiness_level')}",
         f"- primary_blocker: {card.get('primary_blocker')}",
+        f"- sample_only_note: {card.get('sample_only_note') or '-'}",
         "",
         "## blockers",
     ]
@@ -74,7 +76,7 @@ def render_buy_decision_audit_markdown(payload: dict[str, Any]) -> str:
     if not blockers:
         lines.append("- none")
     lines.append("")
-    lines.append("## unlock conditions")
+    lines.append("## next review conditions")
     lines.extend(f"- {row.get('condition')}: current={row.get('current_value')} -> target={row.get('target_state')}" for row in unlock)
     if not unlock:
         lines.append("- none")

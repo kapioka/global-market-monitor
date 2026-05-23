@@ -29,6 +29,7 @@ def test_buy_decision_audit_builds_payload() -> None:
     assert payload["affects_final_action"] is False
     assert payload["buy_decision_card"]["primary_blocker"] == "fx_risk"
     assert payload["why_not_buy_window"]
+    assert "not a probability" in payload["caveats"][0]
 
 
 def test_buy_decision_audit_writes_reports(tmp_path: Path) -> None:

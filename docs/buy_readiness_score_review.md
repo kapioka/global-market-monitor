@@ -2,6 +2,8 @@
 
 `buy_readiness_score` is a 0 to 100 explanatory score for how close the current setup is to a buy-candidate zone.
 
+It is not a probability, expected return, investment success rate, or recommendation strength.
+
 Levels:
 
 - far
