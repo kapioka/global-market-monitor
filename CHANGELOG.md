@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.7.8 - Gitleaks Optional CI Trial
+
+### Added
+
+- Added a non-blocking GitHub Actions job for optional Gitleaks scanning.
+- Documented Gitleaks CI trial behavior and release-stop handling for findings.
+
+### Changed
+
+- Clarified that Gitleaks CI is observational in v0.7.8 and is not a required release gate.
+
+### Security
+
+- Kept Gitleaks findings subject to manual review before release, without adding a default allowlist.
+
 ## v0.7.7 - CI Release Package Verification Integration
 
 ### Added

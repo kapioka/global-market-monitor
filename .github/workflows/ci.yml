@@ -7,6 +7,23 @@ on:
   workflow_dispatch:
 
 jobs:
+  gitleaks-optional:
+    name: Gitleaks optional scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   validate:
     runs-on: windows-latest
     timeout-minutes: 30

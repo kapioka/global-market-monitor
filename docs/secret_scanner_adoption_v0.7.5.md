@@ -1,6 +1,6 @@
 # Secret Scanner Adoption Decision
 
-v0.7.5 records how this project should treat Gitleaks and TruffleHog during GitHub publish preparation.
+v0.7.5 records how this project should treat Gitleaks and TruffleHog during GitHub publish preparation. v0.7.8 adds the first non-blocking GitHub Actions trial for Gitleaks.
 
 This work is unrelated to investment decision logic. It does not change `final_action`, active/proposed thresholds, `reliability_policy`, `buy_window`, `buy_candidate`, `fx_soft_cap`, or regime-aware policy behavior.
 
@@ -24,6 +24,8 @@ The current release workflow already includes:
 - `docs/github_publish_readiness_checklist.md`
 
 Gitleaks and TruffleHog remain optional workstation tools in v0.7.5. `security_audit.ps1` already records whether they are available and does not fail only because they are missing.
+
+In v0.7.8, Gitleaks is also run as an optional GitHub Actions job. That job is intentionally non-blocking while CI behavior, licensing requirements, and false positive behavior are observed.
 
 ## Scanner Comparison
 
@@ -92,12 +94,23 @@ Continue only after the finding is removed, rotated, or documented as a reviewed
 
 v0.7.5 does not add required CI enforcement for Gitleaks or TruffleHog.
 
+v0.7.8 adds `gitleaks-optional` to GitHub Actions:
+
+- It uses the default Gitleaks action rules.
+- It checks out full history with `fetch-depth: 0`.
+- It runs with `continue-on-error: true`.
+- It is not a branch-protection or release-readiness requirement.
+- It does not add a `.gitleaks.toml` allowlist.
+- If it reports a finding, review the finding before publishing.
+
 Future CI work should start as optional and non-blocking, for example:
 
 - Record scanner output in the workflow log or summary.
 - Use `continue-on-error: true` while noise is characterized.
 - Keep `scripts/security_audit.ps1` as the primary release-readiness gate.
 - Do not add branch-protection requirements until false positive handling is clear.
+
+Before making Gitleaks required, review at least one clean CI run and any findings from pull request or tag workflows. Verified or high-confidence findings stop public release even while the CI job remains non-blocking.
 
 ## Not In v0.7.5
 

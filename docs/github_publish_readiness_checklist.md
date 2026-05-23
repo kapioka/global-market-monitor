@@ -130,6 +130,8 @@ In v0.7.5:
 - TruffleHog remains a candidate scanner.
 - Required CI enforcement is intentionally deferred.
 
+In v0.7.8, CI includes a non-blocking `gitleaks-optional` job using the default Gitleaks action rules. Treat this job as an observation signal, not as the sole release gate. If it reports a verified or high-confidence finding, stop publishing and review the finding before adding any allowlist entry.
+
 Required security signals:
 
 - `security_audit.ps1` reports `publish_readiness: pass`.
