@@ -75,3 +75,22 @@ def test_verify_package_rejects_wrong_tag(tmp_path):
         assert "expected tag" in exc.reason
     else:
         raise AssertionError("expected VerificationError")
+
+
+def test_find_latest_package_returns_newest_source_zip(tmp_path):
+    module = load_verify_module()
+    old_package = tmp_path / "global-market-monitor-v0.7.5-source.zip"
+    new_package = tmp_path / "global-market-monitor-v0.7.6-source.zip"
+    ignored_package = tmp_path / "other.zip"
+    write_package(old_package, required_files(module), tag="v0.7.5")
+    write_package(new_package, required_files(module), tag="v0.7.6")
+    ignored_package.write_text("not a release package", encoding="utf-8")
+
+    old_time = 1_700_000_000
+    new_time = 1_700_000_100
+    import os
+
+    os.utime(old_package, (old_time, old_time))
+    os.utime(new_package, (new_time, new_time))
+
+    assert module.find_latest_package(tmp_path) == new_package

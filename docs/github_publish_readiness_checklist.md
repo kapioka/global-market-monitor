@@ -36,6 +36,12 @@ python scripts\verify_release_package.py --package release\global-market-monitor
 
 For a v0.7.3 publish check, use `-ExpectedTag "v0.7.3"`. For the next release, pass the actual target tag as `-ExpectedTag "<release-tag>"`.
 
+CI also creates a source package and verifies the newest package in `release/` with commit matching enabled. Normal push and pull request CI may run without a release tag, so tag verification remains a release-publish check:
+
+```powershell
+python scripts\verify_release_package.py --latest-dir release --expected-commit <commit>
+```
+
 ## Tag Check
 
 ```powershell
@@ -74,6 +80,7 @@ python scripts\verify_release_package.py --package release\global-market-monitor
 ```
 
 If `--expected-commit` is omitted, the script still displays the manifest commit and validates required files and forbidden entries.
+If the exact package name is inconvenient in CI, use `--latest-dir release` to verify the newest `global-market-monitor-*-source.zip`.
 
 Forbidden entry examples:
 

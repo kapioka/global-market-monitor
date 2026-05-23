@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.7.7 - CI Release Package Verification Integration
+
+### Added
+
+- Added latest release package auto-detection to release package verification.
+- Added CI release package creation and manifest verification after dry-run validation.
+- Added tests for latest release package detection.
+
+### Changed
+
+- Documented CI tagless package verification and release-tag verification guidance.
+
+### Security
+
+- Connected CI to the same generated/cache and forbidden-entry package verification used for local release checks.
+
 ## v0.7.6 - Release Package Manifest Verification
 
 ### Added

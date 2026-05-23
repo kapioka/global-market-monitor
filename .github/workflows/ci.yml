@@ -59,3 +59,11 @@ jobs:
       - name: Check release package dry run
         shell: pwsh
         run: python scripts/create_release_package.py --dry-run
+
+      - name: Create release package
+        shell: pwsh
+        run: python scripts/create_release_package.py
+
+      - name: Verify release package
+        shell: pwsh
+        run: python scripts/verify_release_package.py --latest-dir release --expected-commit ${{ github.sha }}

@@ -44,6 +44,12 @@ python scripts\verify_release_package.py --package release\global-market-monitor
 
 This checks the package manifest, release tag, optional commit prefix, required release docs, and forbidden generated/cache/secret-adjacent entries.
 
+CI can verify tagless push and pull request builds by checking the newest generated package against the current commit:
+
+```powershell
+python scripts\verify_release_package.py --latest-dir release --expected-commit <commit>
+```
+
 ## Security Audit Operation
 
 `scripts/security_audit.ps1` runs local and CI-friendly checks:

@@ -180,6 +180,25 @@ def verify_package(package: Path, expected_tag: str | None = None, expected_comm
     )
 
 
+def find_latest_package(directory: Path) -> Path:
+    if not directory.exists():
+        raise VerificationError(
+            f"Latest package directory does not exist: {directory}",
+            "Run python scripts/create_release_package.py first, or pass --package explicitly.",
+        )
+    candidates = sorted(
+        directory.glob("global-market-monitor-*-source.zip"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    if not candidates:
+        raise VerificationError(
+            f"No source release packages found in {directory}",
+            "Run python scripts/create_release_package.py first, or pass --package explicitly.",
+        )
+    return candidates[0]
+
+
 def print_pass(result: VerificationResult) -> None:
     manifest = result.manifest
     print("release_package_verification: pass")
@@ -200,7 +219,9 @@ def print_fail(error: VerificationError) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--package", required=True, type=Path, help="Path to the release source zip.")
+    package_group = parser.add_mutually_exclusive_group(required=True)
+    package_group.add_argument("--package", type=Path, help="Path to the release source zip.")
+    package_group.add_argument("--latest-dir", type=Path, help="Find the newest global-market-monitor-*-source.zip in this directory.")
     parser.add_argument("--expected-tag", default="", help="Expected release tag in PACKAGE_MANIFEST.json.")
     parser.add_argument("--expected-commit", default="", help="Expected commit or commit prefix in PACKAGE_MANIFEST.json.")
     return parser.parse_args()
@@ -209,8 +230,9 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
+        package = args.package if args.package is not None else find_latest_package(args.latest_dir)
         result = verify_package(
-            args.package,
+            package,
             expected_tag=args.expected_tag or None,
             expected_commit=args.expected_commit or None,
         )
