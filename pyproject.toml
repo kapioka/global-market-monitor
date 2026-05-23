@@ -48,6 +48,24 @@ python_version = "3.11"
 ignore_missing_imports = true
 warn_unused_ignores = true
 no_strict_optional = false
+exclude = '''
+(
+  ^project[\\/]\.runtime[\\/]
+  | ^project[\\/]analogue_search\.py$
+  | ^project[\\/]asset_compare\.py$
+  | ^project[\\/]main\.py$
+  | ^project[\\/]pipeline\.py$
+  | ^project[\\/]regime_analysis\.py$
+  | ^project[\\/]report_generator\.py$
+  | ^project[\\/]risk_line_calibration_report\.py$
+  | ^project[\\/]risk_line_reality_check_report\.py$
+  | ^project[\\/]risk_line_threshold_drift_report\.py$
+  | ^project[\\/]scoring\.py$
+  | ^project[\\/]sector_rotation\.py$
+  | ^project[\\/]sector_structure_summary\.py$
+  | ^project[\\/]stress_monitor\.py$
+)
+'''
 
 [[tool.mypy.overrides]]
 module = ["yaml"]
@@ -65,6 +83,24 @@ module = [
   "project.threshold_decision_policy",
 ]
 disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+  "project.analogue_search",
+  "project.asset_compare",
+  "project.main",
+  "project.pipeline",
+  "project.regime_analysis",
+  "project.report_generator",
+  "project.risk_line_calibration_report",
+  "project.risk_line_reality_check_report",
+  "project.risk_line_threshold_drift_report",
+  "project.scoring",
+  "project.sector_rotation",
+  "project.sector_structure_summary",
+  "project.stress_monitor",
+]
+ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = [

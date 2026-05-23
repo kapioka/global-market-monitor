@@ -2,6 +2,7 @@ param(
     [switch]$InstallTools,
     [switch]$Strict,
     [switch]$SkipDependencyAudit,
+    [string]$ExpectedTag = "v0.7.2",
     [string]$Python = "python"
 )
 
@@ -16,6 +17,7 @@ $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
     repo_root = $repoRoot.Path
     strict = [bool]$Strict
+    expected_tag = $ExpectedTag
     publish_readiness = "pass"
     blockers = @()
     warnings = @()
@@ -106,18 +108,18 @@ ConvertTo-JsonFile $gitInfo (Join-Path $securityDir "git-metadata.json")
 if ($statusShort.Count -gt 0) {
     Add-Warning "Working tree is not clean during audit."
 }
-if ($tagsAtHead -notcontains "v0.7.2") {
-    Add-Blocker "v0.7.2 tag does not point at HEAD."
+if (-not [string]::IsNullOrWhiteSpace($ExpectedTag) -and $tagsAtHead -notcontains $ExpectedTag) {
+    Add-Blocker "$ExpectedTag tag does not point at HEAD."
 }
 if ($emailHits.Count -gt 0) {
     Add-Blocker "Personal email metadata was found in git history."
 }
 
-$secretPattern = "api[_-]?key|secret|token|password|passwd|bearer|authorization|cookie|client_secret|private[_-]?key|access[_-]?key|refresh[_-]?token|OPENAI_API_KEY|ALPHA_VANTAGE|FRED_API_KEY|GITHUB_TOKEN|AWS_ACCESS_KEY|AWS_SECRET|GOOGLE_APPLICATION_CREDENTIALS"
+$secretPattern = "api[_-]?key|secret|token|password|passwd|bearer|authorization|cookie|client_secret|private[_-]?key|access[_-]?key|refresh[_-]?token|OPENAI_API_KEY|ALPHA_VANTAGE|FRED_API_KEY|GITHUB_TOKEN|AWS_ACCESS_KEY|AWS_SECRET|GOOGLE_APPLICATION_CREDENTIALS" # pragma: allowlist secret
 $strongSecretPattern = "\bsk-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|BEGIN (RSA |EC |OPENSSH |DSA |)?PRIVATE KEY|AKIA[0-9A-Z]{16}"
-$pathPattern = "E:\\|C:\\|Users\\|作ってみた|akisoe|gmail.com|Desktop|Downloads|OneDrive|AppData|\.env|\.pfx|\.pem|\.key|\.crt"
+$pathPattern = "E:\\|C:\\|Users\\|\u4F5C\u3063\u3066\u307F\u305F|akisoe|gmail.com|Desktop|Downloads|OneDrive|AppData|\.env|\.pfx|\.pem|\.key|\.crt"
 $timesfmPattern = "TimesFM|timesfm|times_fm|forecast_support|overblock_suspicion|special_case_risk|forecast_disagreement"
-$investmentPattern = "買え|買うべき|必ず|guaranteed|guarantee|profit|儲かる|勝てる|投資助言|自動売買|execute trade|order|broker|売買指示|成功確率"
+$investmentPattern = "\u8CB7\u3048|\u8CB7\u3046\u3079\u304D|\u5FC5\u305A|guaranteed|guarantee|profit|\u5132\u304B\u308B|\u52DD\u3066\u308B|\u6295\u8CC7\u52A9\u8A00|\u81EA\u52D5\u58F2\u8CB7|execute trade|order|broker|\u58F2\u8CB7\u6307\u793A|\u6210\u529F\u78BA\u7387"
 
 if (Test-Tool "gitleaks") {
     $gitleaksGit = Join-Path $securityDir "gitleaks-git-history.json"
@@ -136,7 +138,7 @@ if (Test-Tool "detect-secrets") {
     $detectOutput = Join-Path $securityDir "detect-secrets.baseline.json"
     $detectResult = Invoke-Capture "detect_secrets_scan" $detectOutput {
         detect-secrets scan --all-files `
-            --exclude-files "^(\.tmp|\.mypy_cache|\.ruff_cache|project[\\/]reports|project[\\/]cache|project[\\/]runtime|project[\\/]\.runtime|\.git|archive|docs[\\/]visual-evidence)([\\/]|$)"
+            --exclude-files '^(\.tmp|\.mypy_cache|\.ruff_cache|project[\\/]reports|project[\\/]cache|project[\\/]runtime|project[\\/]\.runtime|\.git|archive|docs[\\/]visual-evidence)([\\/]|$)'
     }
     $detectFindingCount = 0
     try {
@@ -187,6 +189,7 @@ if ($strongSecrets.lines.Count -gt 0) {
 
 $forbiddenTimesFm = @($timesfm.lines | Where-Object {
     $_ -notmatch "^docs/experimental_timesfm_evaluation.md:" -and
+    $_ -notmatch "^docs/release_operation_hardening_v0\.7\.3.md:" -and
     $_ -notmatch "^RELEASE_NOTES_v0\.7\.[12]\.md:" -and
     $_ -notmatch "^docs/security_audit_v0\.7\.2.md:" -and
     $_ -notmatch "^README.md:" -and

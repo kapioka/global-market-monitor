@@ -33,6 +33,15 @@ v0.7.2 は、買い判断を緩める版ではありません。正式判断は�
 - `fx_soft_cap` / regime-aware FX candidates は diagnostic-only / hold のままです
 - TimesFM は通常機能に含めていません
 
+## v0.7.3 Release / Operation Hardening
+
+v0.7.3 は、GitHub公開後の運用安定性と配布手順を固める版です。投資判断ロジック、`final_action`、`reliability_policy`、active/proposed threshold JSON、`buy_window` / `buy_candidate` の閾値は変更しません。
+
+- GitHub Actions CI で pytest / ruff / black --check / mypy / 依存監査 / security audit を確認します
+- source-only の配布アーカイブを作るスクリプトを追加しています
+- 生成済みレポート、cache、runtime log、release作業フォルダは配布物やコミット対象から除外します
+- security audit はローカルとCIの両方で使えるようにしています
+
 ## こんな人向けです
 
 - 毎週の相場チェックを手作業でやっていて時間がかかる人
@@ -41,6 +50,17 @@ v0.7.2 は、買い判断を緩める版ではありません。正式判断は�
 - 日本円ベースで外貨資産や為替リスクも確認したい人
 
 ## はじめ方
+
+### 3分で確認する最短手順
+
+```powershell
+python -m pip install -r project/requirements.txt
+python project/main.py --sample-only
+```
+
+`--sample-only` は、表示や処理の流れを確認するためのサンプル実行です。実データの市場判断ではありません。sample-only の結果で `buy_window` や `buy_candidate` を投資判断として扱わないでください。
+
+README参照用の最小サンプルは `docs/sample/sample_report_summary.json` に置いています。このファイルは synthetic fixture であり、実データや個人情報を含めません。
 
 ### 1. 必要なもの
 
@@ -69,6 +89,27 @@ python -m pip install -r project/requirements-lock.txt
 ```
 
 このスクリプトは `.tmp\pip-audit\requirements-lock.pip-audit.txt` を生成し、`torch==2.8.0+cu129` のようなローカルビルド表記は `.tmp\pip-audit\requirements-lock.pip-audit-excluded.md` に理由付きで記録します。除外分は脆弱性なしという意味ではなく、配布元に合わせて別途確認する監査不能項目です。
+
+### CI / security audit / release package
+
+ローカルで公開前に近い確認をする場合は、次を使います。
+
+```powershell
+python -m pytest
+python -m ruff check .
+python -m black --check .
+python -m mypy .
+.\scripts\security_audit.ps1 -ExpectedTag "" -Strict
+python scripts/create_release_package.py --dry-run
+```
+
+配布用の source-only archive を作る場合は、作業ツリーが clean な状態で実行します。
+
+```powershell
+python scripts/create_release_package.py
+```
+
+配布アーカイブには manifest が入り、commit、tag、含めたファイル、除外ルールを確認できます。`project/reports/`、`project/cache/`、`.tmp/`、`release/`、`github_upload/` などの生成物・作業フォルダは含めません。
 
 ### Historical replay
 
@@ -149,6 +190,17 @@ python project/main.py
 
 `buy_window` は購入指示ではありません。市場状態を見直す候補日という意味であり、データ品質ガードで `watch` や `wait` に降格されることがあります。
 
+### Buy Decision Card
+
+Buy Decision Card は、買い判断を強めるための仕組みではなく、判断の内訳を読みやすくするための表示です。
+
+- `final` は正式判断です
+- `raw` はリスク調整前の見え方です
+- `risk_adjusted` はデータ品質やリスク要因を反映した見え方です
+- `buy_readiness_score` は説明用スコアで、成功確率や期待リターンではありません
+- `primary_blockers` は、候補化を妨げている主な要因です
+- `next_review_conditions` / `unlock_conditions` は、次に確認する条件であり、自動買い条件ではありません
+
 ### 履歴ダッシュボード
 
 `history_dashboard.html` では、過去の実行結果を時系列で見返せます。
@@ -218,6 +270,17 @@ Playwright CLI が使える環境では、補足ダッシュボードの5画面�
 - 売買判断の自動化エンジンではありません
 - `buy_window` は購入指示ではなく、追加確認の候補状態です
 - `buy_candidate` は買い場候補であり、買い指示ではありません
+- `buy_readiness_score` は成功確率ではありません
+- sample-only の結果は実データによる判断ではありません
+- generated files、cache、runtime logs、配布作業フォルダはコミットしません
+
+## よくある誤解
+
+- `buy_window` が出たら買う、という意味ではありません。確認候補日の表示です。
+- `buy_candidate` は注文や売買指示ではありません。
+- `buy_readiness_score` が高いほど利益が出る、という意味ではありません。
+- sample-only の結果は、実運用判断の根拠にはなりません。
+- `fx_soft_cap` / regime-aware FX candidates は検証用で、正式判断には採用していません。
 - `buy_readiness_score` は成功確率・期待リターン・投資成功率ではありません。買い判断に近い条件の揃い具合を示す説明用スコアです
 - unlock_conditions は「次に確認する条件」であり、自動買い条件ではありません
 - raw / risk-adjusted / final action を分けて、強い判定がどこで弱まったかを確認できます

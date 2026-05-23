@@ -1,0 +1,24 @@
+{
+  "sample_only": true,
+  "data_source": "sample-fixture",
+  "final_action": "watch",
+  "confidence": "low",
+  "buy_decision_card": {
+    "final": "watch",
+    "raw": "watch",
+    "risk_adjusted": "watch",
+    "buy_readiness_score": 42,
+    "primary_blockers": [
+      "sample-only data",
+      "insufficient live data quality"
+    ],
+    "next_review_conditions": [
+      "Confirm live data ratio",
+      "Review whether blockers cleared"
+    ]
+  },
+  "notes": [
+    "This fixture is synthetic and is not market data.",
+    "This fixture is for README and parser examples only."
+  ]
+}
