@@ -189,6 +189,7 @@ if ($strongSecrets.lines.Count -gt 0) {
 
 $forbiddenTimesFm = @($timesfm.lines | Where-Object {
     $_ -notmatch "^docs/experimental_timesfm_evaluation.md:" -and
+    $_ -notmatch "^docs/github_publish_readiness_checklist.md:" -and
     $_ -notmatch "^docs/release_operation_hardening_v0\.7\.3.md:" -and
     $_ -notmatch "^RELEASE_NOTES_v0\.7\.[12]\.md:" -and
     $_ -notmatch "^docs/security_audit_v0\.7\.2.md:" -and

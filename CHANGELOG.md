@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.7.4 - GitHub Publish Readiness Checklist
+
+### Added
+
+- Added GitHub publish readiness checklist documentation.
+- Added explicit release package manifest verification steps.
+- Added known-warning handling for gitleaks/trufflehog and local pip check notes.
+
+### Changed
+
+- Linked README release guidance to the publish readiness checklist.
+
+### Security
+
+- Documented pre-publish checks for forbidden entries, generated/cache exclusion, secrets-adjacent files, and threshold/decision logic non-change verification.
+
 ## v0.7.3 - Release / Operation Hardening
 
 ### Added
