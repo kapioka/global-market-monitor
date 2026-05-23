@@ -106,6 +106,14 @@ Confirm:
 
 `gitleaks` and `trufflehog` are workstation-optional at this stage. If they are not installed, `security_audit.ps1` records that status and continues with fallback checks. Missing optional scanners are not release blockers by themselves.
 
+For optional secret scanner adoption guidance, see `docs/secret_scanner_adoption_v0.7.5.md`.
+
+In v0.7.5:
+
+- Gitleaks is the preferred optional scanner.
+- TruffleHog remains a candidate scanner.
+- Required CI enforcement is intentionally deferred.
+
 Required security signals:
 
 - `security_audit.ps1` reports `publish_readiness: pass`.

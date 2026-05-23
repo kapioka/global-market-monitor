@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.7.5 - Secret Scanner Adoption Decision
+
+### Added
+
+- Added secret scanner adoption guidance for Gitleaks and TruffleHog.
+- Added local optional scanner commands for release workstations.
+- Added release stop conditions for verified or high-confidence secret findings.
+
+### Changed
+
+- Clarified that Gitleaks is the preferred optional scanner and TruffleHog remains a candidate scanner.
+- Linked publish readiness guidance to the secret scanner adoption documentation.
+
+### Security
+
+- Documented non-blocking scanner setup, escalation criteria, and public release stop conditions for secret findings.
+- Documented that false positives should not be immediately allowlisted without rationale.
+
 ## v0.7.4 - GitHub Publish Readiness Checklist
 
 ### Added
