@@ -12,6 +12,8 @@ For the overall responsibility map across CI, local security audit, release pack
 
 For the final local dry run before publishing, see `docs/github_publish_final_dry_run_v0.7.12.md`.
 
+For the first post-publish operating baseline, see `docs/post_publish_operation_baseline_v0.8.0.md`.
+
 Expected supporting tools:
 
 - GitHub Actions CI

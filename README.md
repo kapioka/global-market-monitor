@@ -111,7 +111,7 @@ python scripts/create_release_package.py
 
 配布アーカイブには manifest が入り、commit、tag、含めたファイル、除外ルールを確認できます。`project/reports/`、`project/cache/`、`.tmp/`、`release/`、`github_upload/` などの生成物・作業フォルダは含めません。
 
-GitHub公開前は、詳細な確認表として `docs/github_publish_readiness_checklist.md` を使ってください。CI、security audit、release package manifest、forbidden entries、generated/cache除外、threshold JSON非変更、判定ロジック非変更を確認します。公開前運用全体の責務分担は `docs/pre_publish_integration_review_v0.7.11.md`、最終dry-runの確認表は `docs/github_publish_final_dry_run_v0.7.12.md` にまとめています。
+GitHub公開前は、詳細な確認表として `docs/github_publish_readiness_checklist.md` を使ってください。CI、security audit、release package manifest、forbidden entries、generated/cache除外、threshold JSON非変更、判定ロジック非変更を確認します。公開前運用全体の責務分担は `docs/pre_publish_integration_review_v0.7.11.md`、最終dry-runの確認表は `docs/github_publish_final_dry_run_v0.7.12.md` にまとめています。公開後の初回運用基準は `docs/post_publish_operation_baseline_v0.8.0.md` にまとめています。
 
 ### Historical replay
 

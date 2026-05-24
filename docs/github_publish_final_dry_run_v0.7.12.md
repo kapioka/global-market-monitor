@@ -78,3 +78,5 @@ The final dry run is complete when:
 - local validation and release package verification pass.
 - forbidden diff checks are empty.
 - the v0.7.12 source package manifest tag and commit match the fixed release.
+
+After publishing, use `docs/post_publish_operation_baseline_v0.8.0.md` for the first GitHub Actions, Release, scanner, issue intake, and generated-output operation checks.

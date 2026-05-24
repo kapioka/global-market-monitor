@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.8.0 - Post-Publish Operation Baseline
+
+### Added
+
+- Added post-publish operation baseline documentation for GitHub Actions, GitHub Release, release package, scanner review, issue intake, and security finding intake.
+- Added README and publish-doc links to the post-publish baseline.
+
+### Changed
+
+- Changed pytest temporary output to `.pytest_tmp` so clean CI checkouts do not require a pre-existing `.tmp` parent directory.
+
+### Security
+
+- Documented post-publish handling for non-blocking Gitleaks review, generated-output exclusion, and security finding intake without adding required scanner enforcement, scanner allowlists, or scanner configuration.
+
 ## v0.7.12 - GitHub Publish Final Dry Run
 
 ### Added
