@@ -133,9 +133,10 @@ def _analysis_row(case: dict[str, Any], candidate_name: str) -> dict[str, Any]:
 
 
 def _group_summary(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    drawdowns_13w = [value for value in (_metric(case, "max_drawdowns", "13w") for case in cases) if value is not None]
     return {
         "count": len(cases),
-        "worst_dd_13w": min((_metric(case, "max_drawdowns", "13w") for case in cases), default=None),
+        "worst_dd_13w": min(drawdowns_13w, default=None),
         "mean_excess_13w": _mean([_metric(case, "excess_returns", "13w") for case in cases]),
         "median_vix": _median_feature(cases, "vix_level"),
         "median_credit_proxy": _median_feature(cases, "hyg_lqd_ratio_return_4w"),
@@ -212,7 +213,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
-    print(json.dumps(run_fx_soft_cap_drawdown_analysis(args.replay_json, args.conditional_replay_json, args.reports_dir), ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            run_fx_soft_cap_drawdown_analysis(args.replay_json, args.conditional_replay_json, args.reports_dir),
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0
 
 

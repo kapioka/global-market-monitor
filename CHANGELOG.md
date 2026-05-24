@@ -10,6 +10,7 @@
 ### Changed
 
 - Changed pytest temporary output to `.pytest_tmp` so clean CI checkouts do not require a pre-existing `.tmp` parent directory.
+- Clarified drawdown summary typing so CI mypy on Python 3.11 accepts the diagnostic analysis module.
 
 ### Security
 
