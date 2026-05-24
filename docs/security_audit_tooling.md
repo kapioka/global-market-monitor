@@ -77,6 +77,8 @@ Do not add Gitleaks findings to `PACKAGE_MANIFEST.json` in v0.7.10. The release 
 
 Stop release if Gitleaks reports a verified, high-confidence, or unexplained finding, even though the optional CI job remains non-blocking.
 
+For the integrated pre-publish responsibility map, see `docs/pre_publish_integration_review_v0.7.11.md`.
+
 ## Push Checklist
 
 Before pushing a release:

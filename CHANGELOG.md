@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.7.11 - Pre-Publish Integration Review
+
+### Added
+
+- Added a pre-publish integration review that maps CI, security audit, release packaging, manifest verification, optional scanner review, and scanner findings policy responsibilities.
+
+### Changed
+
+- Linked README and release-operation docs to the integrated pre-publish responsibility map.
+- Replaced the stale optional-scanner TODO in the v0.7.3 hardening notes with references to the later scanner decision docs.
+
+### Security
+
+- Confirmed that scanner CI remains optional, findings are not written to the release package manifest, and generated/cache/release artifacts remain outside source control.
+
 ## v0.7.10 - Scanner Findings Integration Decision
 
 ### Added

@@ -120,3 +120,5 @@ git diff -- project\risk_line_thresholds_proposed.json
 ```
 
 Run the full release package verification only when preparing an external publish, tag update, or fixed release package.
+
+For the integrated pre-publish responsibility map across release-operation work, see `docs/pre_publish_integration_review_v0.7.11.md`.

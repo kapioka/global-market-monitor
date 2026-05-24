@@ -8,6 +8,8 @@ This is not investment advice, does not improve investment decision logic, and d
 
 Use this checklist for releases based on v0.7.3 or later release-operation hardening.
 
+For the overall responsibility map across CI, local security audit, release package generation, manifest verification, optional scanner review, and scanner finding policy, see `docs/pre_publish_integration_review_v0.7.11.md`.
+
 Expected supporting tools:
 
 - GitHub Actions CI

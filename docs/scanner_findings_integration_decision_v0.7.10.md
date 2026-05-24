@@ -104,6 +104,8 @@ Before making Gitleaks required, collect:
 - confirmation that required enforcement will not block releases on tool licensing or runtime setup issues
 - a decision on whether scanner results should be summarized as CI artifacts rather than manifest fields
 
+For the integrated pre-publish responsibility map, see `docs/pre_publish_integration_review_v0.7.11.md`.
+
 ## Completion Checks
 
 - Gitleaks remains optional and non-blocking.

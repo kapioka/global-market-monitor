@@ -120,6 +120,8 @@ v0.7.9 keeps this as an evaluation step only. Required enforcement, `.gitleaks.t
 
 v0.7.10 treats optional CI findings as release review inputs. Verified, high-confidence, or unexplained findings stop release review, but scanner findings are not written into the release package manifest.
 
+v0.7.11 summarizes the full pre-publish responsibility map in `docs/pre_publish_integration_review_v0.7.11.md`.
+
 ## Not In v0.7.5
 
 - Required Gitleaks or TruffleHog CI.

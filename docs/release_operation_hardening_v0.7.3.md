@@ -78,8 +78,13 @@ detect-secrets scan --all-files
 
 before release packaging.
 
-## Optional Future Scanners
+## Optional Scanner Status
 
 `gitleaks` and `trufflehog` are supported when available on PATH. If they are not installed, the audit records their status and continues with fallback checks. For public release, installing both tools before the final publish review is recommended.
 
-TODO for v0.7.4: decide whether to make one or both optional scanners part of the recommended release workstation setup.
+Later release-operation docs refine this:
+
+- `docs/secret_scanner_adoption_v0.7.5.md` makes Gitleaks the preferred optional scanner and keeps TruffleHog as a candidate scanner.
+- `docs/gitleaks_optional_ci_evaluation_v0.7.9.md` describes how to evaluate the non-blocking Gitleaks CI job.
+- `docs/scanner_findings_integration_decision_v0.7.10.md` defines how optional scanner findings affect release review.
+- `docs/pre_publish_integration_review_v0.7.11.md` summarizes the current pre-publish responsibility map.
