@@ -111,6 +111,7 @@ If generated output appears in `git status`, stop and exclude or remove it from 
 
 Future v0.8.x work can consider:
 
+- v0.8.1 report UI redesign planning for a beginner-readable `まず見るポイント` and 5-step `買い判断カード` without changing decision logic.
 - Node.js runtime migration notes for GitHub Actions when upstream actions require it.
 - Better CI artifact retention for release package review.
 - Optional scanner result summaries that do not copy raw findings.

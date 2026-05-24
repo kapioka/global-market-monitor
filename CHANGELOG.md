@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.8.1 - Report UI Redesign Plan
+
+### Added
+
+- Added a documentation-only report UI redesign plan for replacing the top `まず見る要約` and `Buy Decision Card / 買い判断カード` areas with beginner-readable `まず見るポイント` and a 5-step `買い判断カード`.
+- Added Japanese display-label guidance for keeping internal terms out of the first screen while preserving existing decision outputs.
+- Added a v0.8.2+ roadmap for HTML/CSS-first implementation and later progressive disclosure.
+
+### Changed
+
+- Clarified that v0.8.1 is a planning release and does not implement report generator changes.
+
+### Security
+
+- Confirmed that the plan does not change decision logic, threshold JSON, `reliability_policy`, CI, scanner configuration, allowlists, generated reports, cache, or release archives.
+
 ## v0.8.0 - Post-Publish Operation Baseline
 
 ### Added

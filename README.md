@@ -42,6 +42,16 @@ v0.7.3 は、GitHub公開後の運用安定性と配布手順を固める版で�
 - 生成済みレポート、cache、runtime log、release作業フォルダは配布物やコミット対象から除外します
 - security audit はローカルとCIの両方で使えるようにしています
 
+## v0.8.1 Report UI Redesign Plan
+
+v0.8.1 は、`report.html` 上段の表示設計を整理するドキュメント版です。`まず見る要約` と `Buy Decision Card / 買い判断カード` を、初心者が最初に確認しやすい `まず見るポイント` と5ステップ式の `買い判断カード` へ分ける方針をまとめています。
+
+- 方針文書は `docs/report_ui_redesign_plan_v0.8.1.md` です
+- v0.8.1 では `project/report_generator.py` の実装変更はしません
+- 判定ロジック、`final_action`、`buy_readiness_score`、threshold JSON、`reliability_policy` は変更しません
+- 英語・内部用語は上段から外し、日本語の表示ラベルに寄せる方針です
+- 実装は v0.8.2 以降で、まずHTML/CSS中心に進めます
+
 ## こんな人向けです
 
 - 毎週の相場チェックを手作業でやっていて時間がかかる人
