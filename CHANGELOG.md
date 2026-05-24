@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.7.10 - Scanner Findings Integration Decision
+
+### Added
+
+- Added scanner findings integration decision documentation for optional Gitleaks CI findings.
+- Added release review rules for verified, high-confidence, and unexplained scanner findings.
+
+### Changed
+
+- Clarified that optional Gitleaks CI findings are release review inputs, not standalone required CI gates.
+- Clarified that scanner findings are recorded in CI logs, security audit outputs, and sanitized release review notes rather than `PACKAGE_MANIFEST.json`.
+
+### Security
+
+- Documented release stop conditions for optional scanner findings without adding `.gitleaks.toml`, allowlists, TruffleHog CI, or required Gitleaks enforcement.
+
 ## v0.7.9 - Gitleaks Optional CI Evaluation
 
 ### Added

@@ -134,6 +134,8 @@ In v0.7.8, CI includes a non-blocking `gitleaks-optional` job using the default 
 
 For v0.7.9 optional CI evaluation, also review `docs/gitleaks_optional_ci_evaluation_v0.7.9.md`. Required Gitleaks enforcement, `.gitleaks.toml`, and allowlist additions remain separate follow-up decisions, not checklist defaults.
 
+For v0.7.10 scanner finding integration, also review `docs/scanner_findings_integration_decision_v0.7.10.md`. Gitleaks optional CI findings are release review inputs. Verified, high-confidence, or unexplained findings stop publishing, but scanner findings are not written into `PACKAGE_MANIFEST.json` in v0.7.10.
+
 Required security signals:
 
 - `security_audit.ps1` reports `publish_readiness: pass`.

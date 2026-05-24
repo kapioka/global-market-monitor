@@ -67,6 +67,16 @@ The `.tmp/security/` directory is generated output and must not be committed.
 
 False positives should be documented in the audit report. Do not add broad allowlists that could hide future real findings.
 
+## Optional CI Scanner Findings
+
+The GitHub Actions `gitleaks-optional` job is an observation signal until a later release explicitly makes it required. For v0.7.10, review its findings during release preparation and keep `scripts/security_audit.ps1 -Strict` as the primary local publish-readiness gate.
+
+Record local scanner availability and local scan results in the security audit outputs. Record CI finding triage in sanitized release review notes or issue/PR discussion. Do not copy raw secrets or secret-adjacent log excerpts into public documentation.
+
+Do not add Gitleaks findings to `PACKAGE_MANIFEST.json` in v0.7.10. The release manifest describes package contents, commit/tag metadata, and forbidden-entry exclusions; scanner findings depend on CI context and manual triage state.
+
+Stop release if Gitleaks reports a verified, high-confidence, or unexplained finding, even though the optional CI job remains non-blocking.
+
 ## Push Checklist
 
 Before pushing a release:

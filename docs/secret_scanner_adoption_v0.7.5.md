@@ -29,6 +29,8 @@ In v0.7.8, Gitleaks is also run as an optional GitHub Actions job. That job is i
 
 For the v0.7.9 optional CI evaluation procedure, see `docs/gitleaks_optional_ci_evaluation_v0.7.9.md`.
 
+For the v0.7.10 decision on how optional scanner findings affect release readiness and where they should be recorded, see `docs/scanner_findings_integration_decision_v0.7.10.md`.
+
 ## Scanner Comparison
 
 | Area | Gitleaks | TruffleHog |
@@ -115,6 +117,8 @@ Future CI work should start as optional and non-blocking, for example:
 Before making Gitleaks required, review at least one clean CI run and any findings from pull request or tag workflows. Verified or high-confidence findings stop public release even while the CI job remains non-blocking.
 
 v0.7.9 keeps this as an evaluation step only. Required enforcement, `.gitleaks.toml`, and allowlist entries remain out of scope unless a later release task explicitly adopts them.
+
+v0.7.10 treats optional CI findings as release review inputs. Verified, high-confidence, or unexplained findings stop release review, but scanner findings are not written into the release package manifest.
 
 ## Not In v0.7.5
 
