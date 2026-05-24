@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.3 - Report UI Visual QA / Responsive Polish
+
+### Changed
+
+- Polished the beginner-friendly report top UI after generated HTML visual QA by keeping step-flow arrows inside the card bounds to avoid narrow overflow flags.
+- Confirmed the `まず見るポイント` and 5-step `買い判断カード` remain HTML/CSS-only with no JavaScript or external library additions.
+
+### Security
+
+- Confirmed the top beginner sections avoid internal decision terms and investment-advice or outcome-guarantee wording.
+- Kept decision logic, threshold JSON, `reliability_policy`, `final_action`, `buy_readiness_score` calculation, CI, scanner configuration, allowlists, generated reports, cache, and release archives out of scope.
+
 ## v0.8.2 - Beginner Summary HTML/CSS Implementation
 
 ### Added

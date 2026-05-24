@@ -479,6 +479,10 @@ def test_render_html_beginner_top_sections_hide_internal_terms():
     for term in forbidden_terms:
         assert term not in top_html
 
+    advice_terms = ["買うべき", "今が買い", "利益が出る", "安全に買える"]
+    for term in advice_terms:
+        assert term not in top_html
+
 
 def test_render_html_contains_japanese_explanations():
     html = render_html(_report())

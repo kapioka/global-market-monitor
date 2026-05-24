@@ -2351,7 +2351,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .buy-flow-layout {{ display:grid; grid-template-columns:minmax(0,1fr) 210px; gap:18px; align-items:stretch; }}
     .buy-steps {{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }}
     .buy-step {{ position:relative; min-height:168px; padding:15px 13px 13px; border:1px solid #cbdcf3; border-radius:12px; background:#fff; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:8px; min-width:0; }}
-    .buy-step:not(:last-child)::after {{ content:'›'; position:absolute; right:-15px; top:50%; transform:translateY(-50%); color:#bfd0e8; font-size:42px; font-weight:900; z-index:2; }}
+    .buy-step:not(:last-child)::after {{ content:'›'; position:absolute; right:2px; top:50%; transform:translateY(-50%); color:#bfd0e8; font-size:34px; font-weight:900; z-index:2; }}
     .step-number {{ width:26px; height:26px; border-radius:999px; background:#1d4ed8; color:#fff; display:grid; place-items:center; font-size:14px; font-weight:900; }}
     .step-icon {{ color:#5b7fc8; font-size:30px; font-weight:900; line-height:1; min-height:30px; }}
     .buy-step h3 {{ margin:0; color:#17366d; font-size:14px; line-height:1.2; }}
