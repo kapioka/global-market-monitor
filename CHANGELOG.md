@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.7.9 - Gitleaks Optional CI Evaluation
+
+### Added
+
+- Added documentation for evaluating the optional Gitleaks CI trial.
+- Added guidance for checking non-blocking behavior, CI logs, finding handling, and required-enforcement decision inputs.
+
+### Changed
+
+- Linked secret scanner adoption and publish readiness documentation to the v0.7.9 evaluation note.
+
+### Security
+
+- Documented that Gitleaks remains optional and non-blocking in v0.7.9.
+- Documented that verified or high-confidence findings should stop public release review.
+- Confirmed that required CI enforcement, `.gitleaks.toml`, and allowlist changes remain out of scope.
+
 ## v0.7.8 - Gitleaks Optional CI Trial
 
 ### Added

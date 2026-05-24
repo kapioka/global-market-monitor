@@ -132,6 +132,8 @@ In v0.7.5:
 
 In v0.7.8, CI includes a non-blocking `gitleaks-optional` job using the default Gitleaks action rules. Treat this job as an observation signal, not as the sole release gate. If it reports a verified or high-confidence finding, stop publishing and review the finding before adding any allowlist entry.
 
+For v0.7.9 optional CI evaluation, also review `docs/gitleaks_optional_ci_evaluation_v0.7.9.md`. Required Gitleaks enforcement, `.gitleaks.toml`, and allowlist additions remain separate follow-up decisions, not checklist defaults.
+
 Required security signals:
 
 - `security_audit.ps1` reports `publish_readiness: pass`.
