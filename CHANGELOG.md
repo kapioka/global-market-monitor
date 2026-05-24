@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.7.12 - GitHub Publish Final Dry Run
+
+### Added
+
+- Added final GitHub publish dry-run documentation.
+- Added explicit final dry-run commands, forbidden diff checks, and publish stop conditions.
+
+### Changed
+
+- Linked README and publish readiness guidance to the final dry-run checklist.
+
+### Security
+
+- Confirmed final publish checks for security audit readiness, generated/cache/report exclusion, package manifest verification, and scanner finding handling without changing CI requirements or scanner configuration.
+
 ## v0.7.11 - Pre-Publish Integration Review
 
 ### Added

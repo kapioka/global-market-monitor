@@ -4,6 +4,8 @@ v0.7.11 reviews how the public-release operation pieces added from v0.7.3 throug
 
 This is a documentation and release-operations review. It does not change CI enforcement, scanner configuration, release scripts, package generation behavior, decision logic, thresholds, `reliability_policy`, generated outputs, or release archives.
 
+For the final local dry run before publishing, see `docs/github_publish_final_dry_run_v0.7.12.md`.
+
 ## Scope
 
 Reviewed release-operation areas:
