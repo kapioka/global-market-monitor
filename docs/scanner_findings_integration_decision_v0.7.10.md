@@ -2,7 +2,7 @@
 
 v0.7.10 defines how findings from the optional Gitleaks CI job should affect release decisions before any required-CI enforcement is adopted.
 
-This is an operations and security documentation task only. It does not change `final_action`, active/proposed threshold JSON, `reliability_policy`, `buy_window`, `buy_candidate`, `fx_soft_cap`, TimesFM, or regime-aware policy behavior.
+This is an operations and security documentation task only. It does not change `final_action`, active/proposed threshold JSON, `reliability_policy`, `buy_window`, `buy_candidate`, `fx_soft_cap`, forecasting components, or regime-aware policy behavior.
 
 ## Purpose
 
