@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.8.2 - Beginner Summary HTML/CSS Implementation
+
+### Added
+
+- Added the beginner-readable `まず見るポイント` HTML section with six tiles for current judgment, buy-area state, market state, main reasons, next checks, and a beginner note.
+- Added a 5-step `買い判断カード` HTML layout with a CSS-only readiness gauge and the required note that the score is not a success probability.
+- Added report HTML tests for the new top sections and scoped internal-term exclusion.
+
+### Changed
+
+- Replaced the top `まず見る要約` and mixed `Buy Decision Card / 買い判断カード` HTML sections with Japanese-first beginner summary UI.
+- Kept the implementation HTML/CSS-centered without adding JavaScript or external libraries.
+
+### Security
+
+- Kept decision logic, threshold JSON, `reliability_policy`, `final_action`, `buy_readiness_score` calculation, CI, scanner configuration, allowlists, generated reports, cache, and release archives out of scope.
+
 ## v0.8.1 - Report UI Redesign Plan
 
 ### Added

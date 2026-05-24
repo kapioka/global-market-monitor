@@ -378,15 +378,167 @@ def _format_percent(value: Any) -> str:
         return str(value)
 
 
+def _safe_int(value: Any) -> int:
+    try:
+        return max(0, min(100, int(round(float(value)))))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _beginner_buy_timing_copy(action: str, card: dict[str, Any]) -> tuple[str, str]:
+    normalized = action.lower()
+    score = _safe_int(card.get("buy_readiness_score", 0))
+    if normalized in {"buy_window", "buy_candidate"}:
+        return "材料待ち", "追加確認を優先します"
+    if normalized in {"watch", "monitor"}:
+        return ("材料待ち", "あと少し条件を確認します") if score >= 65 else ("まだ早い", "決め手が不足しています")
+    return "見送り", "今は慎重に確認します"
+
+
+def _beginner_market_state_copy(report: dict[str, Any]) -> tuple[str, str]:
+    risk_lines = report.get("risk_lines", {}) or {}
+    regime = report.get("regime", {}) or {}
+    stage_key = str(risk_lines.get("stage_key", "normal"))
+    if stage_key in {"extreme_danger_line_reached", "danger_line_reached"}:
+        return "警戒", "市場ストレスが高い状態です"
+    if stage_key in {"credit_spillover_initial", "caution"}:
+        return "注意", "不安が残っています"
+    regime_label = _jp_regime(str(regime.get("regime_label", "-")))
+    if regime_label in {"リスクオン", "初期回復"}:
+        return "通常〜回復途中", "徐々に落ち着いています"
+    if regime_label == "移行局面":
+        return "移行局面", "方向を確認する段階です"
+    return regime_label, "落ち着き具合を確認します"
+
+
+def _beginner_blocker_label(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return "大きな見送り理由は限定的"
+    mapping = {
+        "fx_risk": "為替リスクの影響が残る",
+        "rate_shock": "金利ショックの影響が残る",
+        "sample_only": "確認用データが含まれる",
+        "sample_fallback_present": "確認用データが含まれる",
+        "risk_line": "危険ラインを確認中",
+        "market_stress": "市場ストレスが残る",
+        "insufficient_recovery": "回復の決め手が不足",
+        "low_score": "決め手不足",
+    }
+    return mapping.get(text, _localize_decision_reason(text.replace("_", " ")))
+
+
+def _beginner_reason_items(report: dict[str, Any], card: dict[str, Any]) -> list[str]:
+    items = [_beginner_blocker_label(card.get("primary_blocker"))]
+    risk_lines = report.get("risk_lines", {}) or {}
+    risk_stage = str(risk_lines.get("stage_label") or "")
+    if risk_stage:
+        items.append("危険ライン前" if _risk_stage_tone(risk_lines.get("stage_key")) == "normal" else risk_stage)
+    action_note = _beginner_buy_timing_copy(str(card.get("final_action", "")), card)[1]
+    items.append(action_note)
+    unique: list[str] = []
+    for item in items:
+        if item and item not in unique:
+            unique.append(item)
+    return unique[:3] or ["決め手不足"]
+
+
+def _beginner_next_items(candidate: dict[str, Any], risk_lines: dict[str, Any]) -> list[str]:
+    items = [str(item.get("ticker", "-")) for item in candidate.get("candidate_tickers", [])[:2] if item.get("ticker")]
+    if not items:
+        preferred = candidate.get("preferred_asset_class") or {}
+        if preferred.get("ticker"):
+            items.append(str(preferred.get("ticker")))
+    items.append("危険ライン")
+    return items[:3]
+
+
+def _beginner_candidate_items(candidate: dict[str, Any]) -> list[str]:
+    items = [str(item.get("ticker", "-")) for item in candidate.get("candidate_tickers", [])[:2] if item.get("ticker")]
+    return items or ["候補なし"]
+
+
+def _beginner_risk_level(risk_lines: dict[str, Any]) -> tuple[str, str]:
+    tone = _risk_stage_tone(risk_lines.get("stage_key"))
+    if tone in {"danger", "extreme"}:
+        return "高い", "危険ラインを優先して確認します"
+    if tone == "caution":
+        return "注意", "現在の危険は限定的ではありません"
+    return "低い", "現在の危険は限定的です"
+
+
+def _beginner_one_line(final_action: str, buy_timing: str) -> str:
+    if buy_timing == "まだ早い":
+        return "今は急がず、材料がそろうまで様子を見る局面です。"
+    if buy_timing == "材料待ち":
+        return "候補に近い材料はありますが、次の確認を待つ局面です。"
+    if final_action == "待機":
+        return "無理に動かず、市場の落ち着きを確認する局面です。"
+    return "まず状態を確認し、複数の材料がそろうまで慎重に見ます。"
+
+
+def _beginner_next_action(buy_timing: str) -> str:
+    if buy_timing == "まだ早い":
+        return "焦って買わず、次の確認を待つ"
+    if buy_timing == "材料待ち":
+        return "材料がそろうか確認する"
+    return "無理に動かず確認を続ける"
+
+
 def _first_read_summary_html(report: dict[str, Any]) -> str:
-    items = "".join(
-        f"<li><span>{html.escape(label)}</span><strong>{html.escape(value)}</strong></li>"
-        for label, value in _first_read_summary_items(report)
-    )
+    spot_signal = report.get("spot_signal", {}) or {}
+    action_decision = spot_signal.get("action_decision", {}) or {}
+    card = report.get("buy_decision_card") or {}
+    risk_lines = report.get("risk_lines", {}) or {}
+    candidate = report.get("investment_candidates", {}) or {}
+
+    final_action = _jp_action(str(card.get("final_action", action_decision.get("action", spot_signal.get("action", "-")))))
+    buy_timing, buy_timing_note = _beginner_buy_timing_copy(str(card.get("final_action", action_decision.get("action", "-"))), card)
+    market_state, market_state_note = _beginner_market_state_copy(report)
+    reason_items = _beginner_reason_items(report, card)
+    next_items = _beginner_next_items(candidate, risk_lines)
+    beginner_note = _beginner_one_line(final_action, buy_timing)
+
+    reason_html = "".join(f"<li>{html.escape(item)}</li>" for item in reason_items)
+    next_html = "".join(f"<span>{html.escape(item)}</span>" for item in next_items)
     return f"""
-      <section class=\"first-read-summary\">
-        <h2>まず見る要約</h2>
-        <ul>{items}</ul>
+      <section class=\"glance-summary\" aria-label=\"まず見るポイント\">
+        <div class=\"glance-heading\">
+          <h2>まず見るポイント</h2>
+          <p>3秒で今の状況を把握できます</p>
+        </div>
+        <div class=\"glance-grid\">
+          <article class=\"glance-tile tone-watch\">
+            <div class=\"tile-label\">今の判断</div>
+            <div class=\"tile-icon\">▣</div>
+            <div class=\"tile-main\">{html.escape(final_action)}</div>
+            <div class=\"tile-sub\">今は様子見の局面です</div>
+          </article>
+          <article class=\"glance-tile tone-wait\">
+            <div class=\"tile-label\">買い場か？</div>
+            <div class=\"tile-icon\">○</div>
+            <div class=\"tile-main\">{html.escape(buy_timing)}</div>
+            <div class=\"tile-sub\">{html.escape(buy_timing_note)}</div>
+          </article>
+          <article class=\"glance-tile tone-normal\">
+            <div class=\"tile-label\">市場の状態</div>
+            <div class=\"tile-icon\">↗</div>
+            <div class=\"tile-main\">{html.escape(market_state)}</div>
+            <div class=\"tile-sub\">{html.escape(market_state_note)}</div>
+          </article>
+          <article class=\"glance-tile tone-reason\">
+            <div class=\"tile-label\">主な理由</div>
+            <ul>{reason_html}</ul>
+          </article>
+          <article class=\"glance-tile tone-next\">
+            <div class=\"tile-label\">次に見るもの</div>
+            <div class=\"chip-row\">{next_html}</div>
+          </article>
+          <article class=\"glance-tile tone-beginner\">
+            <div class=\"tile-label\">初心者向けひとこと</div>
+            <div class=\"tile-sub\">{html.escape(beginner_note)}</div>
+          </article>
+        </div>
       </section>
     """
 
@@ -395,24 +547,70 @@ def _buy_decision_card_html(report: dict[str, Any]) -> str:
     card = report.get("buy_decision_card") or {}
     if not card:
         return ""
-    unlock_items = "".join(
-        f"<li><span>{html.escape(str(row.get('condition', '-')))}</span><strong>{html.escape(str(row.get('target_state', '-')))}</strong></li>"
-        for row in (card.get("unlock_conditions") or [])[:3]
-    )
+    candidate = report.get("investment_candidates", {}) or {}
+    risk_lines = report.get("risk_lines", {}) or {}
+    final_action = _jp_action(str(card.get("final_action", "-")))
+    blocker = _beginner_blocker_label(card.get("primary_blocker"))
+    risk_label, risk_note = _beginner_risk_level(risk_lines)
+    candidate_items = _beginner_candidate_items(candidate)
+    candidate_html = "".join(f"<span>{html.escape(item)}</span>" for item in candidate_items)
+    readiness_score = _safe_int(card.get("buy_readiness_score", 0))
+    buy_timing, buy_timing_note = _beginner_buy_timing_copy(str(card.get("final_action", "-")), card)
     return f"""
-      <section class=\"first-read-summary\">
-        <h2>Buy Decision Card / 買い判断カード</h2>
-        <ul>
-          <li><span>最終判断</span><strong>{html.escape(_jp_action(str(card.get('final_action', '-'))))}</strong></li>
-          <li><span>市場だけ見た判定</span><strong>{html.escape(_jp_action(str(card.get('market_raw_action', '-'))))}</strong></li>
-          <li><span>リスク調整後</span><strong>{html.escape(_jp_action(str(card.get('risk_adjusted_action', '-'))))}</strong></li>
-          <li><span>買い候補度</span><strong>{html.escape(str(card.get('buy_readiness_score', 0)))} / 100</strong></li>
-          <li><span>スコア注記</span><strong>成功確率・期待リターンではありません</strong></li>
-          <li><span>主な阻害要因</span><strong>{html.escape(str(card.get('primary_blocker') or 'なし'))}</strong></li>
-          {unlock_items}
-          <li><span>sample-only注意</span><strong>{html.escape(str(card.get('sample_only_note') or '-'))}</strong></li>
-          <li><span>final action 影響</span><strong>false / 説明用</strong></li>
-        </ul>
+      <section class=\"buy-decision-flow\" aria-label=\"買い判断カード\">
+        <div class=\"buy-flow-heading\">
+          <div>
+            <h2>買い判断カード</h2>
+            <p>初心者向け: 今どう見るかを順番に整理します</p>
+          </div>
+          <span class=\"beginner-badge\">初心者向け</span>
+        </div>
+        <div class=\"buy-flow-layout\">
+          <div class=\"buy-steps\">
+            <article class=\"buy-step\">
+              <div class=\"step-number\">1</div>
+              <h3>現在の判断</h3>
+              <div class=\"step-icon\">▣</div>
+              <strong>{html.escape(final_action)}</strong>
+              <p>今は様子見です</p>
+            </article>
+            <article class=\"buy-step\">
+              <div class=\"step-number\">2</div>
+              <h3>理由</h3>
+              <div class=\"step-icon\">%</div>
+              <strong>{html.escape(blocker)}</strong>
+              <p>市場に不安が残っています</p>
+            </article>
+            <article class=\"buy-step\">
+              <div class=\"step-number\">3</div>
+              <h3>危険度</h3>
+              <div class=\"step-icon\">◒</div>
+              <strong>{html.escape(risk_label)}</strong>
+              <p>{html.escape(risk_note)}</p>
+            </article>
+            <article class=\"buy-step\">
+              <div class=\"step-number\">4</div>
+              <h3>買い候補</h3>
+              <div class=\"chip-row\">{candidate_html}</div>
+            </article>
+            <article class=\"buy-step\">
+              <div class=\"step-number\">5</div>
+              <h3>今すること</h3>
+              <div class=\"step-icon\">✓</div>
+              <strong>{html.escape(_beginner_next_action(buy_timing))}</strong>
+              <p>{html.escape(buy_timing_note)}</p>
+            </article>
+          </div>
+          <aside class=\"readiness-panel\" aria-label=\"買い候補度\">
+            <div class=\"score-label\">買い候補度</div>
+            <div class=\"score-gauge readiness-gauge\" style=\"--score:{readiness_score}\">
+              <div class=\"score-number\">{readiness_score}</div>
+              <div class=\"score-total\">/ 100</div>
+            </div>
+            <p class=\"score-note\">これは成功確率ではありません</p>
+            <p class=\"score-subnote\">複数の確認がそろうまで慎重に見ます</p>
+          </aside>
+        </div>
       </section>
     """
 
@@ -2124,12 +2322,50 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .status-box .k {{ font-size:12px; color:var(--muted); font-weight:700; }}
     .status-box .v {{ margin-top:4px; font-size:14px; font-weight:800; color:#1f3b67; }}
     .dashboard-grid {{ display:flex; gap:16px; align-items:stretch; margin-bottom:32px; flex-wrap:wrap; }}
-    .first-read-summary {{ flex: 0 0 100%; max-width:100%; box-sizing:border-box; background: rgba(255,255,255,0.94); border:1px solid var(--line); border-radius:16px; padding:16px 18px; }}
-    .first-read-summary h2 {{ margin:0 0 10px; font-size:16px; color:#102a43; }}
-    .first-read-summary ul {{ display:grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap:8px 12px; list-style:none; padding:0; margin:0; }}
-    .first-read-summary li {{ display:grid; gap:3px; min-width:0; }}
-    .first-read-summary span {{ color:var(--muted); font-size:12px; font-weight:700; }}
-    .first-read-summary strong {{ color:#102a43; font-size:13px; line-height:1.35; overflow-wrap:anywhere; }}
+    .glance-summary, .buy-decision-flow {{ flex: 0 0 100%; max-width:100%; box-sizing:border-box; background: rgba(255,255,255,0.94); border:1px solid var(--line); border-radius:18px; padding:18px 20px; }}
+    .glance-heading, .buy-flow-heading {{ display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:14px; }}
+    .glance-heading h2::before {{ content:'●'; display:inline-grid; place-items:center; width:24px; height:24px; margin-right:8px; border-radius:999px; background:#1d4ed8; color:#fff; font-size:10px; vertical-align:2px; }}
+    .glance-heading h2, .buy-flow-heading h2 {{ margin:0; font-size:21px; line-height:1.2; color:#17366d; }}
+    .glance-heading p, .buy-flow-heading p {{ margin:4px 0 0; color:#52606d; font-size:13px; line-height:1.35; }}
+    .glance-grid {{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; }}
+    .glance-tile {{ min-height:132px; padding:14px; border:1px solid var(--line); border-radius:14px; background:#fff; display:flex; flex-direction:column; justify-content:center; gap:8px; min-width:0; }}
+    .glance-tile.tone-watch {{ border-color:#f0c882; background:#fffaf0; }}
+    .glance-tile.tone-wait {{ border-color:#c9dcfb; background:#f7fbff; }}
+    .glance-tile.tone-normal {{ border-color:#b9ddd3; background:#f4fcf9; }}
+    .glance-tile.tone-reason {{ border-color:#d8c9f2; background:#fbf7ff; }}
+    .glance-tile.tone-next {{ border-color:#c9dcfb; background:#f8fbff; }}
+    .glance-tile.tone-beginner {{ border-color:#f0d49a; background:#fffaf0; }}
+    .tile-label {{ color:#17366d; font-size:13px; font-weight:800; text-align:center; }}
+    .tile-icon {{ color:#5b7fc8; font-size:32px; line-height:1; text-align:center; font-weight:900; }}
+    .tone-watch .tile-icon {{ color:#f59e0b; }}
+    .tone-normal .tile-icon {{ color:#138a6b; }}
+    .tile-main {{ color:#0f4fb8; font-size:20px; font-weight:900; line-height:1.2; text-align:center; overflow-wrap:anywhere; }}
+    .tone-watch .tile-main {{ color:#d97706; }}
+    .tone-normal .tile-main {{ color:#138a6b; }}
+    .tile-sub {{ color:#425466; font-size:13px; line-height:1.55; text-align:center; }}
+    .glance-tile ul {{ margin:0; padding-left:18px; color:#425466; font-size:13px; line-height:1.55; }}
+    .glance-tile li + li {{ margin-top:3px; }}
+    .chip-row {{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }}
+    .chip-row span {{ display:inline-flex; align-items:center; justify-content:center; min-height:30px; padding:4px 12px; border:1px solid #bfd6f6; border-radius:999px; background:#edf5ff; color:#0f4fb8; font-weight:900; font-size:14px; line-height:1; }}
+    .beginner-badge {{ display:inline-flex; align-items:center; min-height:26px; padding:0 10px; border:1px solid #b8d0f5; border-radius:999px; background:#f4f8ff; color:#1d4ed8; font-size:12px; font-weight:900; white-space:nowrap; }}
+    .buy-flow-layout {{ display:grid; grid-template-columns:minmax(0,1fr) 210px; gap:18px; align-items:stretch; }}
+    .buy-steps {{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }}
+    .buy-step {{ position:relative; min-height:168px; padding:15px 13px 13px; border:1px solid #cbdcf3; border-radius:12px; background:#fff; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:8px; min-width:0; }}
+    .buy-step:not(:last-child)::after {{ content:'›'; position:absolute; right:-15px; top:50%; transform:translateY(-50%); color:#bfd0e8; font-size:42px; font-weight:900; z-index:2; }}
+    .step-number {{ width:26px; height:26px; border-radius:999px; background:#1d4ed8; color:#fff; display:grid; place-items:center; font-size:14px; font-weight:900; }}
+    .step-icon {{ color:#5b7fc8; font-size:30px; font-weight:900; line-height:1; min-height:30px; }}
+    .buy-step h3 {{ margin:0; color:#17366d; font-size:14px; line-height:1.2; }}
+    .buy-step strong {{ color:#17366d; font-size:17px; line-height:1.32; overflow-wrap:anywhere; }}
+    .buy-step p {{ margin:0; color:#52606d; font-size:12px; line-height:1.45; }}
+    .readiness-panel {{ border-left:1px solid var(--line); padding-left:18px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }}
+    .readiness-panel .score-label {{ color:#17366d; font-size:13px; font-weight:800; }}
+    .readiness-panel .score-gauge {{ width:150px; height:92px; margin-top:8px; border-radius:150px 150px 18px 18px; background:conic-gradient(from 270deg, #1d4ed8 calc(var(--score) * 1%), #e7edf5 0); display:grid; place-items:center; overflow:hidden; position:relative; }}
+    .readiness-panel .score-gauge::before {{ content:''; position:absolute; inset:16px 16px 0; border-radius:130px 130px 12px 12px; background:#fff; }}
+    .score-number, .score-total {{ position:relative; z-index:1; }}
+    .score-number {{ margin-top:14px; color:#102a43; font-size:38px; font-weight:900; line-height:1; }}
+    .score-total {{ color:#52606d; font-size:14px; font-weight:800; }}
+    .score-note {{ margin:8px 0 0; padding:8px 10px; border:1px solid #f3caca; border-radius:10px; background:#fff5f5; color:#c53030; font-size:12px; font-weight:900; }}
+    .score-subnote {{ margin:6px 0 0; color:#52606d; font-size:11px; line-height:1.4; }}
     .hero-card, .decision-card, .mini-panel, .overview-panel, .support-panel {{ background: rgba(255,255,255,0.9); border:1px solid var(--line); border-radius:20px; }}
     .hero-card, .decision-card {{ padding: 17px 22px; }}
     .hero-card {{ flex:1.22 1 0; }}
@@ -2291,7 +2527,10 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       .grid {{ grid-template-columns: 1fr; }}
       .summary-main {{ grid-template-columns: 1fr; }}
       .summary-metrics {{ grid-template-columns: 1fr; }}
-      .first-read-summary ul {{ grid-template-columns:1fr; }}
+      .glance-grid {{ grid-template-columns:1fr 1fr; }}
+      .buy-flow-layout {{ grid-template-columns:1fr; }}
+      .buy-steps {{ grid-template-columns:1fr; }}
+      .readiness-panel {{ border-left:0; border-top:1px solid var(--line); padding-left:0; padding-top:14px; }}
       .sector-overview-layout {{ grid-template-columns:1fr; gap:12px; }}
       .overview-panel-head {{ align-items:flex-start; }}
       .momentum-side {{ justify-content:flex-start; }}
@@ -2311,6 +2550,15 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       .hero-metrics {{ grid-template-columns:1fr 1fr; row-gap:8px; }}
       .hero-metric:nth-child(3) {{ border-left:0; }}
       .support-grid {{ grid-template-columns:1fr 1fr; }}
+      .glance-grid {{ grid-template-columns:repeat(3,minmax(0,1fr)); }}
+      .buy-flow-layout {{ grid-template-columns:1fr; }}
+      .buy-steps {{ grid-template-columns:repeat(5,minmax(0,1fr)); }}
+      .readiness-panel {{ border-left:0; border-top:1px solid var(--line); padding-left:0; padding-top:14px; }}
+    }}
+    @media (max-width: 860px) {{
+      .glance-grid {{ grid-template-columns:1fr 1fr; }}
+      .buy-steps {{ grid-template-columns:1fr; }}
+      .buy-step:not(:last-child)::after {{ display:none; }}
     }}
   </style>
 </head>

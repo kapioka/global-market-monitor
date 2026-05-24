@@ -240,7 +240,7 @@ If these values remain useful, move them to detail sections, developer-facing do
 - No `buy_readiness_score` calculation changes.
 - No active/proposed threshold changes.
 - No `buy_window` or `buy_candidate` threshold changes.
-- No TimesFM normal feature reintroduction.
+- No reintroduction of excluded forecasting features.
 - No formal adoption of `fx_soft_cap` or regime-aware FX policy.
 - No automated trading feature.
 - No investment-advice wording.

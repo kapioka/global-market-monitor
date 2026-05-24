@@ -265,7 +265,7 @@ def _report() -> dict:
             },
             "candidate_tickers": [
                 {"ticker": "SPY", "label": "米国大型株ETF", "kind": "asset"},
-                {"ticker": "XLP", "label": "生活必需品", "kind": "sector"},
+                {"ticker": "XLK", "label": "情報技術セクターETF", "kind": "sector"},
             ],
             "rationale": ["スポット投資判断は buy_window です。"],
         },
@@ -394,8 +394,13 @@ def test_render_html_includes_first_read_summary():
     text = render_markdown(_report())
     html = render_html(_report())
 
-    assert "first-read-summary" in html
-    assert "まず見る要約" in html
+    assert "glance-summary" in html
+    assert "まず見るポイント" in html
+    assert "買い判断カード" in html
+    assert "初心者向けひとこと" in html
+    assert "これは成功確率ではありません" in html
+    assert "SPY" in html
+    assert "XLK" in html
     assert "米国大型株ETF" in text
     assert "信用監視" in text
     assert "インフレ監視" in text
@@ -435,6 +440,44 @@ def test_render_html_includes_first_read_summary():
     assert "内部警告件数" in text
     assert "危険ライン段階とは別の判定" in text
     assert '<span style="color:#1f2933;"><strong>信用波及初期</strong></span>' in text
+
+
+def test_render_html_beginner_top_sections_hide_internal_terms():
+    html = render_html(_report())
+    start = html.index('<section class="glance-summary"')
+    end = html.index('<section class="hero-card"', start)
+    top_html = html[start:end]
+
+    assert "まず見るポイント" in top_html
+    assert "買い判断カード" in top_html
+    assert "今の判断" in top_html
+    assert "買い場か？" in top_html
+    assert "市場の状態" in top_html
+    assert "主な理由" in top_html
+    assert "次に見るもの" in top_html
+    assert "初心者向けひとこと" in top_html
+    assert "現在の判断" in top_html
+    assert "理由" in top_html
+    assert "危険度" in top_html
+    assert "買い候補" in top_html
+    assert "今すること" in top_html
+    assert "これは成功確率ではありません" in top_html
+    assert "SPY" in top_html
+    assert "XLK" in top_html
+
+    forbidden_terms = [
+        "raw/final buy_window",
+        "raw/final buy_candidate",
+        "diagnostic only",
+        "proposed / candidate",
+        "trigger path",
+        "live_data_sufficient",
+        "sample-only",
+        "final_action",
+        "buy_readiness_score",
+    ]
+    for term in forbidden_terms:
+        assert term not in top_html
 
 
 def test_render_html_contains_japanese_explanations():
