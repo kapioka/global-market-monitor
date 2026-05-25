@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from copy import deepcopy
+
+import pytest
+
 from project.report_generator import render_html, render_markdown, render_supplement_dashboard_html
 
 
@@ -482,6 +486,86 @@ def test_render_html_beginner_top_sections_hide_internal_terms():
     advice_terms = ["買うべき", "今が買い", "利益が出る", "安全に買える"]
     for term in advice_terms:
         assert term not in top_html
+
+
+@pytest.mark.parametrize(
+    ("scenario", "mutate", "required_text"),
+    [
+        ("standard", lambda report: None, ["監視継続", "SPY", "XLK"]),
+        (
+            "near_candidate",
+            lambda report: report["buy_decision_card"].update(
+                {"final_action": "buy_candidate", "buy_readiness_score": 86, "primary_blocker": "insufficient_recovery"}
+            ),
+            ["材料待ち", "回復の決め手が不足"],
+        ),
+        (
+            "wait",
+            lambda report: report["buy_decision_card"].update(
+                {"final_action": "wait", "buy_readiness_score": 18, "primary_blocker": "market_stress"}
+            ),
+            ["見送り", "市場ストレスが残る"],
+        ),
+        (
+            "insufficient_data",
+            lambda report: (
+                report["buy_decision_card"].update({"final_action": "wait", "primary_blocker": "sample_only"}),
+                report["data_reliability"].update(
+                    {"decision_allowed": False, "reason": "実データ不足のため参考表示に限定します。"}
+                ),
+            ),
+            ["確認用データが含まれる"],
+        ),
+        (
+            "no_candidates",
+            lambda report: report["investment_candidates"].update(
+                {"candidate_tickers": [], "preferred_asset_class": None, "preferred_sector": None}
+            ),
+            ["候補なし"],
+        ),
+        (
+            "long_blocker",
+            lambda report: report["buy_decision_card"].update(
+                {
+                    "primary_blocker": (
+                        "回復確認に必要な複数の材料がまだ十分にそろっておらず、"
+                        "市場ストレスと為替の影響をあわせて確認する必要があります"
+                    )
+                }
+            ),
+            ["回復確認に必要な複数の材料がまだ十分にそろっておらず"],
+        ),
+    ],
+)
+def test_render_html_beginner_top_sections_support_synthetic_scenarios(scenario, mutate, required_text):
+    report = deepcopy(_report())
+    mutate(report)
+    html = render_html(report)
+    start = html.index('<section class="glance-summary"')
+    end = html.index('<section class="hero-card"', start)
+    top_html = html[start:end]
+
+    assert scenario
+    for text in ["まず見るポイント", "買い判断カード", "初心者向けひとこと", "これは成功確率ではありません"]:
+        assert text in top_html
+    for text in required_text:
+        assert text in top_html
+    for text in [
+        "raw/final buy_window",
+        "raw/final buy_candidate",
+        "diagnostic only",
+        "proposed / candidate",
+        "trigger path",
+        "live_data_sufficient",
+        "sample-only",
+        "final_action",
+        "buy_readiness_score",
+        "買うべき",
+        "今が買い",
+        "利益が出る",
+        "安全に買える",
+    ]:
+        assert text not in top_html
 
 
 def test_render_html_contains_japanese_explanations():

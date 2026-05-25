@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.8.4 - Multi-Scenario Report UI Snapshot QA
+
+### Added
+
+- Added synthetic multi-scenario coverage for standard monitoring, near-candidate, wait, insufficient-data, no-candidate, and long-blocker beginner UI rendering states.
+- Added snapshot QA documentation covering 1366px, 1024px, and 768px temporary render checks.
+
+### Changed
+
+- Confirmed the v0.8.3 HTML/CSS layout needs no additional product UI changes after multi-scenario QA.
+
+### Security
+
+- Confirmed the beginner top sections continue to exclude internal decision terms and investment-advice or outcome-guarantee wording.
+- Kept JavaScript, external libraries, decision logic, threshold JSON, `reliability_policy`, `final_action`, `buy_readiness_score` calculation, CI, scanner configuration, allowlists, generated reports, cache, and release archives out of scope.
+
 ## v0.8.3 - Report UI Visual QA / Responsive Polish
 
 ### Changed
