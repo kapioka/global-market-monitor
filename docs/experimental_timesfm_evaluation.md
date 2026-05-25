@@ -68,3 +68,45 @@ Searches for `times fm` and `time series foundation` found no tracked references
 - No import, dependency, requirements, lock, test, or security audit change.
 - No change to decision logic, thresholds, reliability policy, `final_action`, or readiness-score calculation.
 - No generated report, cache, or release archive change.
+
+## v0.8.6 reference policy and audit alignment
+
+### Retention policy
+
+- TimesFM remains an evaluated but non-adopted experimental layer, not normal functionality.
+- It must not influence `final_action`, readiness-score calculation, or the beginner-facing buy decision UI.
+- The existing references are retained for three bounded purposes: historical evaluation record, negative verification that reports do not expose it, and security-audit control against accidental reintroduction.
+- Retention does not imply activation, support, or a plan to restore the experimental layer.
+
+### Conditions for future removal
+
+A later change may remove TimesFM references only when all of the following are true:
+
+- Historical retention is no longer required, or an equivalent non-adoption record will remain available.
+- The exclusion roles currently served by README, release notes, documentation, tests, and audit controls are either preserved or intentionally replaced.
+- Any security-audit permitted-reference update is scoped, reviewed, and validated without weakening detection of normal-functionality reintroduction.
+- Full lint, type, test, and strict security validation passes after the proposed removal.
+- The removal reason can be recorded in a location accepted by the security-audit policy in effect at that time.
+
+### Audit alignment policy
+
+- The current strict security audit uses a bounded list of permitted TimesFM reference paths.
+- Adding a new document that names TimesFM is blocked unless the audit policy is separately updated to recognize that location.
+- Recording TimesFM directly in `CHANGELOG.md` is also incompatible with the current permitted-reference policy.
+- Until that policy is intentionally revised, TimesFM evaluation, residual inventory, and retention/removal policy notes are consolidated in this already permitted document.
+- If separate documentation or changelog traceability becomes necessary, the audit permitted-reference design must be reviewed in a separate goal before any new reference is committed.
+
+### Candidate next steps
+
+- Read-only impact review of whether every retained historical reference remains useful.
+- Separate design review of audit permitted-reference maintenance and change-record traceability.
+- Minimal documentation cleanup where wording could be clearer without adding new reference locations.
+- Removal decision only after the retention and audit requirements above can be satisfied.
+- Continued emphasis on non-adoption and normal-functionality exclusion instead of complete historical erasure.
+
+### Out of scope for v0.8.6
+
+- No new TimesFM reference document and no `CHANGELOG.md` update.
+- No TimesFM code removal, import, dependency, requirements, lock, test, or security audit change.
+- No change to decision logic, thresholds, reliability policy, `final_action`, or readiness-score calculation.
+- No generated report, cache, or release archive change.
