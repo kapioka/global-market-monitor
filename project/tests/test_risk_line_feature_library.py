@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from project.risk_line_feature_library import build_risk_line_feature_frames
 
@@ -38,3 +39,27 @@ def test_build_risk_line_feature_frames_returns_all_ten_indicator_frames():
     assert "level_and_roc_4w" in frames["BZ=F"].columns
     assert "level_and_roc_4w" in frames["DX-Y.NYB"].columns
     assert "level_and_roc_4w" in frames["^TNX"].columns
+
+
+def test_explicit_forward_fill_pct_change_matches_current_missing_value_behavior():
+    series = pd.Series([100.0, None, 110.0, 105.0, None, 120.0])
+
+    with pytest.warns(FutureWarning):
+        current = series.pct_change()
+    compatible = series.ffill().pct_change(fill_method=None)
+    strict_missing = series.pct_change(fill_method=None)
+
+    pd.testing.assert_series_equal(current, compatible)
+    assert not current.equals(strict_missing)
+
+
+def test_feature_frame_with_missing_values_currently_uses_compatible_roc_values():
+    prices = pd.DataFrame({"SPY": [100.0, None, 110.0, 105.0, None, 120.0]})
+    compatible_roc = prices["SPY"].ffill().pct_change(fill_method=None)
+    strict_roc = prices["SPY"].pct_change(fill_method=None)
+
+    with pytest.warns(FutureWarning):
+        frame = build_risk_line_feature_frames(prices, zscore_window=2, percentile_window=2)["SPY"]
+
+    pd.testing.assert_series_equal(frame["roc_1w"], compatible_roc, check_names=False)
+    assert not frame["roc_1w"].equals(strict_roc)

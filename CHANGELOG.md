@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.9 - Feature Library Missing-Value Policy Review
+
+### Added
+
+- Documented the current-compatible and strict missing-value handling alternatives for risk-line feature percentage-change calculations.
+- Added regression coverage showing that explicit forward fill reproduces current feature behavior while strict missing propagation changes the output.
+
+### Scope
+
+- Kept production feature calculation unchanged; FutureWarning removal remains a separately validated follow-up.
+- Kept threshold JSON, reliability policy, final-action behavior, readiness-score calculation, buy-decision logic, CI, security scripts, dependencies, generated reports, cache, and release archives unchanged.
+
 ## v0.8.8 - Runtime Backtest Index Alignment Hotfix
 
 ### Fixed
