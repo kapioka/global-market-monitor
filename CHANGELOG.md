@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.10 - Explicit Current-Compatible pct_change Migration
+
+### Fixed
+
+- Replaced implicit percentage-change filling in risk-line feature generation with explicit forward-fill-compatible calculations to remove Pandas deprecation warnings without changing missing-value semantics.
+- Verified compatible output across missing-value patterns and added warning-free feature regression coverage.
+
+### Scope
+
+- Kept strict missing-value propagation, threshold JSON, reliability policy, final-action behavior, readiness-score calculation, buy-decision logic, CI, security scripts, dependencies, generated reports, cache, and release archives out of scope.
+
 ## v0.8.9 - Feature Library Missing-Value Policy Review
 
 ### Added

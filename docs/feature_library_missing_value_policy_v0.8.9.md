@@ -96,11 +96,30 @@ behavior only when all of the following are true:
 - threshold, reliability, and decision-policy files remain unchanged unless a
   separately approved goal reopens that scope.
 
+## v0.8.10 Explicit Compatible Migration
+
+v0.8.10 verified the explicit current-compatible form before changing
+production feature calculation:
+
+- `series.ffill().pct_change(fill_method=None)` matched the previous implicit
+  default for no missing values, middle missing values, leading missing
+  values, consecutive missing values, all-missing values, and nearly
+  all-missing values.
+- `series.pct_change(fill_method=None)` remained intentionally excluded
+  because it differed for middle, consecutive, and nearly all-missing inputs.
+- Synthetic missing-value feature-frame, backtest, and reality-check outputs
+  were compared before and after the migration and remained identical.
+
+Production feature generation now uses the explicit current-compatible form
+for `roc_*` features and adverse-persistence input calculation. This removes
+the deprecated implicit-fill warning without changing the selected
+missing-value policy.
+
 ## Unchanged Surfaces
 
-v0.8.9 does not change:
+The policy review and explicit migration do not change:
 
-- feature calculation code or missing-value semantics;
+- missing-value semantics;
 - threshold JSON or risk-label definitions;
 - reliability policy, final action, readiness score, or buy-decision logic;
 - CI configuration, security scripts, or dependencies;

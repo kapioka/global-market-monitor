@@ -1,9 +1,33 @@
 from __future__ import annotations
 
+import warnings
+
 import pandas as pd
 import pytest
 
 from project.risk_line_feature_library import build_risk_line_feature_frames
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        [100.0, 101.0, 103.0, 99.0],
+        [100.0, None, 110.0, 105.0, None, 120.0],
+        [None, 100.0, 105.0, 110.0],
+        [100.0, None, None, 108.0, 112.0],
+        [None, None, None, None],
+        [None, None, 100.0, None],
+    ],
+)
+def test_explicit_forward_fill_pct_change_matches_legacy_behavior(values):
+    series = pd.Series(values, dtype=float)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", FutureWarning)
+        legacy = series.pct_change()
+    explicit_compatible = series.ffill().pct_change(fill_method=None)
+
+    pd.testing.assert_series_equal(legacy, explicit_compatible)
 
 
 def test_build_risk_line_feature_frames_returns_all_ten_indicator_frames():
@@ -41,24 +65,22 @@ def test_build_risk_line_feature_frames_returns_all_ten_indicator_frames():
     assert "level_and_roc_4w" in frames["^TNX"].columns
 
 
-def test_explicit_forward_fill_pct_change_matches_current_missing_value_behavior():
+def test_strict_missing_value_pct_change_differs_from_compatible_behavior():
     series = pd.Series([100.0, None, 110.0, 105.0, None, 120.0])
 
-    with pytest.warns(FutureWarning):
-        current = series.pct_change()
     compatible = series.ffill().pct_change(fill_method=None)
     strict_missing = series.pct_change(fill_method=None)
 
-    pd.testing.assert_series_equal(current, compatible)
-    assert not current.equals(strict_missing)
+    assert not compatible.equals(strict_missing)
 
 
-def test_feature_frame_with_missing_values_currently_uses_compatible_roc_values():
+def test_feature_frame_with_missing_values_uses_compatible_roc_values_without_warning():
     prices = pd.DataFrame({"SPY": [100.0, None, 110.0, 105.0, None, 120.0]})
     compatible_roc = prices["SPY"].ffill().pct_change(fill_method=None)
     strict_roc = prices["SPY"].pct_change(fill_method=None)
 
-    with pytest.warns(FutureWarning):
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", FutureWarning)
         frame = build_risk_line_feature_frames(prices, zscore_window=2, percentile_window=2)["SPY"]
 
     pd.testing.assert_series_equal(frame["roc_1w"], compatible_roc, check_names=False)

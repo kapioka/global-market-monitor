@@ -69,7 +69,7 @@ def _build_feature_frame(
     frame["adverse_direction"] = spec.adverse_direction
 
     for window in (1, 2, 4, 8):
-        returns = clean.pct_change(periods=window)
+        returns = _current_compatible_pct_change(clean, periods=window)
         frame[f"roc_{window}w"] = returns
         frame[f"roc_z_{window}w"] = returns.rolling(zscore_window).apply(_zscore_last, raw=False)
 
@@ -98,8 +98,12 @@ def _rolling_drawdown(series: pd.Series, lookback: int) -> pd.Series:
     return series / rolling_peak - 1.0
 
 
+def _current_compatible_pct_change(series: pd.Series, periods: int = 1) -> pd.Series:
+    return series.ffill().pct_change(periods=periods, fill_method=None)
+
+
 def _adverse_persistence(series: pd.Series, adverse_direction: str, lookback: int) -> pd.Series:
-    changes = series.pct_change()
+    changes = _current_compatible_pct_change(series)
     if adverse_direction == "higher":
         adverse = (changes > 0).astype(float)
     else:
