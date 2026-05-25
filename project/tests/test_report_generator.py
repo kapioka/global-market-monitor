@@ -488,6 +488,22 @@ def test_render_html_beginner_top_sections_hide_internal_terms():
         assert term not in top_html
 
 
+@pytest.mark.parametrize(("score", "rendered_score"), [(None, 0), (0, 0), (1, 1), (32, 32), (60, 60), (85, 85), (100, 100)])
+def test_render_html_readiness_gauge_renders_score_from_left_origin(score, rendered_score):
+    report = deepcopy(_report())
+    report["buy_decision_card"]["buy_readiness_score"] = score
+    html = render_html(report)
+    start = html.index('<section class="buy-decision-flow"')
+    end = html.index('<section class="hero-card"', start)
+    top_html = html[start:end]
+
+    assert f'style="--score:{rendered_score}"' in top_html
+    assert f'aria-label="買い候補度 {rendered_score} / 100"' in top_html
+    assert "これは成功確率ではありません" in top_html
+    assert "from 270deg" in html
+    assert "calc(var(--score) * 1.8deg)" in html
+
+
 @pytest.mark.parametrize(
     ("scenario", "mutate", "required_text"),
     [
@@ -510,9 +526,7 @@ def test_render_html_beginner_top_sections_hide_internal_terms():
             "insufficient_data",
             lambda report: (
                 report["buy_decision_card"].update({"final_action": "wait", "primary_blocker": "sample_only"}),
-                report["data_reliability"].update(
-                    {"decision_allowed": False, "reason": "実データ不足のため参考表示に限定します。"}
-                ),
+                report["data_reliability"].update({"decision_allowed": False, "reason": "実データ不足のため参考表示に限定します。"}),
             ),
             ["確認用データが含まれる"],
         ),
@@ -528,8 +542,7 @@ def test_render_html_beginner_top_sections_hide_internal_terms():
             lambda report: report["buy_decision_card"].update(
                 {
                     "primary_blocker": (
-                        "回復確認に必要な複数の材料がまだ十分にそろっておらず、"
-                        "市場ストレスと為替の影響をあわせて確認する必要があります"
+                        "回復確認に必要な複数の材料がまだ十分にそろっておらず、" "市場ストレスと為替の影響をあわせて確認する必要があります"
                     )
                 }
             ),

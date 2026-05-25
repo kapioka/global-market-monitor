@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.8.11 - Buy Readiness Gauge Arc Origin Fix
+
+### Fixed
+
+- Aligned the beginner buy-readiness semicircle gauge to a true left-origin arc so very low displayed scores begin at the lower-left endpoint instead of appearing detached from the track.
+- Added display regression coverage for missing, zero, low, middle, and high readiness-score values.
+
+### Added
+
+- Added a read-only HTML artifact inventory covering linked generated outputs, sample outputs, temporary QA renders, and future cleanup candidates without deleting generated files.
+
+### Scope
+
+- Kept readiness-score calculation, decision logic, threshold JSON, reliability policy, CI, security scripts, dependencies, generated reports, cache, and release archives unchanged.
+
 ## v0.8.10 - Explicit Current-Compatible pct_change Migration
 
 ### Fixed

@@ -603,7 +603,7 @@ def _buy_decision_card_html(report: dict[str, Any]) -> str:
           </div>
           <aside class=\"readiness-panel\" aria-label=\"買い候補度\">
             <div class=\"score-label\">買い候補度</div>
-            <div class=\"score-gauge readiness-gauge\" style=\"--score:{readiness_score}\">
+            <div class=\"score-gauge readiness-gauge\" style=\"--score:{readiness_score}\" aria-label=\"買い候補度 {readiness_score} / 100\">
               <div class=\"score-number\">{readiness_score}</div>
               <div class=\"score-total\">/ 100</div>
             </div>
@@ -2359,8 +2359,9 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .buy-step p {{ margin:0; color:#52606d; font-size:12px; line-height:1.45; }}
     .readiness-panel {{ border-left:1px solid var(--line); padding-left:18px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }}
     .readiness-panel .score-label {{ color:#17366d; font-size:13px; font-weight:800; }}
-    .readiness-panel .score-gauge {{ width:150px; height:92px; margin-top:8px; border-radius:150px 150px 18px 18px; background:conic-gradient(from 270deg, #1d4ed8 calc(var(--score) * 1%), #e7edf5 0); display:grid; place-items:center; overflow:hidden; position:relative; }}
-    .readiness-panel .score-gauge::before {{ content:''; position:absolute; inset:16px 16px 0; border-radius:130px 130px 12px 12px; background:#fff; }}
+    .readiness-panel .score-gauge {{ width:150px; height:92px; margin-top:8px; display:grid; place-items:center; overflow:hidden; position:relative; }}
+    .readiness-panel .score-gauge::before {{ content:''; position:absolute; top:0; left:0; width:150px; height:150px; border-radius:999px; background:conic-gradient(from 270deg, #1d4ed8 0deg calc(var(--score) * 1.8deg), #e7edf5 calc(var(--score) * 1.8deg) 180deg, transparent 180deg 360deg); }}
+    .readiness-panel .score-gauge::after {{ content:''; position:absolute; top:16px; left:16px; width:118px; height:118px; border-radius:999px; background:#fff; }}
     .score-number, .score-total {{ position:relative; z-index:1; }}
     .score-number {{ margin-top:14px; color:#102a43; font-size:38px; font-weight:900; line-height:1; }}
     .score-total {{ color:#52606d; font-size:14px; font-weight:800; }}
