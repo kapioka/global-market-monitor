@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from project.risk_line_backtest import BacktestConfig, build_risk_line_backtest_report
+from project.risk_line_backtest import BacktestConfig, _run_split, build_risk_line_backtest_report
 
 
 def test_build_risk_line_backtest_report_returns_ranked_candidates_for_all_ten_indicators():
@@ -49,3 +49,51 @@ def test_build_risk_line_backtest_report_returns_ranked_candidates_for_all_ten_i
         assert warning_target["best"] is not None
     assert report["indicators"]["^MOVE"]["targets"]["danger_target"]["best"] is not None
     assert report["indicators"]["CL=F"]["targets"]["warning_target"]["walk_forward"]["window_count"] >= 1
+
+
+def test_run_split_aligns_labels_with_a_longer_index_before_boolean_masks():
+    index = pd.date_range("2020-01-03", periods=81, freq="W-FRI")
+    frame = pd.DataFrame({"signal": range(80)}, index=index[1:], dtype=float)
+    labels = pd.DataFrame(
+        {
+            "warning_target": [False] * 81,
+            "warning_lead_weeks": [0] * 81,
+        },
+        index=index,
+    )
+
+    result = _run_split(
+        frame,
+        labels,
+        "warning_target",
+        "higher",
+        BacktestConfig(min_observations=10),
+        0.6,
+        0.2,
+    )
+
+    assert result is None or result["feature"] == "signal"
+
+
+def test_run_split_aligns_partially_overlapping_indexes_and_missing_target_rows():
+    index = pd.date_range("2020-01-03", periods=81, freq="W-FRI")
+    frame = pd.DataFrame({"signal": range(80)}, index=index[:-1], dtype=float)
+    labels = pd.DataFrame(
+        {
+            "warning_target": [False] * 79 + [None, False],
+            "warning_lead_weeks": [0] * 81,
+        },
+        index=index[1:].append(pd.DatetimeIndex([index[-1] + pd.Timedelta(weeks=1)])),
+    )
+
+    result = _run_split(
+        frame,
+        labels,
+        "warning_target",
+        "higher",
+        BacktestConfig(min_observations=10),
+        0.6,
+        0.2,
+    )
+
+    assert result is None or result["feature"] == "signal"

@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.8 - Runtime Backtest Index Alignment Hotfix
+
+### Fixed
+
+- Aligned risk-line backtest frame and label inputs on their common index before time-split and walk-forward mask evaluation, preventing startup maintenance failures when their available dates differ.
+- Added regression coverage for differing frame/label lengths, partially overlapping indexes, and missing target rows.
+
+### Scope
+
+- Kept threshold JSON, reliability policy, final-action behavior, readiness-score calculation, buy-decision logic, CI, security scripts, dependencies, generated reports, cache, and release archives unchanged.
+- Left the existing `pct_change` warning behavior unchanged because adopting `fill_method=None` changes feature semantics for input series containing internal missing values.
+
 ## v0.8.4 - Multi-Scenario Report UI Snapshot QA
 
 ### Added

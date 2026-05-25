@@ -80,6 +80,14 @@ def _joined_frame(feature: pd.Series, labels: pd.DataFrame, target: str) -> pd.D
     return pd.concat([feature, labels[[target, LEAD_COLUMNS[target]]]], axis=1).dropna(subset=[feature.name, target])
 
 
+def _aligned_split_inputs(frame: pd.DataFrame, labels: pd.DataFrame, target: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    common_index = frame.index.intersection(labels.index, sort=False)
+    aligned_frame = frame.loc[common_index]
+    aligned_labels = labels.loc[common_index]
+    target_available = aligned_labels[target].notna()
+    return aligned_frame.loc[target_available], aligned_labels.loc[target_available]
+
+
 def _scan_feature_thresholds(
     joined: pd.DataFrame,
     feature_name: str,
@@ -143,6 +151,7 @@ def _run_split(
     train_ratio: float,
     test_ratio: float,
 ) -> dict[str, Any] | None:
+    frame, labels = _aligned_split_inputs(frame, labels, target)
     excluded = {"current", "family", "adverse_direction"}
     feature_columns = [column for column in frame.columns if column not in excluded]
     total = len(frame.index)
@@ -196,6 +205,7 @@ def _evaluate_walk_forward(
 ) -> dict[str, Any]:
     if not best:
         return {"window_count": 0, "evaluations": []}
+    frame, labels = _aligned_split_inputs(frame, labels, target)
     excluded = {"current", "family", "adverse_direction"}
     feature_columns = [column for column in frame.columns if column not in excluded]
     index = frame.index
