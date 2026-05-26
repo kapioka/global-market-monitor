@@ -1,7 +1,17 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from project.buy_blocker_breakdown import build_buy_blocker_breakdown
 from project.buy_readiness_score import build_buy_readiness_score
+
+
+ACTUAL_CASE_PATH = Path(__file__).parent / "fixtures" / "actual_readiness_case_v0.8.16.json"
+
+
+def _actual_readiness_case() -> dict:
+    return json.loads(ACTUAL_CASE_PATH.read_text(encoding="utf-8"))
 
 
 def _watch_with_caution_blockers() -> dict:
@@ -70,6 +80,20 @@ def test_caution_watch_case_does_not_collapse_to_near_zero() -> None:
     assert payload["buy_readiness_score"] == 31
     assert 25 <= payload["buy_readiness_score"] <= 45
     assert payload["affects_final_action"] is False
+
+
+def test_sanitized_actual_report_fixture_locks_recalibrated_score() -> None:
+    case = _actual_readiness_case()
+    report = case["report"]
+    expected = case["expected"]
+    blockers = build_buy_blocker_breakdown(report)
+    payload = build_buy_readiness_score(report, blockers)
+
+    assert payload["buy_readiness_score"] == expected["buy_readiness_score"] == 31
+    assert expected["score_range"][0] <= payload["buy_readiness_score"] <= expected["score_range"][1]
+    assert report["spot_signal"]["action_layers"]["final_action"] == expected["final_action"] == "watch"
+    assert report["risk_lines"]["stage_key"] == expected["risk_stage"] == "normal"
+    assert blockers["blocker_severity"] == expected["blocker_severity"]
 
 
 def test_true_high_rate_and_credit_stress_remain_low() -> None:

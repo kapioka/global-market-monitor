@@ -8,12 +8,15 @@ import sys
 import uuid
 
 from project.main import (
+    build_parser,
     collect_tickers,
     compute_backfill_dates,
     default_config_path,
     history_slot_time,
     load_fetch_snapshot,
+    load_latest_fetch_snapshot,
     open_dashboard_file,
+    run_actual_smoke,
     save_fetch_snapshot,
     snapshot_exists_for_slot,
 )
@@ -136,6 +139,110 @@ def test_save_and_load_fetch_snapshot_round_trip():
         assert float(restored.prices.loc[pd.Timestamp("2026-03-21"), "SPY"]) == 101.5
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def test_load_latest_fetch_snapshot_prefers_newest_complete_snapshot():
+    tmp_path = make_test_dir("latest_snapshot")
+    try:
+        cache_dir = tmp_path / "cache"
+        logger = logging.getLogger("test")
+        index = pd.to_datetime(["2026-03-20"])
+        old_fetch = FetchResult(
+            prices=pd.DataFrame({"SPY": [100.0]}, index=index),
+            source="older",
+            warnings=[],
+            acquisition_log=[],
+            diagnostics={},
+        )
+        new_fetch = FetchResult(
+            prices=pd.DataFrame({"SPY": [101.0]}, index=index),
+            source="newer",
+            warnings=[],
+            acquisition_log=[],
+            diagnostics={},
+        )
+        save_fetch_snapshot(old_fetch, cache_dir, "2026-03-20T07:30:00", logger)
+        save_fetch_snapshot(new_fetch, cache_dir, "2026-03-21T07:30:00", logger)
+
+        restored = load_latest_fetch_snapshot(cache_dir)
+
+        assert restored is not None
+        assert restored.source == "newer"
+        assert float(restored.prices.iloc[0]["SPY"]) == 101.0
+    finally:
+        shutil.rmtree(tmp_path, ignore_errors=True)
+
+
+def test_actual_smoke_help_is_distinct_from_sample_only() -> None:
+    help_text = build_parser().format_help()
+
+    assert "--actual-smoke" in help_text
+    assert "actual-data smoke check" in help_text
+    assert "acquired cache snapshot" in help_text
+    assert "--sample-only" in help_text
+
+
+def test_run_actual_smoke_prefers_latest_cached_fetch(monkeypatch, tmp_path: Path) -> None:
+    cached_fetch = FetchResult(
+        prices=pd.DataFrame(),
+        source="mixed",
+        warnings=[],
+        acquisition_log=[],
+        diagnostics={},
+    )
+    called: dict[str, object] = {}
+    config = {
+        "app": {"log_level": "INFO"},
+        "paths": {
+            "logs_dir": str(tmp_path / "logs"),
+            "reports_dir": str(tmp_path / "reports"),
+            "sample_output_dir": str(tmp_path / "sample"),
+            "cache_dir": str(tmp_path / "cache"),
+        },
+    }
+
+    monkeypatch.setattr("project.main.load_config", lambda _path: config)
+    monkeypatch.setattr("project.main.setup_logging", lambda *_args: logging.getLogger("test"))
+    monkeypatch.setattr("project.main.load_latest_fetch_snapshot", lambda _path: cached_fetch)
+
+    def fake_run_monitor(**kwargs):
+        called.update(kwargs)
+        return {"status": "ok"}
+
+    monkeypatch.setattr("project.main.run_monitor", fake_run_monitor)
+
+    assert run_actual_smoke("config.yaml") == {"status": "ok"}
+    assert called["sample_only"] is False
+    assert called["fetch_result"] is cached_fetch
+    assert called["resample_weekly"] is True
+
+
+def test_run_actual_smoke_uses_normal_fetch_when_cache_is_absent(monkeypatch, tmp_path: Path) -> None:
+    called: dict[str, object] = {}
+    config = {
+        "app": {"log_level": "INFO"},
+        "paths": {
+            "logs_dir": str(tmp_path / "logs"),
+            "reports_dir": str(tmp_path / "reports"),
+            "sample_output_dir": str(tmp_path / "sample"),
+            "cache_dir": str(tmp_path / "cache"),
+        },
+    }
+
+    monkeypatch.setattr("project.main.load_config", lambda _path: config)
+    monkeypatch.setattr("project.main.setup_logging", lambda *_args: logging.getLogger("test"))
+    monkeypatch.setattr("project.main.load_latest_fetch_snapshot", lambda _path: None)
+
+    def fake_run_monitor(**kwargs):
+        called.update(kwargs)
+        return {"status": "ok"}
+
+    monkeypatch.setattr("project.main.run_monitor", fake_run_monitor)
+
+    assert run_actual_smoke("config.yaml") == {"status": "ok"}
+    assert called["sample_only"] is False
+    assert called["fetch_result"] is None
+    assert called["resample_weekly"] is True
 
 
 def test_default_config_path_for_source_layout():
@@ -327,7 +434,16 @@ def test_build_report_holds_decision_when_critical_series_are_sample_based():
             {"requested_ticker": "GC=F", "status": "ok"},
             {"requested_ticker": "DX-Y.NYB", "status": "ok"},
         ],
-        diagnostics={"summary": {"source": "mixed", "requested_count": 6, "sample_fallback_count": 1, "unavailable_count": 0, "failed_attempt_count": 1, "suspected_network_issue": False}},
+        diagnostics={
+            "summary": {
+                "source": "mixed",
+                "requested_count": 6,
+                "sample_fallback_count": 1,
+                "unavailable_count": 0,
+                "failed_attempt_count": 1,
+                "suspected_network_issue": False,
+            }
+        },
     )
 
     report = build_report(config, fetch)

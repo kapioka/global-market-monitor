@@ -45,6 +45,18 @@ def load_fetch_snapshot(cache_dir: str | Path, snapshot_date: date, slot: tuple[
     observed_at = f"{snapshot_date.isoformat()}T{hour:02d}:{minute:02d}:00"
     prices_path = _snapshot_prices_path(cache_dir, observed_at)
     metadata_path = _snapshot_metadata_path(cache_dir, observed_at)
+    return _load_fetch_snapshot_files(prices_path, metadata_path)
+
+
+def load_latest_fetch_snapshot(cache_dir: str | Path) -> FetchResult | None:
+    for metadata_path in sorted(snapshot_archive_dir(cache_dir).glob("market_snapshot_*.json"), reverse=True):
+        fetch = _load_fetch_snapshot_files(metadata_path.with_suffix(".csv"), metadata_path)
+        if fetch is not None:
+            return fetch
+    return None
+
+
+def _load_fetch_snapshot_files(prices_path: Path, metadata_path: Path) -> FetchResult | None:
     if not prices_path.exists() or not metadata_path.exists():
         return None
 

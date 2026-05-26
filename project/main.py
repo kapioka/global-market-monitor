@@ -17,8 +17,15 @@ from project.pipeline import build_report, collect_tickers, fetch_market_snapsho
 from project.report_runtime import persist_report, should_persist_history
 from project.runtime import console_spinner, ensure_directories, setup_logging
 from project.scheduler import run_scheduler
-from project.snapshot_store import fetch_snapshot_observed_at, load_fetch_snapshot, save_fetch_snapshot, snapshot_exists_for_slot
+from project.snapshot_store import (
+    fetch_snapshot_observed_at,
+    load_fetch_snapshot,
+    load_latest_fetch_snapshot,
+    save_fetch_snapshot,
+    snapshot_exists_for_slot,
+)
 from project.risk_line_review_status import run_periodic_risk_line_maintenance_with_progress
+
 
 def default_config_path() -> Path:
     if getattr(sys, "frozen", False):
@@ -83,7 +90,9 @@ def run_monitor(
         save_fetch_snapshot(fetch, paths["cache_dir"], fetch_snapshot_observed_at(), logger)
     logger.info("Stage 2/3: building report payload.")
     with console_spinner("building report"):
-        report = build_report(config, fetch, as_of_date=as_of_date, resample_weekly=resample_weekly, maintenance_summary=maintenance.get("maintenance"))
+        report = build_report(
+            config, fetch, as_of_date=as_of_date, resample_weekly=resample_weekly, maintenance_summary=maintenance.get("maintenance")
+        )
     logger.info("Stage 3/3: writing reports and dashboard.")
     return persist_report(
         report,
@@ -146,7 +155,12 @@ def run_with_backfill(
             if snapshot_fetch is not None:
                 alignment_source = "saved_canonical_snapshot"
         if snapshot_fetch is not None:
-            logger.info("Backfilling %s from saved canonical snapshot %02d:%02d", missing_date.isoformat(), target_history_slot[0], target_history_slot[1])
+            logger.info(
+                "Backfilling %s from saved canonical snapshot %02d:%02d",
+                missing_date.isoformat(),
+                target_history_slot[0],
+                target_history_slot[1],
+            )
         else:
             logger.info("Backfilling missing report for %s using actual daily closes", missing_date.isoformat())
         if existing_names:
@@ -185,7 +199,9 @@ def run_with_backfill(
 
     logger.info("Stage 3/4: building latest weekly report.")
     with console_spinner("building latest weekly report"):
-        latest_report = build_report(config, fetch, as_of_date=None, resample_weekly=True, maintenance_summary=maintenance.get("maintenance"))
+        latest_report = build_report(
+            config, fetch, as_of_date=None, resample_weekly=True, maintenance_summary=maintenance.get("maintenance")
+        )
     logger.info("Stage 4/4: writing latest reports and dashboard.")
     return persist_report(
         latest_report,
@@ -196,6 +212,29 @@ def run_with_backfill(
         history_slot=target_history_slot,
         open_dashboard_file_fn=open_dashboard_file,
     )
+
+
+def run_actual_smoke(config_path: str | Path, open_dashboard: bool = False) -> dict[str, Any]:
+    config = load_config(config_path)
+    paths = config["paths"]
+    ensure_directories([paths["logs_dir"], paths["reports_dir"], paths["sample_output_dir"], paths["cache_dir"]])
+    logger = setup_logging(paths["logs_dir"], config["app"]["log_level"])
+    cached_fetch = load_latest_fetch_snapshot(paths["cache_dir"])
+    if cached_fetch is not None:
+        logger.info("Actual-data smoke using latest acquired snapshot from cache (source=%s).", cached_fetch.source)
+    else:
+        logger.info("Actual-data smoke found no acquired snapshot in cache; attempting the normal remote fetch path.")
+    try:
+        return run_monitor(
+            config_path=config_path,
+            sample_only=False,
+            open_dashboard=open_dashboard,
+            fetch_result=cached_fetch,
+            resample_weekly=True,
+        )
+    except Exception as exc:
+        logger.error("Actual-data smoke failed while using cached acquired data or attempting remote fetch: %s", exc)
+        raise
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -211,6 +250,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Force synthetic data instead of remote fetch.",
     )
     parser.add_argument(
+        "--actual-smoke",
+        action="store_true",
+        help="Run an optional actual-data smoke check: reuse the latest acquired cache snapshot, or attempt normal fetch if absent.",
+    )
+    parser.add_argument(
         "--schedule",
         action="store_true",
         help="Run once and keep the daily scheduler active using config scheduler settings.",
@@ -222,6 +266,12 @@ def main() -> None:
     args = build_parser().parse_args()
     config = load_config(args.config)
     scheduler_config = config["scheduler"]
+
+    if args.actual_smoke:
+        if args.sample_only or args.schedule:
+            raise SystemExit("--actual-smoke cannot be combined with --sample-only or --schedule.")
+        run_actual_smoke(config_path=args.config, open_dashboard=True)
+        return
 
     if args.schedule or scheduler_config.get("enabled", False):
         run_scheduler(
@@ -237,10 +287,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-

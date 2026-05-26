@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from project.buy_decision_card import build_buy_decision_card
+
+
+ACTUAL_CASE_PATH = Path(__file__).parent / "fixtures" / "actual_readiness_case_v0.8.16.json"
 
 
 def test_buy_decision_card_summarizes_layers_and_unlock_conditions() -> None:
@@ -69,3 +75,14 @@ def test_buy_decision_card_keeps_watch_action_when_caution_score_is_recalibrated
     assert card["risk_adjusted_action"] == "watch"
     assert card["buy_readiness_score"] == 31
     assert card["affects_final_action"] is False
+
+
+def test_buy_decision_card_accepts_sanitized_actual_data_fixture() -> None:
+    case = json.loads(ACTUAL_CASE_PATH.read_text(encoding="utf-8"))
+    expected = case["expected"]
+    card = build_buy_decision_card(case["report"])
+
+    assert card["buy_readiness_score"] == expected["buy_readiness_score"]
+    assert card["final_action"] == expected["final_action"]
+    assert card["market_raw_action"] == expected["market_raw_action"]
+    assert card["risk_adjusted_action"] == expected["risk_adjusted_action"]

@@ -1,0 +1,55 @@
+{
+  "fixture_id": "actual_readiness_case_v0.8.16",
+  "source_note": "Sanitized from a generated actual-data report at 2026-05-26T19:10:51 JST. Raw prices, HTML, history, API payloads, and local paths are intentionally excluded.",
+  "expected": {
+    "buy_readiness_score_before_v0_8_15": 1,
+    "buy_readiness_score": 31,
+    "score_range": [25, 45],
+    "market_raw_action": "watch",
+    "risk_adjusted_action": "watch",
+    "final_action": "watch",
+    "risk_stage": "normal",
+    "blocker_severity": {
+      "rate_shock": "caution",
+      "fx_risk": "caution",
+      "score_shortfall": "medium"
+    }
+  },
+  "report": {
+    "spot_signal": {
+      "action_layers": {
+        "market_raw_action": "watch",
+        "risk_adjusted_action": "watch",
+        "final_action": "watch"
+      },
+      "recovery_evidence": {
+        "grade": "building"
+      },
+      "blocker_assessment": {
+        "level": "caution",
+        "flags": [
+          "rates_warning",
+          "japan_fx_risk_moderate",
+          "foreign_asset_fx_dependency"
+        ]
+      }
+    },
+    "risk_lines": {
+      "stage_key": "normal"
+    },
+    "data_reliability": {
+      "level": "high",
+      "decision_allowed": true,
+      "sample_fallback_count": 0,
+      "reason_code": "live_data_sufficient"
+    },
+    "score": {
+      "total_score": 0.5789
+    },
+    "config": {
+      "thresholds": {
+        "spot_score_buy": 0.65
+      }
+    }
+  }
+}

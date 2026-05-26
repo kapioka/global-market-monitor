@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.16 - Actual Data Readiness Regression and Smoke Command
+
+### Added
+
+- Added a sanitized actual-data-derived caution/watch fixture that locks the v0.8.15 readiness-score regression boundary without committing generated reports or raw market histories.
+- Added optional `--actual-smoke` local validation that reuses the newest acquired cached snapshot when available and otherwise attempts the normal fetch path.
+- Added regression and CLI/cache-selection tests separating stable fixture coverage from optional network-dependent validation.
+
+### Scope
+
+- Kept buy-readiness/blocker/decision logic, `final_action`, threshold JSON and decisions, reliability policy, CI, security scripts, dependencies, generated reports, cache, and release archives unchanged.
+
 ## v0.8.15 - Buy Readiness Score Recalibration
 
 ### Fixed
