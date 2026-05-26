@@ -43,3 +43,29 @@ def test_buy_decision_card_marks_sample_only_context() -> None:
     assert card["final_action"] == "wait"
     assert card["primary_blocker"] == "sample_only"
     assert "sample fallback" in str(card["sample_only_note"])
+
+
+def test_buy_decision_card_keeps_watch_action_when_caution_score_is_recalibrated() -> None:
+    card = build_buy_decision_card(
+        {
+            "spot_signal": {
+                "action": "watch",
+                "action_layers": {"market_raw_action": "watch", "risk_adjusted_action": "watch", "final_action": "watch"},
+                "recovery_evidence": {"grade": "building"},
+                "blocker_assessment": {
+                    "level": "caution",
+                    "flags": ["rates_warning", "japan_fx_risk_moderate", "foreign_asset_fx_dependency"],
+                },
+            },
+            "risk_lines": {"stage_key": "normal"},
+            "data_reliability": {"level": "high", "decision_allowed": True},
+            "score": {"total_score": 0.5789},
+            "config": {"thresholds": {"spot_score_buy": 0.65}},
+        }
+    )
+
+    assert card["final_action"] == "watch"
+    assert card["market_raw_action"] == "watch"
+    assert card["risk_adjusted_action"] == "watch"
+    assert card["buy_readiness_score"] == 31
+    assert card["affects_final_action"] is False

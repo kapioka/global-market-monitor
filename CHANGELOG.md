@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.15 - Buy Readiness Score Recalibration
+
+### Fixed
+
+- Recalibrated the explanatory buy-readiness score so caution-level rate and FX warnings do not collapse a monitored, normal-risk, high-reliability setup to a near-zero display score.
+- Distinguished `rates_warning` caution severity from true high-severity rate shock and reduced duplicate score-shortfall penalization while preserving strong-blocker and data-quality low-score behavior.
+- Added regression coverage for the observed caution scenario, high blockers, sample fallback, shortfall-only behavior, and unchanged decision-card action layers.
+
+### Scope
+
+- Kept `final_action`, threshold JSON and decisions, reliability policy, buy-window/candidate thresholds, risk labels, report layout, CI, security scripts, dependencies, generated reports, cache, and release archives unchanged.
+
 ## v0.8.11 - Buy Readiness Gauge Arc Origin Fix
 
 ### Fixed

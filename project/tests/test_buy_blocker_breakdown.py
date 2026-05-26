@@ -38,3 +38,25 @@ def test_buy_blocker_breakdown_classifies_sample_cap() -> None:
 
     assert payload["primary_blocker"] == "sample_only"
     assert "sample_fallback_present" in payload["blocker_reasons"]["sample_only"]
+
+
+def test_rates_warning_is_caution_not_high_rate_shock() -> None:
+    warning = build_buy_blocker_breakdown(
+        {
+            "spot_signal": {"blocker_assessment": {"flags": ["rates_warning"]}},
+            "risk_lines": {"stage_key": "normal"},
+            "data_reliability": {"level": "high", "decision_allowed": True},
+            "score": {"total_score": 0.7},
+        }
+    )
+    shock = build_buy_blocker_breakdown(
+        {
+            "spot_signal": {"blocker_assessment": {"flags": ["rate_shock_active"]}},
+            "risk_lines": {"stage_key": "normal"},
+            "data_reliability": {"level": "high", "decision_allowed": True},
+            "score": {"total_score": 0.7},
+        }
+    )
+
+    assert warning["blocker_severity"]["rate_shock"] == "caution"
+    assert shock["blocker_severity"]["rate_shock"] == "high"

@@ -82,7 +82,8 @@ def _add_risk_line(blockers: dict[str, dict[str, Any]], risk_lines: dict[str, An
     for reason in risk_lines.get("reasons", [])[:3]:
         reason_text = str(reason).lower()
         if "金利" in reason_text or "rate" in reason_text or "tnx" in reason_text:
-            _add(blockers, "rate_shock", "high", str(reason), "risk_adjusted")
+            severity = "caution" if "warning" in reason_text else "high"
+            _add(blockers, "rate_shock", severity, str(reason), "risk_adjusted")
         if "信用" in reason_text or "credit" in reason_text or "hyg" in reason_text:
             _add(blockers, "credit_stress", "high", str(reason), "risk_adjusted")
 
@@ -97,7 +98,8 @@ def _add_flag_blockers(blockers: dict[str, dict[str, Any]], flags: list[str]) ->
         elif "inflation" in lower or "oil" in lower:
             _add(blockers, "inflation_shock", "high", flag, "risk_adjusted")
         elif "rate" in lower or "tnx" in lower:
-            _add(blockers, "rate_shock", "high", flag, "risk_adjusted")
+            severity = "caution" if "warning" in lower else "high"
+            _add(blockers, "rate_shock", severity, flag, "risk_adjusted")
         elif "drawdown" in lower or "dd_guard" in lower:
             _add(blockers, "drawdown_guard", "high", flag, "risk_adjusted")
         elif "regime" in lower or "risk_off" in lower:

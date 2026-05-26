@@ -4,6 +4,7 @@ from typing import Any
 
 
 ACTION_POINTS = {"wait": 0, "watch": 12, "buy_candidate": 25, "buy_window": 35}
+STRESS_PENALTIES_BY_SEVERITY = {"info": 0, "low": 3, "medium": 6, "caution": 9, "high": 25, "block": 30}
 
 
 def build_buy_readiness_score(report: dict[str, Any], blocker_breakdown: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -34,6 +35,7 @@ def build_buy_readiness_score(report: dict[str, Any], blocker_breakdown: dict[st
     positive: list[str] = []
     negative: list[str] = []
     reasons: list[str] = []
+    readiness_cap: int | None = None
 
     raw_points = ACTION_POINTS.get(raw_action, 0)
     score += raw_points
@@ -77,21 +79,24 @@ def build_buy_readiness_score(report: dict[str, Any], blocker_breakdown: dict[st
     for blocker in blocker_breakdown.get("blockers", []):
         category = blocker.get("blocker")
         if category == "fx_risk":
-            score -= 18
+            score -= _stress_penalty(blocker)
             negative.append("FX risk is blocking buy clarity")
         elif category in {"credit_stress", "rate_shock", "risk_line"}:
-            score -= 25
+            score -= _stress_penalty(blocker)
             negative.append(f"{category} is active")
         elif category in {"data_quality", "sample_only"}:
             score -= 30
+            readiness_cap = 10
             negative.append(f"{category} caps action")
         elif category == "score_shortfall":
-            score -= 8
+            score -= 3
             negative.append("score is below buy threshold")
         elif category == "recovery_evidence_weak":
             score -= 10
 
     final_score = max(0, min(100, int(round(score))))
+    if readiness_cap is not None:
+        final_score = min(final_score, readiness_cap)
     return {
         "buy_readiness_score": final_score,
         "readiness_level": readiness_level(final_score),
@@ -125,3 +130,7 @@ def _positive_validation(perf: dict[str, Any]) -> bool:
             except (TypeError, ValueError):
                 return False
     return False
+
+
+def _stress_penalty(blocker: dict[str, Any]) -> int:
+    return STRESS_PENALTIES_BY_SEVERITY.get(str(blocker.get("severity", "high")), 25)
