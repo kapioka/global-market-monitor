@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.22 - Multi-Asset Signal Design Inventory
+
+### Added
+
+- Documented future evaluation-axis inventory for gold, bonds, and cash/wait candidates without adding new scores or changing final decisions.
+- Clarified separate gold, bond, and cash/wait signal axes, non-advice wording, and future implementation gates.
+
+### Scope
+
+- Kept report UI, `final_action`, threshold JSON and decisions, reliability policy, buy-readiness calculation, buy blocker/card logic, CI, scripts, dependencies, generated reports, cache, release archives, GitHub Release, and push out of scope.
+
 ## v0.8.21 - Multi-Asset Candidate Display Foundation
 
 ### Added
