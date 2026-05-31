@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.24 - Multi-Asset Signal Prototype Model
+
+### Added
+
+- Added an isolated display-oriented prototype model for gold, bond, cash/wait, and partial-data multi-asset signal cases.
+- Added targeted tests that use the v0.8.23 fixture contract and confirm conservative missing-data statuses, non-impact flags, and non-advice payload wording.
+
+### Scope
+
+- Kept report UI, `final_action`, threshold JSON and decisions, reliability policy, buy-readiness calculation, buy blocker/card logic, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.23 - Multi-Asset Signal Fixture and Missing-Data Policy
 
 ### Added
