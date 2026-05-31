@@ -704,10 +704,10 @@ def test_render_markdown_includes_multi_asset_candidates_without_changing_decisi
     assert "守り候補: GLD" in markdown
     assert "債券候補: AGG" in markdown
     assert "現金待機: CASH" in markdown
-    assert "分類: defensive_context" in markdown
-    assert "分類: insufficient_data" in markdown
-    assert "状態: unavailable" in markdown
-    assert "状態: wait" in markdown
+    assert "分類: 守り候補の確認" in markdown
+    assert "分類: データ不足" in markdown
+    assert "状態: データ不足" in markdown
+    assert "状態: 待機" in markdown
     assert "これは買い推奨ではなく" in markdown
     assert "final_action への影響: False" in markdown
     assert "buy_readiness_score への影響: False" in markdown
@@ -729,13 +729,28 @@ def test_render_html_includes_multi_asset_candidates_table():
     assert "守り候補" in html
     assert "債券候補" in html
     assert "現金待機" in html
-    assert "defensive_context" in html
-    assert "insufficient_data" in html
-    assert "wait_context" in html
+    assert "守り候補の確認" in html
+    assert "データ不足" in html
+    assert "待機判断の補助" in html
     assert "為替や商品価格の影響を受けます。" in html
-    assert "unavailable" in html
-    assert "wait" in html
+    section = html[html.index("資産クラス別の確認候補") : html.index("先回り候補")]
+    assert "unavailable" not in section
     assert "final_action への影響: False" in html
+
+
+def test_render_html_handles_legacy_multi_asset_candidate_shape_with_safe_labels():
+    report = deepcopy(_report())
+    payload = _multi_asset_payload()
+    payload["candidates"][3].pop("reason_category")
+    payload["candidates"][3]["status"] = "neutral"
+    report["multi_asset_candidates"] = payload
+
+    html = render_html(report)
+
+    assert "参考表示" in html
+    assert "補助確認" in html
+    assert "neutral" not in html
+    assert "これは買い推奨ではなく" in html
 
 
 def test_render_supplement_dashboard_html_maps_all_source_sections():

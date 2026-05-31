@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.27 - Real-Data Shape Probe and Multi-Asset Report Display Adjustment
+
+### Changed
+
+- Probed existing local report/history output, sample-shaped candidate output, and v0.8.23 fixtures to confirm multi-asset rows can include unavailable gold/bond data, wait-state cash, and legacy rows without reason categories.
+- Adjusted the existing multi-asset report section to show beginner-readable Japanese status and reason-category labels instead of raw internal values.
+
+### Scope
+
+- Kept `final_action`, equity buy-readiness scoring, threshold JSON and decisions, reliability policy, buy blocker/card logic, buy window/candidate thresholds, risk labels, pipeline behavior, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.26 - Boundary Tests and Minimal Report Integration for Multi-Asset Signals
 
 ### Added

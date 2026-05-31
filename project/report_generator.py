@@ -250,8 +250,8 @@ def _multi_asset_candidate_markdown_lines(report: dict[str, Any]) -> list[str]:
                 symbol=row.get("symbol", "-"),
                 name=row.get("display_name", "-"),
                 role=row.get("role_label", "-"),
-                status=row.get("status", "-"),
-                category=row.get("reason_category", "-"),
+                status=_multi_asset_status_label(row.get("status")),
+                category=_multi_asset_reason_category_label(row.get("reason_category")),
                 available="あり" if row.get("source_data_available") else "なし",
                 metrics=metric_text,
             )
@@ -270,9 +270,9 @@ def _multi_asset_candidate_html(report: dict[str, Any]) -> str:
         f"<td>{html.escape(str(row.get('asset_class_label', '-')))}</td>"
         f"<td>{html.escape(str(row.get('symbol', '-')))}<br><span style='color:#52606d'>{html.escape(str(row.get('display_name', '-')))}</span></td>"
         f"<td>{html.escape(str(row.get('role_label', '-')))}</td>"
-        f"<td>{html.escape(str(row.get('status', '-')))}</td>"
+        f"<td>{html.escape(_multi_asset_status_label(row.get('status')))}</td>"
         f"<td>{'あり' if row.get('source_data_available') else 'なし'}</td>"
-        f"<td>{html.escape(str(row.get('reason', '-')))}<br><span style='color:#52606d'>分類: {html.escape(str(row.get('reason_category', '-')))} / 注意: {html.escape(str(row.get('caution', '-')))}</span></td>"
+        f"<td>{html.escape(str(row.get('reason', '-')))}<br><span style='color:#52606d'>分類: {html.escape(_multi_asset_reason_category_label(row.get('reason_category')))} / 注意: {html.escape(str(row.get('caution', '-')))}</span></td>"
         "</tr>"
         for row in payload.get("candidates", [])
     )
@@ -294,6 +294,30 @@ def _multi_asset_candidate_html(report: dict[str, Any]) -> str:
       </table>
     </section>
     """
+
+
+def _multi_asset_status_label(status: Any) -> str:
+    labels = {
+        "candidate": "株式候補",
+        "watch": "確認中",
+        "informational": "参考表示",
+        "unavailable": "データ不足",
+        "not_available": "データ不足",
+        "wait": "待機",
+        "neutral": "参考表示",
+    }
+    return labels.get(str(status), "確認中")
+
+
+def _multi_asset_reason_category_label(category: Any) -> str:
+    labels = {
+        "defensive_context": "守り候補の確認",
+        "rate_sensitive_context": "金利に敏感な確認",
+        "insufficient_data": "データ不足",
+        "wait_context": "待機判断の補助",
+        "partial_data_context": "部分データ",
+    }
+    return labels.get(str(category), "補助確認")
 
 
 def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
@@ -1642,11 +1666,11 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
             esc(row.get("asset_class_label", "-")),
             ticker_label(row.get("symbol", "-"), row.get("display_name", "-")),
             esc(row.get("role_label", "-")),
-            esc(row.get("status", "-")),
+            esc(_multi_asset_status_label(row.get("status"))),
             "あり" if row.get("source_data_available") else "なし",
             "{reason}<br><span class=\"subtext\">分類: {category} / 注意: {caution}</span>".format(
                 reason=esc(row.get("reason", "-")),
-                category=esc(row.get("reason_category", "-")),
+                category=esc(_multi_asset_reason_category_label(row.get("reason_category"))),
                 caution=esc(row.get("caution", "-")),
             ),
         ]
