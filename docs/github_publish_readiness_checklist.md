@@ -48,6 +48,63 @@ CI also creates a source package and verifies the newest package in `release/` w
 python scripts\verify_release_package.py --latest-dir release --expected-commit <commit>
 ```
 
+## Optional Actual-Data Smoke
+
+Run this optional local check before a public release or before larger
+decision-score, blocker, or report-card changes:
+
+```powershell
+python project\main.py --actual-smoke
+```
+
+This is intentionally separate from `python project\main.py --sample-only`.
+
+- `--sample-only` uses synthetic fallback data, needs no external data, and is
+  suitable for stable startup and generated-report smoke checks.
+- `--actual-smoke` reuses the newest acquired cached market snapshot when one
+  is available. If no saved snapshot can be used, it attempts the normal fetch
+  path.
+- `--actual-smoke` is useful for checking the actual-data readiness score,
+  blocker breakdown, reliability, recovery, risk stage, and decision-card path.
+- `--actual-smoke` is not a required CI gate because it can depend on network
+  access, cache availability, external provider behavior, market calendar
+  timing, and changing market data.
+
+Record the result in release review notes with this template:
+
+```text
+Actual smoke result:
+- command:
+- timestamp:
+- source/data_source:
+- sample_fallback_count:
+- reliability:
+- actions:
+- readiness_score:
+- risk_stage:
+- final_action:
+- generated_outputs_committed: no
+- notes:
+```
+
+Confirm after the run:
+
+- the command exits successfully, or any fetch/cache failure is understood as
+  an optional local validation issue rather than a CI failure;
+- `source` or `data_source` is recorded;
+- `sample_fallback_count` is recorded;
+- reliability, actions, readiness score, risk stage, and final action are
+  recorded;
+- generated outputs remain ignored and unstaged.
+
+Do not commit outputs from:
+
+- `project/reports/`
+- `project/reports/history/`
+- `project/cache/`
+- `.tmp/`
+- `release/`
+
 ## Tag Check
 
 ```powershell

@@ -54,6 +54,39 @@ This command is separate from `--sample-only`.
 The output report remains under ignored generated-report paths. It must not be
 committed.
 
+## Release Checklist Integration
+
+`--actual-smoke` is an optional local pre-release check, especially before
+larger changes to decision-score display, blocker interpretation, or report-card
+presentation. It complements `--sample-only`; it does not replace the stable
+sample smoke or committed fixture tests.
+
+Use this result template in release review notes:
+
+```text
+Actual smoke result:
+- command:
+- timestamp:
+- source/data_source:
+- sample_fallback_count:
+- reliability:
+- actions:
+- readiness_score:
+- risk_stage:
+- final_action:
+- generated_outputs_committed: no
+- notes:
+```
+
+Keep this check out of required CI because it can depend on network access,
+cache availability, external data provider stability, market-calendar timing,
+and changing market data. The committed sanitized fixture remains the stable
+regression guard.
+
+Generated outputs from `project/reports/`, `project/reports/history/`,
+`project/cache/`, `.tmp/`, and `release/` must not be committed after running
+the optional smoke.
+
 ## Unchanged Boundaries
 
 This work does not change:

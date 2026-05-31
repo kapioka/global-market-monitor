@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.17 - Actual Smoke Release Checklist Integration
+
+### Added
+
+- Documented optional `python project\main.py --actual-smoke` use in the GitHub publish readiness checklist for release-before and larger decision-score/report-card change review.
+- Added an actual-smoke result template covering data source, fallback count, reliability, action layers, readiness score, risk stage, final action, and generated-output handling.
+- Clarified how `--sample-only` and `--actual-smoke` differ, and why actual-data smoke remains a local optional check instead of a required CI gate.
+
+### Scope
+
+- Kept CI workflows, scripts, `--actual-smoke` runtime logic, buy-readiness/blocker/decision logic, `final_action`, threshold JSON and decisions, reliability policy, dependencies, generated reports, cache, and release archives unchanged.
+
 ## v0.8.16 - Actual Data Readiness Regression and Smoke Command
 
 ### Added

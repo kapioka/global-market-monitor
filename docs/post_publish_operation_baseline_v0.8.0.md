@@ -114,6 +114,8 @@ Future v0.8.x work can consider:
 - v0.8.1 report UI redesign planning for a beginner-readable `まず見るポイント` and 5-step `買い判断カード` without changing decision logic.
 - Node.js runtime migration notes for GitHub Actions when upstream actions require it.
 - Better CI artifact retention for release package review.
+- Optional `--actual-smoke` release-review notes when local cached or fetched
+  actual data is used before a public push or larger decision-score change.
 - Optional scanner result summaries that do not copy raw findings.
 - More typed coverage for older modules as a separate type-cleanup track.
 - A release-review template for issue and security intake.
