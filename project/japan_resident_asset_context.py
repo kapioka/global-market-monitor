@@ -28,7 +28,7 @@ JAPAN_RESIDENT_TAXONOMY: dict[str, dict[str, Any]] = {
 
 DATA_SOURCE_CONTRACT: dict[str, list[str]] = {
     "domestic_jpy_bonds": ["asset_compare", "acquisition_log", "optional configured tickers"],
-    "jgb_yield_curve": ["japan_resident_context.jgb_yields", "fixture adapter contract"],
+    "jgb_yield_curve": ["japan_resident_context.jgb_yields", "optional official macro adapter", "fixture adapter contract"],
     "fx_currency_context": ["japan_risk.usd_jpy", "USDJPY=X acquisition log", "optional EURJPY=X acquisition log"],
     "japanese_equities": [
         "asset_compare",
@@ -36,7 +36,8 @@ DATA_SOURCE_CONTRACT: dict[str, list[str]] = {
         "config.tickers.japan.nikkei_proxy",
         "acquisition_log",
     ],
-    "japan_inflation_rates": ["japan_resident_context.inflation", "fixture adapter contract"],
+    "japan_inflation_rates": ["japan_resident_context.inflation", "optional official macro adapter", "fixture adapter contract"],
+    "boj_domestic_rates": ["japan_resident_context.domestic_rates", "optional official macro adapter", "fixture adapter contract"],
     "japanese_reit": ["asset_compare", "config.tickers.japan.jp_reit_proxy", "acquisition_log"],
     "gold_jpy_proxy": [
         "asset_compare Gold",
@@ -143,7 +144,17 @@ def _domestic_rate_component(asset: dict[str, Any], context: dict[str, Any], tax
     group = str(taxonomy.get("group") or "")
     rate = context.get("jgb_yields") or {}
     change = _number(rate.get("jgb_10y_change_4w"))
+    jgb_10y = _number(rate.get("jgb_10y"))
+    domestic_context = str((context.get("domestic_rates") or {}).get("domestic_rate_context") or "")
     if change is None:
+        if jgb_10y is not None and jgb_10y >= 1.5:
+            return -6 if group in {"domestic_bonds", "japanese_reit"} else 0
+        if jgb_10y is not None and jgb_10y <= 0.5:
+            return 3 if group == "domestic_bonds" else 0
+        if domestic_context in {"rising", "high"}:
+            return -8 if group in {"domestic_bonds", "japanese_reit"} else 5 if asset.get("asset_class") == "cash" else 0
+        if domestic_context in {"falling", "stable"}:
+            return 4 if group == "domestic_bonds" else 0
         return -3 if group in {"domestic_bonds", "japanese_reit"} else 0
     if change < 0:
         return 10 if group == "domestic_bonds" else 5 if group == "japanese_reit" else 0

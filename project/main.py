@@ -13,8 +13,10 @@ if __package__ in {None, ""}:
 from project.backfill import compute_backfill_dates, existing_history_files_for_date, history_slot_time
 from project.config_loader import load_config
 from project.data_fetcher import FetchResult
-from project.pipeline import build_report, collect_tickers, fetch_market_snapshot
-from project.report_runtime import persist_report, should_persist_history
+from project.japan_macro_adapters import run_official_japan_macro_dry_run
+from project.pipeline import build_report, fetch_market_snapshot
+from project.report_runtime import persist_report
+from project.risk_line_review_status import run_periodic_risk_line_maintenance_with_progress
 from project.runtime import console_spinner, ensure_directories, setup_logging
 from project.scheduler import run_scheduler
 from project.snapshot_store import (
@@ -24,7 +26,6 @@ from project.snapshot_store import (
     save_fetch_snapshot,
     snapshot_exists_for_slot,
 )
-from project.risk_line_review_status import run_periodic_risk_line_maintenance_with_progress
 
 
 def default_config_path() -> Path:
@@ -255,6 +256,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run an optional actual-data smoke check: reuse the latest acquired cache snapshot, or attempt normal fetch if absent.",
     )
     parser.add_argument(
+        "--japan-macro-dry-run",
+        action="store_true",
+        help="Print the optional Japan official macro adapter dry-run contract without making it mandatory for CI.",
+    )
+    parser.add_argument(
+        "--japan-macro-live-once",
+        action="store_true",
+        help="With --japan-macro-dry-run, attempt each official macro source once and report safe structured status.",
+    )
+    parser.add_argument(
         "--schedule",
         action="store_true",
         help="Run once and keep the daily scheduler active using config scheduler settings.",
@@ -266,6 +277,11 @@ def main() -> None:
     args = build_parser().parse_args()
     config = load_config(args.config)
     scheduler_config = config["scheduler"]
+
+    if args.japan_macro_dry_run:
+        payload = run_official_japan_macro_dry_run(live=bool(args.japan_macro_live_once))
+        print(payload)
+        return
 
     if args.actual_smoke:
         if args.sample_only or args.schedule:

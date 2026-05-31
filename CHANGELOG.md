@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.37-v0.8.38 - Official Japan Macro Adapter Implementation and Validation
+
+### Added
+
+- Added optional official Japan macro adapter contracts for JGB yield curve, Japan CPI/core CPI, and BOJ/call-rate domestic short-rate context.
+- Added fixture-backed parser tests and a contract-only `--japan-macro-dry-run` path so official macro handling can be validated without making live official fetches mandatory.
+- Wired official macro outputs into Japan-resident multi-asset context as display-only inputs for domestic rate and inflation components.
+
+### Scope
+
+- Kept `final_action`, equity buy-readiness scoring, threshold JSON and decisions, reliability policy, buy blocker/card logic, buy window/candidate thresholds, risk labels, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.35-v0.8.36 - Japan Resident Sample Coverage and Fetch Safe Probe
 
 ### Added

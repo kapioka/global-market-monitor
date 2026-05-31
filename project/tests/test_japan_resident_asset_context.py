@@ -38,6 +38,7 @@ def test_taxonomy_covers_required_japan_resident_data_groups() -> None:
         "japan_inflation_rates",
         "japanese_reit",
         "gold_jpy_proxy",
+        "boj_domestic_rates",
     }.issubset(DATA_SOURCE_CONTRACT)
 
 
@@ -137,3 +138,39 @@ def test_cash_gold_jp_equity_and_reit_are_separate_display_contexts() -> None:
     assert reit["reason_category"] == "jp_reit_context"
     assert equity["components"]["market_risk"] < 0
     assert reit["components"]["domestic_rate"] < 0
+
+
+def test_official_domestic_short_rate_context_is_display_only() -> None:
+    cash = build_japan_resident_context_signal(
+        {"asset_class": "cash", "source_data_available": True, "source_status": "ok"},
+        {"domestic_rates": {"domestic_rate_context": "rising"}},
+    )
+    reit = build_japan_resident_context_signal(
+        {"asset_class": "reit_jp", "source_data_available": True, "source_status": "ok"},
+        {"domestic_rates": {"domestic_rate_context": "rising"}},
+    )
+    bond = build_japan_resident_context_signal(
+        {"asset_class": "bond_jpy_intermediate", "source_data_available": True, "source_status": "ok"},
+        {"domestic_rates": {"domestic_rate_context": "stable"}},
+    )
+
+    assert cash["components"]["domestic_rate"] > 0
+    assert reit["components"]["domestic_rate"] < 0
+    assert bond["components"]["domestic_rate"] > 0
+    assert cash["must_not_affect_final_action"] is True
+    assert reit["must_not_affect_buy_readiness_score"] is True
+
+
+def test_official_jgb_yield_curve_levels_are_consumed_conservatively() -> None:
+    high_yield = build_japan_resident_context_signal(
+        {"asset_class": "bond_jpy_long", "source_data_available": True, "source_status": "ok"},
+        {"jgb_yields": {"jgb_10y": 1.6, "jgb_curve_10y_2y": 0.7}},
+    )
+    low_yield = build_japan_resident_context_signal(
+        {"asset_class": "bond_jpy_intermediate", "source_data_available": True, "source_status": "ok"},
+        {"jgb_yields": {"jgb_10y": 0.4, "jgb_curve_10y_2y": 0.2}},
+    )
+
+    assert high_yield["components"]["domestic_rate"] < 0
+    assert low_yield["components"]["domestic_rate"] > 0
+    assert high_yield["must_not_affect_final_action"] is True

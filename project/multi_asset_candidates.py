@@ -437,6 +437,8 @@ def _japan_resident_context(
         "japan_risk": japan_risk,
         "jgb_yields": japan_resident_context.get("jgb_yields") or {},
         "inflation": japan_resident_context.get("inflation") or {},
+        "domestic_rates": japan_resident_context.get("domestic_rates") or {},
+        "macro_sources": japan_resident_context.get("macro_sources") or {},
         "credit": japan_resident_context.get("credit") or {},
         "risk_lines": risk_lines,
     }

@@ -17,6 +17,7 @@ from project.decision_attribution import build_decision_attribution
 from project.fx_risk_policy import apply_fx_policy_candidate, classify_fx_policy
 from project.inflation_monitor import build_inflation_monitor
 from project.investment_candidates import build_investment_candidates
+from project.japan_macro_adapters import unavailable_official_japan_macro_context
 from project.japan_risk_monitor import build_japan_risk_monitor
 from project.multi_asset_candidates import build_multi_asset_candidates
 from project.preprocess import compute_returns, preprocess_prices
@@ -166,6 +167,7 @@ def build_report(
         int(config["data"].get("zscore_window_weeks", 52)),
         settings=config.get("japan_risk", {}),
     )
+    japan_macro_context = unavailable_official_japan_macro_context()
     usable_credit_monitor = _filter_live_monitor_rows(credit_monitor, availability_map)
     usable_inflation_monitor = _filter_live_monitor_rows(inflation_monitor, availability_map)
     usable_risk_monitor = _filter_live_monitor_rows(risk_monitor, availability_map)
@@ -258,6 +260,7 @@ def build_report(
             "risk_lines": risk_lines,
             "japan_risk": japan_risk,
             "japan_tickers": config["tickers"].get("japan", {}),
+            "japan_resident_context": japan_macro_context,
             "acquisition_log": fetch.acquisition_log,
         }
     )

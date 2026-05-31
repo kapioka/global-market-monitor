@@ -148,6 +148,28 @@ def test_japan_resident_configured_bond_and_reit_tickers_feed_display_rows() -> 
     assert by_class["reit_jp"]["japan_resident_must_not_affect_final_action"] is True
 
 
+def test_official_macro_context_feeds_display_only_japan_rows() -> None:
+    inputs = _inputs()
+    inputs["japan_tickers"] = {"jpy_bond_intermediate": "2510.T", "jp_reit_proxy": "1343.T", "gold_jpy_proxy": "1540.T"}
+    inputs["availability_map"].update({"2510.T": {"status": "ok"}, "1343.T": {"status": "ok"}, "1540.T": {"status": "ok"}})
+    inputs["japan_resident_context"] = {
+        "jgb_yields": {"jgb_10y": 1.08, "jgb_curve_10y_2y": 0.74},
+        "inflation": {"jp_cpi_yoy": 2.7, "jp_core_cpi_yoy": 2.4, "jp_cpi_trend": "rising"},
+        "domestic_rates": {"boj_policy_rate": 0.25, "boj_call_rate": 0.28, "domestic_rate_context": "rising"},
+        "macro_sources": {"japan_cpi": {"status": "ok"}},
+    }
+
+    result = build_multi_asset_candidates(inputs)
+    by_class = {row["asset_class"]: row for row in result["candidates"]}
+
+    assert by_class["bond_jpy"]["japan_resident_context_components"]["domestic_rate"] < 0
+    assert by_class["reit_jp"]["japan_resident_context_components"]["domestic_rate"] < 0
+    assert by_class["gold"]["japan_resident_context_components"]["inflation"] > 0
+    assert by_class["cash"]["japan_resident_context_components"]["domestic_rate"] > 0
+    assert by_class["bond_jpy"]["japan_resident_must_not_affect_final_action"] is True
+    assert result["affects_buy_readiness_score"] is False
+
+
 def test_japan_resident_unavailable_configured_series_stay_data_unavailable() -> None:
     inputs = _inputs()
     inputs["japan_tickers"] = {"jpy_bond_intermediate": "2510.T", "jp_reit_proxy": "1343.T", "gold_jpy_proxy": "1540.T"}
