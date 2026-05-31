@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from project.multi_asset_signal_model import build_multi_asset_signal
+
 
 DISCLAIMER = "これは買い推奨ではなく、現在の市場状態を資産クラス別に整理したものです。外貨建て資産は為替の影響を受けます。"
 
@@ -85,16 +87,28 @@ def _gold_candidate(
     monitor_row = _find_monitor(inflation_monitor, {"GC=F", "GLD", "IAU"})
     symbol = str((preferred or {}).get("ticker") or asset_map.get("Gold") or (monitor_row or {}).get("ticker") or "GLD")
     available = _is_available(symbol, availability_map) or preferred is not None or monitor_row is not None
+    signal = build_multi_asset_signal(
+        {
+            "asset_class": "gold",
+            "symbol": symbol,
+            "display_name": str((preferred or monitor_row or {}).get("ticker_name_ja") or "ゴールド"),
+            "source_data_available": available,
+            "expected_role": "defensive",
+            "expected_reason_category": "defensive_context" if available else "insufficient_data",
+            "expected_missing_data_representation": "none" if available else "source_data_unavailable",
+        }
+    )
     return _candidate(
         asset_class="gold",
-        symbol=symbol,
-        display_name=str((preferred or monitor_row or {}).get("ticker_name_ja") or "ゴールド"),
-        role="defensive",
-        status="watch" if available else "not_available",
+        symbol=signal["symbol"],
+        display_name=signal["display_name"],
+        role=signal["role"],
+        status=signal["status"],
         reason="株式と同じ買い候補度ではなく、不安定時の守り候補として確認します。",
         caution="外貨建てまたは先物由来の指標は為替や商品価格の影響を受けます。",
-        source_data_available=available,
+        source_data_available=signal["source_data_available"],
         metrics=_metrics_from(preferred or monitor_row),
+        signal=signal,
     )
 
 
@@ -110,38 +124,58 @@ def _bond_candidate(
     symbol = str((preferred or {}).get("ticker") or asset_map.get("Bonds") or (monitor_row or {}).get("ticker") or "AGG")
     available = _is_available(symbol, availability_map) or preferred is not None or monitor_row is not None
     risk_stage = str(risk_lines.get("stage_key") or "")
-    status = (
-        "watch"
-        if available and risk_stage not in {"extreme_danger_line_reached", "danger_line_reached"}
-        else "neutral" if available else "not_available"
+    signal = build_multi_asset_signal(
+        {
+            "asset_class": "bond",
+            "symbol": symbol,
+            "display_name": str((preferred or monitor_row or {}).get("ticker_name_ja") or "米国債券ETF"),
+            "source_data_available": available,
+            "expected_role": "diversification",
+            "expected_reason_category": "rate_sensitive_context" if available else "insufficient_data",
+            "expected_missing_data_representation": "none" if available else "source_data_unavailable",
+        }
     )
+    status = signal["status"] if risk_stage not in {"extreme_danger_line_reached", "danger_line_reached"} else "informational"
     return _candidate(
         asset_class="bond",
-        symbol=symbol,
-        display_name=str((preferred or monitor_row or {}).get("ticker_name_ja") or "米国債券ETF"),
-        role="diversification",
+        symbol=signal["symbol"],
+        display_name=signal["display_name"],
+        role=signal["role"],
         status=status,
         reason="金利低下やリスク回避の局面で確認する分散候補として扱います。",
         caution="債券ETFも金利変動と為替の影響を受け、株式候補とは別枠で見ます。",
-        source_data_available=available,
+        source_data_available=signal["source_data_available"],
         metrics=_metrics_from(preferred or monitor_row),
+        signal={**signal, "status": status},
     )
 
 
 def _cash_candidate(reliability: dict[str, Any], risk_lines: dict[str, Any]) -> dict[str, Any]:
     decision_allowed = bool(reliability.get("decision_allowed", False))
     risk_stage = str(risk_lines.get("stage_key") or "")
-    status = "candidate" if (not decision_allowed or risk_stage in {"danger_line_reached", "extreme_danger_line_reached"}) else "neutral"
+    signal = build_multi_asset_signal(
+        {
+            "asset_class": "cash",
+            "symbol": "CASH",
+            "display_name": "現金待機",
+            "source_data_available": True,
+            "expected_role": "wait",
+            "expected_reason_category": "wait_context",
+            "expected_missing_data_representation": "not_market_ticker",
+        }
+    )
+    status = signal["status"] if (not decision_allowed or risk_stage in {"danger_line_reached", "extreme_danger_line_reached"}) else "informational"
     return _candidate(
         asset_class="cash",
-        symbol="CASH",
-        display_name="現金待機",
-        role="wait",
+        symbol=signal["symbol"],
+        display_name=signal["display_name"],
+        role=signal["role"],
         status=status,
         reason="条件がそろうまで待つ選択肢として表示します。",
         caution="機会損失はあり得ますが、無理に資産候補へ振り分けません。",
-        source_data_available=True,
+        source_data_available=signal["source_data_available"],
         metrics={},
+        signal={**signal, "status": status},
     )
 
 
@@ -156,8 +190,9 @@ def _candidate(
     caution: str,
     source_data_available: bool,
     metrics: dict[str, Any],
+    signal: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
+    row = {
         "asset_class": asset_class,
         "asset_class_label": ASSET_CLASS_LABELS[asset_class],
         "symbol": symbol,
@@ -170,6 +205,16 @@ def _candidate(
         "source_data_available": source_data_available,
         "metrics": metrics,
     }
+    if signal:
+        row.update(
+            {
+                "reason_category": signal["reason_category"],
+                "caution_required": signal["caution_required"],
+                "must_not_affect_final_action": signal["must_not_affect_final_action"],
+                "must_not_affect_buy_readiness_score": signal["must_not_affect_buy_readiness_score"],
+            }
+        )
+    return row
 
 
 def _build_inventory(

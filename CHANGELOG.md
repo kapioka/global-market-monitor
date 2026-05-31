@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.25 - Connect Multi-Asset Signal Prototype to Candidate Generation
+
+### Added
+
+- Connected the isolated multi-asset signal prototype to gold, bond, and cash/wait candidate generation without changing report UI or final decision behavior.
+- Added candidate-layer regression coverage for signal-derived reason categories, conservative missing-data statuses, and explicit non-impact flags.
+
+### Scope
+
+- Kept equity candidate behavior, report UI, pipeline behavior, `final_action`, threshold JSON and decisions, reliability policy, buy-readiness calculation, buy blocker/card logic, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.24 - Multi-Asset Signal Prototype Model
 
 ### Added
