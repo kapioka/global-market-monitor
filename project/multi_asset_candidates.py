@@ -315,7 +315,7 @@ def _merge_acquisition_availability(
 
 def _is_available(symbol: str, availability_map: dict[str, Any]) -> bool:
     row = availability_map.get(symbol) or {}
-    return row.get("status") not in {None, "unavailable", "sample_fallback"}
+    return row.get("status") not in {None, "unavailable", "sample_fallback", "failed", "partial"}
 
 
 def _metrics_from(row: dict[str, Any] | None) -> dict[str, Any]:

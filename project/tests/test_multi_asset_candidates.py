@@ -233,6 +233,109 @@ def test_acquisition_log_unavailable_status_stays_conservative() -> None:
     assert by_class["cash"]["status"] == "wait"
 
 
+def test_acquisition_log_failed_and_partial_statuses_do_not_create_watch_candidates() -> None:
+    result = build_multi_asset_candidates(
+        {
+            "asset_map": {},
+            "availability_map": {},
+            "asset_compare": [],
+            "inflation_monitor": [],
+            "credit_monitor": [],
+            "acquisition_log": [
+                {
+                    "requested_ticker": "GC=F",
+                    "requested_ticker_name_ja": "金先物",
+                    "used_ticker": "GC=F",
+                    "used_ticker_name_ja": "金先物",
+                    "status": "failed",
+                },
+                {
+                    "requested_ticker": "LQD",
+                    "requested_ticker_name_ja": "投資適格社債ETF",
+                    "used_ticker": "LQD",
+                    "used_ticker_name_ja": "投資適格社債ETF",
+                    "status": "partial",
+                },
+            ],
+            "investment_candidates": {},
+            "data_reliability": {"decision_allowed": True},
+            "risk_lines": {"stage_key": "normal"},
+        }
+    )
+    by_class = {row["asset_class"]: row for row in result["candidates"]}
+
+    assert by_class["gold"]["symbol"] == "GC=F"
+    assert by_class["gold"]["status"] == "unavailable"
+    assert by_class["gold"]["source_data_available"] is False
+    assert by_class["bond"]["symbol"] == "LQD"
+    assert by_class["bond"]["status"] == "unavailable"
+    assert by_class["bond"]["source_data_available"] is False
+
+
+def test_acquisition_log_uses_requested_ticker_match_and_used_ticker_display() -> None:
+    result = build_multi_asset_candidates(
+        {
+            "asset_map": {},
+            "availability_map": {},
+            "asset_compare": [],
+            "inflation_monitor": [],
+            "credit_monitor": [],
+            "acquisition_log": [
+                {
+                    "requested_ticker": "GLD",
+                    "requested_ticker_name_ja": "金ETF",
+                    "used_ticker": "IAU",
+                    "used_ticker_name_ja": "金ETF代替",
+                    "status": "ok",
+                },
+                {
+                    "requested_ticker": "AGG",
+                    "requested_ticker_name_ja": "総合債券ETF",
+                    "used_ticker": "BND",
+                    "used_ticker_name_ja": "総合債券ETF代替",
+                    "status": "ok",
+                },
+            ],
+            "investment_candidates": {},
+            "data_reliability": {"decision_allowed": True},
+            "risk_lines": {"stage_key": "normal"},
+        }
+    )
+    by_class = {row["asset_class"]: row for row in result["candidates"]}
+
+    assert by_class["gold"]["symbol"] == "IAU"
+    assert by_class["gold"]["display_name"] == "金ETF代替"
+    assert by_class["gold"]["status"] == "watch"
+    assert by_class["bond"]["symbol"] == "BND"
+    assert by_class["bond"]["display_name"] == "総合債券ETF代替"
+    assert by_class["bond"]["status"] == "watch"
+
+
+def test_availability_map_overrides_acquisition_log_status_for_known_symbol() -> None:
+    result = build_multi_asset_candidates(
+        {
+            "asset_map": {"Gold": "GLD", "Bonds": "AGG"},
+            "availability_map": {"GLD": {"status": "ok"}, "AGG": {"status": "unavailable"}},
+            "asset_compare": [],
+            "inflation_monitor": [],
+            "credit_monitor": [],
+            "acquisition_log": [
+                {"requested_ticker": "GLD", "used_ticker": "GLD", "status": "failed"},
+                {"requested_ticker": "AGG", "used_ticker": "AGG", "status": "ok"},
+            ],
+            "investment_candidates": {},
+            "data_reliability": {"decision_allowed": True},
+            "risk_lines": {"stage_key": "normal"},
+        }
+    )
+    by_class = {row["asset_class"]: row for row in result["candidates"]}
+
+    assert by_class["gold"]["status"] == "watch"
+    assert by_class["gold"]["source_data_available"] is True
+    assert by_class["bond"]["status"] == "unavailable"
+    assert by_class["bond"]["source_data_available"] is False
+
+
 def test_multi_asset_copy_avoids_forbidden_advice_phrases() -> None:
     result = build_multi_asset_candidates(_inputs())
     rendered = str(result)

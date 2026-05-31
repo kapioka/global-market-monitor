@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.29 - Multi-Asset Real-Input Compatibility Hardening
+
+### Changed
+
+- Strengthened real-input compatibility coverage for GLD, GC=F, TIP, LQD, acquisition-log requested/used ticker mapping, availability overrides, and failed/partial acquisition statuses.
+- Tightened candidate-layer fallback so failed or partial acquisition-log statuses do not create watch candidates.
+
+### Scope
+
+- Kept `final_action`, equity buy-readiness scoring, threshold JSON and decisions, reliability policy, buy blocker/card logic, buy window/candidate thresholds, risk labels, pipeline behavior, report redesign, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.28 - Connect Multi-Asset Signals to Existing Real Data Inputs
 
 ### Changed
