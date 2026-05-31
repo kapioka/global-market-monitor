@@ -66,6 +66,7 @@ SECTION_EXPLANATIONS = {
     "diagnostics": "接続診断では、今回の実行が live 取得だったか、配布 exe 実行か、失敗時にどのホストや例外が出たかを後から追えるようにまとめます。",
     "decision_reasons": "判定理由は、地合い、サイクル、合成スコア、信用市場の補助情報を文章でつないだ要約です。数値一覧だけで見落としやすい悪化要因を先に読むために使います。",
     "candidates": "投資候補は、既存の地合い判定を前提に、相対強度の高い資産クラスや先導セクターを候補として整理する補助層です。強い推奨ではなく、優先候補・観察候補・候補なしの三段で示します。",
+    "multi_asset_candidates": "資産クラス別の確認候補は、株式・ゴールド・債券・現金待機を同じ買い候補度に混ぜず、役割別に整理する補助層です。",
     "recovery_candidates": "先回り候補は、今は強くなくても、下落後に改善初期へ入りつつある資産やセクターを拾う補助層です。安いだけでなく、短期の改善と深い調整の両方を見ます。",
     "regime_leading_candidates": "レジーム先回り候補は、次の地合いで効きやすいセクターテーマを拾う補助層です。価格の底打ちだけではなく、現レジームとの相性と直近の改善兆候を合わせて見ます。",
     "alerts": "警告レイヤーは、既存の市場判定を上書きせずに、内部ロジックがどこで警戒を発火しているかを見えるようにする補助層です。市場警告、生活影響警告、補足メモに分けて表示します。",
@@ -227,6 +228,69 @@ def _threshold_rule_certification_html(report: dict[str, Any]) -> str:
       </ul>
       <p>main blocking reasons</p>
       <ul>{reasons}</ul>
+    </section>
+    """
+
+
+def _multi_asset_candidate_markdown_lines(report: dict[str, Any]) -> list[str]:
+    payload = report.get("multi_asset_candidates") or {}
+    if not payload:
+        return []
+    lines = ["", "## 資産クラス別の確認候補", f"- {SECTION_EXPLANATIONS['multi_asset_candidates']}"]
+    lines.append(f"- 要約: {payload.get('summary', '-')}")
+    lines.append(f"- 注意: {payload.get('disclaimer', '-')}")
+    lines.append(f"- final_action への影響: {payload.get('affects_final_action', False)}")
+    lines.append(f"- buy_readiness_score への影響: {payload.get('affects_buy_readiness_score', False)}")
+    for row in payload.get("candidates", []):
+        metrics = row.get("metrics") or {}
+        metric_text = ", ".join(f"{key}={_display_number(value)}" for key, value in metrics.items()) or "利用可能な表示指標なし"
+        lines.append(
+            "- {label}: {symbol} ({name}) / 役割: {role} / 状態: {status} / データ: {available} / 指標: {metrics}".format(
+                label=row.get("asset_class_label", "-"),
+                symbol=row.get("symbol", "-"),
+                name=row.get("display_name", "-"),
+                role=row.get("role_label", "-"),
+                status=row.get("status", "-"),
+                available="あり" if row.get("source_data_available") else "なし",
+                metrics=metric_text,
+            )
+        )
+        lines.append(f"  - 理由: {row.get('reason', '-')}")
+        lines.append(f"  - 注意: {row.get('caution', '-')}")
+    return lines
+
+
+def _multi_asset_candidate_html(report: dict[str, Any]) -> str:
+    payload = report.get("multi_asset_candidates") or {}
+    if not payload:
+        return ""
+    rows = "".join(
+        "<tr>"
+        f"<td>{html.escape(str(row.get('asset_class_label', '-')))}</td>"
+        f"<td>{html.escape(str(row.get('symbol', '-')))}<br><span style='color:#52606d'>{html.escape(str(row.get('display_name', '-')))}</span></td>"
+        f"<td>{html.escape(str(row.get('role_label', '-')))}</td>"
+        f"<td>{html.escape(str(row.get('status', '-')))}</td>"
+        f"<td>{'あり' if row.get('source_data_available') else 'なし'}</td>"
+        f"<td>{html.escape(str(row.get('reason', '-')))}<br><span style='color:#52606d'>{html.escape(str(row.get('caution', '-')))}</span></td>"
+        "</tr>"
+        for row in payload.get("candidates", [])
+    )
+    if not rows:
+        rows = "<tr><td colspan='6'>候補データなし</td></tr>"
+    return f"""
+    <section class=\"section\">
+      <h2>資産クラス別の確認候補</h2>
+      <p>{html.escape(SECTION_EXPLANATIONS['multi_asset_candidates'])}</p>
+      <p>{html.escape(str(payload.get('summary', '-')))}</p>
+      <p><strong>注意:</strong> {html.escape(str(payload.get('disclaimer', '-')))}</p>
+      <ul>
+        <li>final_action への影響: {html.escape(str(payload.get('affects_final_action', False)))}</li>
+        <li>buy_readiness_score への影響: {html.escape(str(payload.get('affects_buy_readiness_score', False)))}</li>
+      </ul>
+      <table>
+        <thead><tr><th>資産クラス</th><th>候補</th><th>役割</th><th>状態</th><th>データ</th><th>理由と注意</th></tr></thead>
+        <tbody>{rows}</tbody>
+      </table>
     </section>
     """
 
@@ -860,6 +924,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append("- 候補ティッカー: " + ", ".join(f"{item.get('ticker', '-')}({item.get('label', '-')})" for item in tickers))
     for reason in candidate.get("rationale", []):
         lines.append(f"- {reason}")
+
+    lines.extend(_multi_asset_candidate_markdown_lines(report))
 
     recovery = report.get("recovery_candidates", {})
     lines.extend(["", "## 先回り候補", f"- {SECTION_EXPLANATIONS['recovery_candidates']}"])
@@ -1569,6 +1635,36 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
     candidate_rationale = (
         "".join(f"<li>{esc(reason)}</li>" for reason in candidate.get("rationale", [])) or "<li>候補提示の条件がまだ揃っていません。</li>"
     )
+    multi_asset = report.get("multi_asset_candidates") or {}
+    multi_asset_rows = [
+        [
+            esc(row.get("asset_class_label", "-")),
+            ticker_label(row.get("symbol", "-"), row.get("display_name", "-")),
+            esc(row.get("role_label", "-")),
+            esc(row.get("status", "-")),
+            "あり" if row.get("source_data_available") else "なし",
+            esc(row.get("reason", "-")),
+        ]
+        for row in multi_asset.get("candidates", [])
+    ]
+    multi_asset_table = small_table(
+        ["資産クラス", "候補", "役割", "状態", "データ", "理由"],
+        multi_asset_rows or [["候補データなし", "", "", "", "", ""]],
+    )
+    multi_asset_panel = (
+        '<section class="panel mt"><h3>資産クラス別の確認候補 {source}</h3>'
+        "<p>{summary}</p><p><strong>注意:</strong> {disclaimer}</p>"
+        '<ul class="compact-list"><li>final_action への影響: {final_action}</li>'
+        "<li>buy_readiness_score への影響: {readiness}</li></ul>"
+        '<div class="table-wrap">{table}</div></section>'
+    ).format(
+        source=source_chip("資産クラス別の確認候補"),
+        summary=esc(multi_asset.get("summary", "-")),
+        disclaimer=esc(multi_asset.get("disclaimer", "-")),
+        final_action=esc(multi_asset.get("affects_final_action", False)),
+        readiness=esc(multi_asset.get("affects_buy_readiness_score", False)),
+        table=multi_asset_table,
+    )
     recovery_rationale = (
         "".join(f"<li>{esc(reason)}</li>" for reason in recovery.get("rationale", [])) or "<li>先回り候補の条件はまだ揃っていません。</li>"
     )
@@ -1808,6 +1904,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
           <section class="panel"><h3>先回り候補 {source_chip('先回り候補')}</h3><p>{esc(recovery.get('summary', '-'))}</p><ul class="compact-list"><li>判定: {esc(recovery.get('label', '候補なし'))}</li><li>候補ティッカー: {esc(recovery_tickers)}</li>{recovery_rationale}</ul></section>
           <section class="panel"><h3>レジーム先回り候補 {source_chip('レジーム先回り候補')}</h3><p>{esc(regime_leading.get('summary', '-'))}</p><ul class="compact-list"><li>判定: {esc(regime_leading.get('label', '候補なし'))}</li><li>候補ティッカー: {esc(regime_leading_tickers)}</li>{regime_leading_rationale}</ul></section>
         </div>
+        {multi_asset_panel}
       </section>
 
       <section class="view view-sector">
@@ -2886,6 +2983,8 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       <ul>{candidate_items}</ul>
     </section>
 
+    {_multi_asset_candidate_html(report)}
+
     <section class=\"section\">
       <h2>先回り候補</h2>
       <p>{html.escape(SECTION_EXPLANATIONS['recovery_candidates'])}</p>
@@ -3101,6 +3200,9 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     legacy_marker = '    <section class="hero">'
     if legacy_marker in html_output:
         html_output = html_output.split(legacy_marker, 1)[0].rstrip() + "\n  </div>\n</body>\n</html>\n"
+    multi_asset_html = _multi_asset_candidate_html(report)
+    if multi_asset_html:
+        html_output = html_output.replace("\n  </div>\n</body>", f"\n{multi_asset_html}\n  </div>\n</body>", 1)
     return html_output
 
 

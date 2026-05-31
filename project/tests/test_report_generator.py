@@ -364,6 +364,71 @@ def _report() -> dict:
     }
 
 
+def _multi_asset_payload() -> dict:
+    return {
+        "title": "資産クラス別の確認候補",
+        "summary": "株式・ゴールド・債券・現金待機を、同じ買い候補度に混ぜず役割別に整理します。",
+        "disclaimer": "これは買い推奨ではなく、現在の市場状態を資産クラス別に整理したものです。外貨建て資産は為替の影響を受けます。",
+        "affects_final_action": False,
+        "affects_buy_readiness_score": False,
+        "candidates": [
+            {
+                "asset_class": "equity",
+                "asset_class_label": "株式候補",
+                "symbol": "SPY",
+                "display_name": "米国大型株ETF",
+                "role": "growth",
+                "role_label": "成長を取りに行く候補",
+                "status": "candidate",
+                "reason": "既存の資産比較で株式の相対状況を確認します。",
+                "caution": "既存の最終判断を上書きしません。",
+                "source_data_available": True,
+                "metrics": {"momentum_12w": 0.12},
+            },
+            {
+                "asset_class": "gold",
+                "asset_class_label": "守り候補",
+                "symbol": "GLD",
+                "display_name": "金ETF",
+                "role": "defensive",
+                "role_label": "不安定時の守り候補",
+                "status": "watch",
+                "reason": "株式と同じ買い候補度ではなく確認します。",
+                "caution": "為替や商品価格の影響を受けます。",
+                "source_data_available": True,
+                "metrics": {"momentum_12w": 0.04},
+            },
+            {
+                "asset_class": "bond",
+                "asset_class_label": "債券候補",
+                "symbol": "AGG",
+                "display_name": "総合債券ETF",
+                "role": "diversification",
+                "role_label": "金利低下・リスク回避時の確認候補",
+                "status": "watch",
+                "reason": "分散候補として扱います。",
+                "caution": "株式候補とは別枠で見ます。",
+                "source_data_available": True,
+                "metrics": {"momentum_12w": 0.02},
+            },
+            {
+                "asset_class": "cash",
+                "asset_class_label": "現金待機",
+                "symbol": "CASH",
+                "display_name": "現金待機",
+                "role": "wait",
+                "role_label": "条件がそろうまで待つ選択",
+                "status": "neutral",
+                "reason": "条件がそろうまで待つ選択肢として表示します。",
+                "caution": "無理に資産候補へ振り分けません。",
+                "source_data_available": True,
+                "metrics": {},
+            },
+        ],
+        "inventory": [],
+    }
+
+
 def test_render_markdown_uses_real_newlines():
     text = render_markdown(_report())
     assert "`n" not in text
@@ -612,6 +677,43 @@ def test_render_html_contains_japanese_explanations():
     assert '<section class="section">' not in html
     assert "historyEmbedPayload" not in html
     assert "threshold proposal" not in html
+
+
+def test_render_markdown_includes_multi_asset_candidates_without_changing_decision_fields():
+    report = deepcopy(_report())
+    report["multi_asset_candidates"] = _multi_asset_payload()
+    before_action = report["buy_decision_card"]["final_action"]
+    before_score = report["buy_decision_card"]["buy_readiness_score"]
+
+    markdown = render_markdown(report)
+
+    assert "## 資産クラス別の確認候補" in markdown
+    assert "株式候補: SPY" in markdown
+    assert "守り候補: GLD" in markdown
+    assert "債券候補: AGG" in markdown
+    assert "現金待機: CASH" in markdown
+    assert "これは買い推奨ではなく" in markdown
+    assert "final_action への影響: False" in markdown
+    assert "buy_readiness_score への影響: False" in markdown
+    assert report["buy_decision_card"]["final_action"] == before_action
+    assert report["buy_decision_card"]["buy_readiness_score"] == before_score
+    section = markdown[markdown.index("## 資産クラス別の確認候補") : markdown.index("## 先回り候補")]
+    for forbidden in ("買うべき", "今が買い", "安全", "利益が出る", "確実", "推奨銘柄"):
+        assert forbidden not in section
+
+
+def test_render_html_includes_multi_asset_candidates_table():
+    report = deepcopy(_report())
+    report["multi_asset_candidates"] = _multi_asset_payload()
+
+    html = render_html(report)
+
+    assert "資産クラス別の確認候補" in html
+    assert "株式候補" in html
+    assert "守り候補" in html
+    assert "債券候補" in html
+    assert "現金待機" in html
+    assert "final_action への影響: False" in html
 
 
 def test_render_supplement_dashboard_html_maps_all_source_sections():

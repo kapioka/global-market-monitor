@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.8.21 - Multi-Asset Candidate Display Foundation
+
+### Added
+
+- Added a display-only multi-asset candidate foundation that separates equities, gold, bonds, and cash wait by asset-class role.
+- Added report rendering for `資産クラス別の確認候補` with explicit caution text, source-data availability, role labels, and no final-action impact.
+- Documented the fast-track design, existing ticker inventory, non-advice wording, out-of-scope boundaries, and future gold/bond score considerations.
+- Added regression coverage for asset-class separation, missing-data rendering, no forbidden advice phrases, and unchanged final-action/readiness display fields.
+
+### Scope
+
+- Kept `final_action`, threshold JSON and decisions, reliability policy, buy-window/candidate thresholds, buy-readiness calculation, buy blocker/card logic, CI, scripts, dependencies, generated reports, cache, release archives, GitHub Release, and push out of scope.
+
 ## v0.8.17 - Actual Smoke Release Checklist Integration
 
 ### Added

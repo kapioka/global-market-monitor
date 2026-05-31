@@ -18,6 +18,7 @@ from project.fx_risk_policy import apply_fx_policy_candidate, classify_fx_policy
 from project.inflation_monitor import build_inflation_monitor
 from project.investment_candidates import build_investment_candidates
 from project.japan_risk_monitor import build_japan_risk_monitor
+from project.multi_asset_candidates import build_multi_asset_candidates
 from project.preprocess import compute_returns, preprocess_prices
 from project.recovery_candidates import build_recovery_candidates
 from project.regime_analysis import analyze_market_regime
@@ -245,6 +246,18 @@ def build_report(
             "sector_rotation": sector_rotation,
         }
     )
+    multi_asset_candidates = build_multi_asset_candidates(
+        {
+            "asset_map": config["tickers"].get("asset_classes", {}),
+            "availability_map": availability_map,
+            "asset_compare": asset_compare,
+            "inflation_monitor": usable_inflation_monitor,
+            "credit_monitor": usable_credit_monitor,
+            "investment_candidates": investment_candidates,
+            "data_reliability": reliability,
+            "risk_lines": risk_lines,
+        }
+    )
     recovery_candidates = build_recovery_candidates(
         prices=prices,
         asset_map=config["tickers"]["asset_classes"],
@@ -311,6 +324,7 @@ def build_report(
         "fx_policy_diagnostics": fx_policy_diagnostics,
         "fx_soft_cap_watchlist": fx_soft_cap_watchlist,
         "investment_candidates": investment_candidates,
+        "multi_asset_candidates": multi_asset_candidates,
         "recovery_candidates": recovery_candidates,
         "regime_leading_candidates": regime_leading_candidates,
         "alerts": alerts,
