@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.28 - Connect Multi-Asset Signals to Existing Real Data Inputs
+
+### Changed
+
+- Added a narrow candidate-layer adapter for existing acquisition-log style input so gold and bond candidates can use available local cache/report data when `asset_compare` or monitor rows are absent.
+- Preserved conservative fallback behavior for unavailable, sample-fallback, missing, partial, and legacy-shaped multi-asset inputs.
+
+### Scope
+
+- Kept `final_action`, equity buy-readiness scoring, threshold JSON and decisions, reliability policy, buy blocker/card logic, buy window/candidate thresholds, risk labels, pipeline behavior, report redesign, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.27 - Real-Data Shape Probe and Multi-Asset Report Display Adjustment
 
 ### Changed

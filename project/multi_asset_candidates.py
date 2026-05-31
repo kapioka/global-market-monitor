@@ -29,13 +29,15 @@ def build_multi_asset_candidates(report_inputs: dict[str, Any]) -> dict[str, Any
     investment_candidates = report_inputs.get("investment_candidates") or {}
     inflation_monitor = report_inputs.get("inflation_monitor") or []
     credit_monitor = report_inputs.get("credit_monitor") or []
+    acquisition_log = report_inputs.get("acquisition_log") or []
     reliability = report_inputs.get("data_reliability") or {}
     risk_lines = report_inputs.get("risk_lines") or {}
+    availability_map = _merge_acquisition_availability(availability_map, acquisition_log)
 
     rows = [
         _equity_candidate(asset_compare, asset_map, availability_map, investment_candidates),
-        _gold_candidate(asset_compare, asset_map, availability_map, inflation_monitor),
-        _bond_candidate(asset_compare, asset_map, availability_map, credit_monitor, risk_lines),
+        _gold_candidate(asset_compare, asset_map, availability_map, inflation_monitor, acquisition_log),
+        _bond_candidate(asset_compare, asset_map, availability_map, credit_monitor, acquisition_log, risk_lines),
         _cash_candidate(reliability, risk_lines),
     ]
 
@@ -82,16 +84,26 @@ def _gold_candidate(
     asset_map: dict[str, Any],
     availability_map: dict[str, Any],
     inflation_monitor: list[dict[str, Any]],
+    acquisition_log: list[dict[str, Any]],
 ) -> dict[str, Any]:
     preferred = _find_asset(asset_compare, {"Gold"})
     monitor_row = _find_monitor(inflation_monitor, {"GC=F", "GLD", "IAU"})
-    symbol = str((preferred or {}).get("ticker") or asset_map.get("Gold") or (monitor_row or {}).get("ticker") or "GLD")
+    acquisition_row = _find_acquisition(acquisition_log, {"GC=F", "GLD", "IAU"})
+    symbol = str(
+        (preferred or {}).get("ticker")
+        or asset_map.get("Gold")
+        or (monitor_row or {}).get("ticker")
+        or _acquisition_symbol(acquisition_row)
+        or "GLD"
+    )
     available = _is_available(symbol, availability_map) or preferred is not None or monitor_row is not None
     signal = build_multi_asset_signal(
         {
             "asset_class": "gold",
             "symbol": symbol,
-            "display_name": str((preferred or monitor_row or {}).get("ticker_name_ja") or "ゴールド"),
+            "display_name": str(
+                (preferred or monitor_row or {}).get("ticker_name_ja") or _acquisition_name(acquisition_row) or "ゴールド"
+            ),
             "source_data_available": available,
             "expected_role": "defensive",
             "expected_reason_category": "defensive_context" if available else "insufficient_data",
@@ -117,18 +129,29 @@ def _bond_candidate(
     asset_map: dict[str, Any],
     availability_map: dict[str, Any],
     credit_monitor: list[dict[str, Any]],
+    acquisition_log: list[dict[str, Any]],
     risk_lines: dict[str, Any],
 ) -> dict[str, Any]:
     preferred = _find_asset(asset_compare, {"Bonds", "Inflation_Bonds"})
     monitor_row = _find_monitor(credit_monitor, {"LQD", "HYG", "AGG", "BND", "TLT", "IEF", "SHY", "BIL"})
-    symbol = str((preferred or {}).get("ticker") or asset_map.get("Bonds") or (monitor_row or {}).get("ticker") or "AGG")
+    acquisition_row = _find_acquisition(acquisition_log, {"LQD", "HYG", "AGG", "BND", "TLT", "IEF", "SHY", "BIL", "TIP"})
+    symbol = str(
+        (preferred or {}).get("ticker")
+        or asset_map.get("Bonds")
+        or asset_map.get("Inflation_Bonds")
+        or (monitor_row or {}).get("ticker")
+        or _acquisition_symbol(acquisition_row)
+        or "AGG"
+    )
     available = _is_available(symbol, availability_map) or preferred is not None or monitor_row is not None
     risk_stage = str(risk_lines.get("stage_key") or "")
     signal = build_multi_asset_signal(
         {
             "asset_class": "bond",
             "symbol": symbol,
-            "display_name": str((preferred or monitor_row or {}).get("ticker_name_ja") or "米国債券ETF"),
+            "display_name": str(
+                (preferred or monitor_row or {}).get("ticker_name_ja") or _acquisition_name(acquisition_row) or "米国債券ETF"
+            ),
             "source_data_available": available,
             "expected_role": "diversification",
             "expected_reason_category": "rate_sensitive_context" if available else "insufficient_data",
@@ -252,6 +275,42 @@ def _find_monitor(rows: list[dict[str, Any]], symbols: set[str]) -> dict[str, An
         if row.get("ticker") in symbols:
             return row
     return None
+
+
+def _find_acquisition(rows: list[dict[str, Any]], symbols: set[str]) -> dict[str, Any] | None:
+    for row in rows:
+        used = str(row.get("used_ticker") or "")
+        requested = str(row.get("requested_ticker") or "")
+        if used in symbols or requested in symbols:
+            return row
+    return None
+
+
+def _acquisition_symbol(row: dict[str, Any] | None) -> str | None:
+    if not row:
+        return None
+    return str(row.get("used_ticker") or row.get("requested_ticker") or "") or None
+
+
+def _acquisition_name(row: dict[str, Any] | None) -> str | None:
+    if not row:
+        return None
+    return str(row.get("used_ticker_name_ja") or row.get("requested_ticker_name_ja") or "") or None
+
+
+def _merge_acquisition_availability(
+    availability_map: dict[str, Any],
+    acquisition_log: list[dict[str, Any]],
+) -> dict[str, Any]:
+    if not acquisition_log:
+        return availability_map
+    merged = dict(availability_map)
+    for row in acquisition_log:
+        symbol = _acquisition_symbol(row)
+        if not symbol or symbol in merged:
+            continue
+        merged[symbol] = {"status": row.get("status")}
+    return merged
 
 
 def _is_available(symbol: str, availability_map: dict[str, Any]) -> bool:
