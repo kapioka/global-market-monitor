@@ -14,7 +14,7 @@ from project.backfill import compute_backfill_dates, existing_history_files_for_
 from project.config_loader import load_config
 from project.data_fetcher import FetchResult
 from project.japan_macro_adapters import run_official_japan_macro_dry_run
-from project.pipeline import build_report, fetch_market_snapshot
+from project.pipeline import build_report, collect_tickers, fetch_market_snapshot
 from project.report_runtime import persist_report
 from project.risk_line_review_status import run_periodic_risk_line_maintenance_with_progress
 from project.runtime import console_spinner, ensure_directories, setup_logging
@@ -26,6 +26,8 @@ from project.snapshot_store import (
     save_fetch_snapshot,
     snapshot_exists_for_slot,
 )
+
+__all__ = ["collect_tickers"]
 
 
 def default_config_path() -> Path:
