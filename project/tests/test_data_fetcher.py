@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import logging
+
 import pandas as pd
 
 import project.data_fetcher as data_fetcher
+from project.sample_data import build_sample_prices
+
+JAPAN_RESIDENT_SAMPLE_TICKERS = {"2510.T", "1343.T", "1540.T", "1321.T", "EURJPY=X"}
 
 
 class DummyYF:
@@ -124,3 +128,24 @@ def test_fetch_market_data_falls_back_to_freddie_mac_when_fred_fails(monkeypatch
     assert result.acquisition_log[0]["status"] == "ok"
     assert any("fredgraph.csv" in url for url in calls)
     assert any("PMMS_history.csv" in url for url in calls)
+
+
+def test_japan_resident_sample_series_cover_configured_optional_tickers():
+    sample = build_sample_prices()
+
+    assert JAPAN_RESIDENT_SAMPLE_TICKERS.issubset(sample.columns)
+    assert sample[list(JAPAN_RESIDENT_SAMPLE_TICKERS)].notna().all().all()
+
+
+def test_sample_only_fetch_uses_japan_resident_sample_series():
+    result = data_fetcher.fetch_market_data(
+        tickers=sorted(JAPAN_RESIDENT_SAMPLE_TICKERS),
+        period_years=10,
+        interval="1wk",
+        logger=logging.getLogger("test"),
+        force_sample=True,
+    )
+
+    assert set(result.prices.columns) == JAPAN_RESIDENT_SAMPLE_TICKERS
+    assert {entry["status"] for entry in result.acquisition_log} == {"sample_fallback"}
+    assert {entry["provider"] for entry in result.acquisition_log} == {"synthetic_sample"}

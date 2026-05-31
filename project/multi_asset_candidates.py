@@ -123,7 +123,7 @@ def _gold_candidate(
     available = _is_available(symbol, availability_map) or preferred is not None or monitor_row is not None
     jpy_gold_symbol = str(japan_tickers.get("gold_jpy_proxy") or "")
     jpy_gold_row = _find_acquisition(acquisition_log, {jpy_gold_symbol} if jpy_gold_symbol else set())
-    jpy_gold_available = bool(jpy_gold_symbol and _is_available(jpy_gold_symbol, availability_map)) or _acquisition_available(jpy_gold_row)
+    jpy_gold_available = bool(jpy_gold_symbol and _is_available(jpy_gold_symbol, availability_map)) or _acquisition_has_series(jpy_gold_row)
     context_symbol = jpy_gold_symbol if jpy_gold_available else symbol
     signal = build_multi_asset_signal(
         {
@@ -230,7 +230,7 @@ def _jpy_bond_candidate(
     acquisition_row = _find_acquisition(acquisition_log, {configured_symbol, "2510.T", "2511.T", "JGB"})
     symbol = str((preferred or {}).get("ticker") or _acquisition_symbol(acquisition_row) or configured_symbol)
     metrics = _metrics_from(preferred)
-    available = _is_available(symbol, availability_map) or preferred is not None or _acquisition_available(acquisition_row)
+    available = _is_available(symbol, availability_map) or preferred is not None or _acquisition_has_series(acquisition_row)
     context_signal = build_japan_resident_context_signal(
         {
             "asset_class": "bond_jpy_intermediate",
@@ -266,7 +266,7 @@ def _jp_equity_candidate(
     acquisition_row = _find_acquisition(acquisition_log, {topix_symbol, "1306.T", "1321.T"})
     symbol = str((preferred or {}).get("ticker") or _acquisition_symbol(acquisition_row) or topix_symbol)
     metrics = _metrics_from(preferred)
-    available = _is_available(symbol, availability_map) or preferred is not None or _acquisition_available(acquisition_row)
+    available = _is_available(symbol, availability_map) or preferred is not None or _acquisition_has_series(acquisition_row)
     context_signal = build_japan_resident_context_signal(
         {
             "asset_class": "equity_jp_topix",
@@ -302,7 +302,7 @@ def _jp_reit_candidate(
     acquisition_row = _find_acquisition(acquisition_log, {configured_symbol, "1343.T", "1488.T", "JREIT"})
     symbol = str((preferred or {}).get("ticker") or _acquisition_symbol(acquisition_row) or configured_symbol)
     metrics = _metrics_from(preferred)
-    available = _is_available(symbol, availability_map) or preferred is not None or _acquisition_available(acquisition_row)
+    available = _is_available(symbol, availability_map) or preferred is not None or _acquisition_has_series(acquisition_row)
     context_signal = build_japan_resident_context_signal(
         {
             "asset_class": "reit_jp",
@@ -500,10 +500,10 @@ def _acquisition_name(row: dict[str, Any] | None) -> str | None:
     return str(row.get("used_ticker_name_ja") or row.get("requested_ticker_name_ja") or "") or None
 
 
-def _acquisition_available(row: dict[str, Any] | None) -> bool:
+def _acquisition_has_series(row: dict[str, Any] | None) -> bool:
     if not row:
         return False
-    return row.get("status") not in {None, "unavailable", "sample_fallback", "failed", "partial"}
+    return row.get("status") not in {None, "unavailable", "failed", "partial"}
 
 
 def _merge_acquisition_availability(

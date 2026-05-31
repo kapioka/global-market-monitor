@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.35-v0.8.36 - Japan Resident Sample Coverage and Fetch Safe Probe
+
+### Added
+
+- Added sample-only synthetic coverage for `2510.T`, `1343.T`, `1540.T`, `1321.T`, and `EURJPY=X` so Japan-resident context can be exercised without relying on live data.
+- Added targeted tests confirming sample-only acquisition, JPY bond, Japan REIT, gold JPY proxy, Japanese equity, and FX context remain display-only and conservative.
+- Ran a limited existing-path fetch probe for the five newly added tickers; each was handled by the existing yfinance path without introducing mandatory network behavior.
+
+### Scope
+
+- Kept JGB curve, Japan CPI, and BOJ official adapters deferred; kept `final_action`, equity buy-readiness scoring, threshold JSON and decisions, reliability policy, buy blocker/card logic, buy window/candidate thresholds, risk labels, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.34 - Japan Resident Series Inventory and Config Wiring
 
 ### Added

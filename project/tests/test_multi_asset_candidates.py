@@ -130,8 +130,8 @@ def test_japan_resident_context_uses_existing_japan_proxy_when_available() -> No
 
 def test_japan_resident_configured_bond_and_reit_tickers_feed_display_rows() -> None:
     inputs = _inputs()
-    inputs["japan_tickers"] = {"jpy_bond_intermediate": "2510.T", "jp_reit_proxy": "1343.T"}
-    inputs["availability_map"].update({"2510.T": {"status": "ok"}, "1343.T": {"status": "ok"}})
+    inputs["japan_tickers"] = {"jpy_bond_intermediate": "2510.T", "jp_reit_proxy": "1343.T", "gold_jpy_proxy": "1540.T"}
+    inputs["availability_map"].update({"2510.T": {"status": "ok"}, "1343.T": {"status": "ok"}, "1540.T": {"status": "ok"}})
 
     result = build_multi_asset_candidates(inputs)
     by_class = {row["asset_class"]: row for row in result["candidates"]}
@@ -142,6 +142,8 @@ def test_japan_resident_configured_bond_and_reit_tickers_feed_display_rows() -> 
     assert by_class["reit_jp"]["symbol"] == "1343.T"
     assert by_class["reit_jp"]["source_data_available"] is True
     assert by_class["reit_jp"]["japan_resident_reason_category"] == "jp_reit_context"
+    assert by_class["gold"]["japan_resident_context_status"] in {"informational", "watch"}
+    assert by_class["gold"]["japan_resident_context_components"]["jpy_relevance"] == 12
     assert by_class["bond_jpy"]["japan_resident_must_not_affect_buy_readiness_score"] is True
     assert by_class["reit_jp"]["japan_resident_must_not_affect_final_action"] is True
 
@@ -164,6 +166,25 @@ def test_japan_resident_unavailable_configured_series_stay_data_unavailable() ->
     assert by_class["reit_jp"]["symbol"] == "1343.T"
     assert by_class["reit_jp"]["source_data_available"] is False
     assert by_class["reit_jp"]["japan_resident_context_status"] == "unavailable"
+
+
+def test_japan_resident_sample_fallback_series_are_reference_display_not_missing() -> None:
+    inputs = _inputs()
+    inputs["japan_tickers"] = {"jpy_bond_intermediate": "2510.T", "jp_reit_proxy": "1343.T", "gold_jpy_proxy": "1540.T"}
+    inputs["acquisition_log"] = [
+        {"requested_ticker": "2510.T", "used_ticker": "2510.T", "status": "sample_fallback"},
+        {"requested_ticker": "1343.T", "used_ticker": "1343.T", "status": "sample_fallback"},
+        {"requested_ticker": "1540.T", "used_ticker": "1540.T", "status": "sample_fallback"},
+    ]
+
+    result = build_multi_asset_candidates(inputs)
+    by_class = {row["asset_class"]: row for row in result["candidates"]}
+
+    assert by_class["bond_jpy"]["source_data_available"] is True
+    assert by_class["bond_jpy"]["japan_resident_context_status"] == "informational"
+    assert by_class["reit_jp"]["source_data_available"] is True
+    assert by_class["reit_jp"]["japan_resident_context_status"] == "informational"
+    assert by_class["gold"]["japan_resident_context_status"] == "informational"
 
 
 def test_gold_available_without_asset_compare_uses_monitor_as_watch_context() -> None:

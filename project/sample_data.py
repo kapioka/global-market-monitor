@@ -49,7 +49,12 @@ def build_sample_prices(length: int = 520) -> pd.DataFrame:
         "FRED:MORTGAGE30US": SyntheticSpec(seed=28, drift=0.00018, volatility=0.011),
         "^TNX": SyntheticSpec(seed=29, drift=0.00016, volatility=0.012),
         "USDJPY=X": SyntheticSpec(seed=30, drift=0.00035, volatility=0.009),
+        "EURJPY=X": SyntheticSpec(seed=37, drift=0.0003, volatility=0.011),
         "1306.T": SyntheticSpec(seed=31, drift=0.0004, volatility=0.016),
+        "1321.T": SyntheticSpec(seed=38, drift=0.00042, volatility=0.017),
+        "2510.T": SyntheticSpec(seed=39, drift=0.00012, volatility=0.004),
+        "1343.T": SyntheticSpec(seed=40, drift=0.00032, volatility=0.015),
+        "1540.T": SyntheticSpec(seed=41, drift=0.00038, volatility=0.014),
         "^SOX": SyntheticSpec(seed=32, drift=0.00125, volatility=0.032),
         "SOXX": SyntheticSpec(seed=33, drift=0.00115, volatility=0.028),
     }
