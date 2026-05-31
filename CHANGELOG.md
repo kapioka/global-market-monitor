@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.26 - Boundary Tests and Minimal Report Integration for Multi-Asset Signals
+
+### Added
+
+- Strengthened candidate-generation boundary coverage for gold, bond, cash/wait, mixed partial data, missing data, unsupported asset classes, optional-field gaps, and explicit non-impact flags.
+- Minimally surfaced multi-asset signal reason categories and caution text in the existing report multi-asset section.
+
+### Scope
+
+- Kept `final_action`, equity buy-readiness scoring, threshold JSON and decisions, reliability policy, buy blocker/card logic, buy window/candidate thresholds, risk labels, pipeline behavior, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.25 - Connect Multi-Asset Signal Prototype to Candidate Generation
 
 ### Added

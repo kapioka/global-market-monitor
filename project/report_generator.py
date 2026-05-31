@@ -245,12 +245,13 @@ def _multi_asset_candidate_markdown_lines(report: dict[str, Any]) -> list[str]:
         metrics = row.get("metrics") or {}
         metric_text = ", ".join(f"{key}={_display_number(value)}" for key, value in metrics.items()) or "利用可能な表示指標なし"
         lines.append(
-            "- {label}: {symbol} ({name}) / 役割: {role} / 状態: {status} / データ: {available} / 指標: {metrics}".format(
+            "- {label}: {symbol} ({name}) / 役割: {role} / 状態: {status} / 分類: {category} / データ: {available} / 指標: {metrics}".format(
                 label=row.get("asset_class_label", "-"),
                 symbol=row.get("symbol", "-"),
                 name=row.get("display_name", "-"),
                 role=row.get("role_label", "-"),
                 status=row.get("status", "-"),
+                category=row.get("reason_category", "-"),
                 available="あり" if row.get("source_data_available") else "なし",
                 metrics=metric_text,
             )
@@ -271,7 +272,7 @@ def _multi_asset_candidate_html(report: dict[str, Any]) -> str:
         f"<td>{html.escape(str(row.get('role_label', '-')))}</td>"
         f"<td>{html.escape(str(row.get('status', '-')))}</td>"
         f"<td>{'あり' if row.get('source_data_available') else 'なし'}</td>"
-        f"<td>{html.escape(str(row.get('reason', '-')))}<br><span style='color:#52606d'>{html.escape(str(row.get('caution', '-')))}</span></td>"
+        f"<td>{html.escape(str(row.get('reason', '-')))}<br><span style='color:#52606d'>分類: {html.escape(str(row.get('reason_category', '-')))} / 注意: {html.escape(str(row.get('caution', '-')))}</span></td>"
         "</tr>"
         for row in payload.get("candidates", [])
     )
@@ -1643,7 +1644,11 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
             esc(row.get("role_label", "-")),
             esc(row.get("status", "-")),
             "あり" if row.get("source_data_available") else "なし",
-            esc(row.get("reason", "-")),
+            "{reason}<br><span class=\"subtext\">分類: {category} / 注意: {caution}</span>".format(
+                reason=esc(row.get("reason", "-")),
+                category=esc(row.get("reason_category", "-")),
+                caution=esc(row.get("caution", "-")),
+            ),
         ]
         for row in multi_asset.get("candidates", [])
     ]

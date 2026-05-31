@@ -90,6 +90,80 @@ def test_signal_connection_adds_non_impact_fields_to_non_equity_candidates() -> 
         assert row["must_not_affect_buy_readiness_score"] is True
 
 
+def test_gold_available_without_asset_compare_uses_monitor_as_watch_context() -> None:
+    inputs = _inputs()
+    inputs["asset_compare"] = [row for row in inputs["asset_compare"] if row["asset_class"] != "Gold"]
+    inputs["asset_map"] = {}
+    inputs["availability_map"] = {"GC=F": {"status": "ok"}}
+
+    result = build_multi_asset_candidates(inputs)
+    gold = {row["asset_class"]: row for row in result["candidates"]}["gold"]
+
+    assert gold["symbol"] == "GC=F"
+    assert gold["status"] == "watch"
+    assert gold["source_data_available"] is True
+    assert gold["reason_category"] == "defensive_context"
+    assert gold["must_not_affect_final_action"] is True
+
+
+def test_bond_available_without_asset_compare_uses_credit_monitor_as_watch_context() -> None:
+    inputs = _inputs()
+    inputs["asset_compare"] = [row for row in inputs["asset_compare"] if row["asset_class"] != "Bonds"]
+    inputs["asset_map"] = {}
+    inputs["availability_map"] = {"LQD": {"status": "ok"}}
+
+    result = build_multi_asset_candidates(inputs)
+    bond = {row["asset_class"]: row for row in result["candidates"]}["bond"]
+
+    assert bond["symbol"] == "LQD"
+    assert bond["status"] == "watch"
+    assert bond["source_data_available"] is True
+    assert bond["reason_category"] == "rate_sensitive_context"
+    assert bond["must_not_affect_buy_readiness_score"] is True
+
+
+def test_mixed_partial_data_keeps_missing_asset_unavailable_and_cash_wait_state() -> None:
+    inputs = _inputs()
+    inputs["asset_compare"] = [
+        {"asset_class": "Gold", "ticker": "GLD", "ticker_name_ja": "金ETF", "momentum_12w": 0.04},
+        {"asset_class": "Commodities", "ticker": "DBC", "ticker_name_ja": "商品ETF"},
+    ]
+    inputs["asset_map"] = {"Gold": "GLD"}
+    inputs["availability_map"] = {"GLD": {"status": "ok"}, "AGG": {"status": "unavailable"}}
+    inputs["credit_monitor"] = []
+    inputs["data_reliability"] = {"decision_allowed": False}
+
+    result = build_multi_asset_candidates(inputs)
+    by_class = {row["asset_class"]: row for row in result["candidates"]}
+
+    assert by_class["gold"]["status"] == "watch"
+    assert by_class["bond"]["status"] == "unavailable"
+    assert by_class["bond"]["reason_category"] == "insufficient_data"
+    assert by_class["cash"]["status"] == "wait"
+    assert "Commodities" not in by_class
+
+
+def test_missing_optional_fields_do_not_break_non_equity_signal_candidates() -> None:
+    result = build_multi_asset_candidates(
+        {
+            "asset_map": {"Gold": "GLD", "Bonds": "AGG"},
+            "availability_map": {"GLD": {"status": "ok"}, "AGG": {"status": "ok"}},
+            "asset_compare": [{"asset_class": "Gold"}, {"asset_class": "Bonds"}],
+            "inflation_monitor": [],
+            "credit_monitor": [],
+            "investment_candidates": {},
+            "data_reliability": {"decision_allowed": True},
+            "risk_lines": {"stage_key": "normal"},
+        }
+    )
+    by_class = {row["asset_class"]: row for row in result["candidates"]}
+
+    assert by_class["gold"]["display_name"] == "ゴールド"
+    assert by_class["bond"]["display_name"] == "米国債券ETF"
+    assert by_class["gold"]["status"] == "watch"
+    assert by_class["bond"]["status"] == "watch"
+
+
 def test_multi_asset_copy_avoids_forbidden_advice_phrases() -> None:
     result = build_multi_asset_candidates(_inputs())
     rendered = str(result)

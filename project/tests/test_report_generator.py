@@ -393,8 +393,12 @@ def _multi_asset_payload() -> dict:
                 "role": "defensive",
                 "role_label": "不安定時の守り候補",
                 "status": "watch",
+                "reason_category": "defensive_context",
                 "reason": "株式と同じ買い候補度ではなく確認します。",
                 "caution": "為替や商品価格の影響を受けます。",
+                "caution_required": True,
+                "must_not_affect_final_action": True,
+                "must_not_affect_buy_readiness_score": True,
                 "source_data_available": True,
                 "metrics": {"momentum_12w": 0.04},
             },
@@ -405,10 +409,14 @@ def _multi_asset_payload() -> dict:
                 "display_name": "総合債券ETF",
                 "role": "diversification",
                 "role_label": "金利低下・リスク回避時の確認候補",
-                "status": "watch",
+                "status": "unavailable",
+                "reason_category": "insufficient_data",
                 "reason": "分散候補として扱います。",
                 "caution": "株式候補とは別枠で見ます。",
-                "source_data_available": True,
+                "caution_required": True,
+                "must_not_affect_final_action": True,
+                "must_not_affect_buy_readiness_score": True,
+                "source_data_available": False,
                 "metrics": {"momentum_12w": 0.02},
             },
             {
@@ -418,9 +426,13 @@ def _multi_asset_payload() -> dict:
                 "display_name": "現金待機",
                 "role": "wait",
                 "role_label": "条件がそろうまで待つ選択",
-                "status": "neutral",
+                "status": "wait",
+                "reason_category": "wait_context",
                 "reason": "条件がそろうまで待つ選択肢として表示します。",
                 "caution": "無理に資産候補へ振り分けません。",
+                "caution_required": True,
+                "must_not_affect_final_action": True,
+                "must_not_affect_buy_readiness_score": True,
                 "source_data_available": True,
                 "metrics": {},
             },
@@ -692,6 +704,10 @@ def test_render_markdown_includes_multi_asset_candidates_without_changing_decisi
     assert "守り候補: GLD" in markdown
     assert "債券候補: AGG" in markdown
     assert "現金待機: CASH" in markdown
+    assert "分類: defensive_context" in markdown
+    assert "分類: insufficient_data" in markdown
+    assert "状態: unavailable" in markdown
+    assert "状態: wait" in markdown
     assert "これは買い推奨ではなく" in markdown
     assert "final_action への影響: False" in markdown
     assert "buy_readiness_score への影響: False" in markdown
@@ -713,6 +729,12 @@ def test_render_html_includes_multi_asset_candidates_table():
     assert "守り候補" in html
     assert "債券候補" in html
     assert "現金待機" in html
+    assert "defensive_context" in html
+    assert "insufficient_data" in html
+    assert "wait_context" in html
+    assert "為替や商品価格の影響を受けます。" in html
+    assert "unavailable" in html
+    assert "wait" in html
     assert "final_action への影響: False" in html
 
 
