@@ -418,6 +418,76 @@ def _multi_asset_payload() -> dict:
                 "must_not_affect_buy_readiness_score": True,
                 "source_data_available": False,
                 "metrics": {"momentum_12w": 0.02},
+                "japan_resident_context_score": 12,
+                "japan_resident_context_status": "unavailable",
+                "japan_resident_reason_category": "insufficient_data",
+                "japan_resident_context_components": {
+                    "data_quality": 0,
+                    "jpy_relevance": 3,
+                    "domestic_rate": 0,
+                    "fx": -8,
+                    "inflation": 0,
+                },
+                "japan_resident_must_not_affect_final_action": True,
+                "japan_resident_must_not_affect_buy_readiness_score": True,
+            },
+            {
+                "asset_class": "jp_equity",
+                "asset_class_label": "日本株候補",
+                "symbol": "1306.T",
+                "display_name": "TOPIX連動ETF",
+                "role": "jp_growth",
+                "role_label": "日本株の確認候補",
+                "status": "informational",
+                "reason_category": "jp_equity_context",
+                "reason": "日本株を外貨建て株式と分けて確認します。",
+                "caution": "日本株も市場全体の下落を受けます。",
+                "caution_required": True,
+                "must_not_affect_final_action": True,
+                "must_not_affect_buy_readiness_score": True,
+                "source_data_available": True,
+                "metrics": {},
+                "japan_resident_context_score": 43,
+                "japan_resident_context_status": "informational",
+                "japan_resident_reason_category": "jp_equity_context",
+                "japan_resident_context_components": {
+                    "data_quality": 20,
+                    "jpy_relevance": 15,
+                    "domestic_rate": 0,
+                    "fx": 0,
+                    "inflation": 0,
+                },
+                "japan_resident_must_not_affect_final_action": True,
+                "japan_resident_must_not_affect_buy_readiness_score": True,
+            },
+            {
+                "asset_class": "bond_jpy",
+                "asset_class_label": "円建て債券候補",
+                "symbol": "JGB_CONTEXT",
+                "display_name": "円建て債券確認",
+                "role": "jpy_defensive",
+                "role_label": "円建て守り候補",
+                "status": "unavailable",
+                "reason_category": "jpy_rate_context",
+                "reason": "国内金利と円建て資産の確認用です。",
+                "caution": "円建て債券も金利上昇時に価格が下がることがあります。",
+                "caution_required": True,
+                "must_not_affect_final_action": True,
+                "must_not_affect_buy_readiness_score": True,
+                "source_data_available": False,
+                "metrics": {},
+                "japan_resident_context_score": 15,
+                "japan_resident_context_status": "unavailable",
+                "japan_resident_reason_category": "insufficient_data",
+                "japan_resident_context_components": {
+                    "data_quality": 0,
+                    "jpy_relevance": 15,
+                    "domestic_rate": -3,
+                    "fx": 0,
+                    "inflation": 0,
+                },
+                "japan_resident_must_not_affect_final_action": True,
+                "japan_resident_must_not_affect_buy_readiness_score": True,
             },
             {
                 "asset_class": "cash",
@@ -703,9 +773,15 @@ def test_render_markdown_includes_multi_asset_candidates_without_changing_decisi
     assert "株式候補: SPY" in markdown
     assert "守り候補: GLD" in markdown
     assert "債券候補: AGG" in markdown
+    assert "日本株候補: 1306.T" in markdown
+    assert "円建て債券候補: JGB_CONTEXT" in markdown
     assert "現金待機: CASH" in markdown
     assert "分類: 守り候補の確認" in markdown
     assert "分類: データ不足" in markdown
+    assert "日本居住者向け確認: 状態: 参考表示 / 分類: 日本株の確認" in markdown
+    assert "国内金利" in markdown
+    assert "為替" in markdown
+    assert "国内インフレ" in markdown
     assert "状態: データ不足" in markdown
     assert "状態: 待機" in markdown
     assert "これは買い推奨ではなく" in markdown
@@ -728,8 +804,15 @@ def test_render_html_includes_multi_asset_candidates_table():
     assert "株式候補" in html
     assert "守り候補" in html
     assert "債券候補" in html
+    assert "日本株候補" in html
+    assert "円建て債券候補" in html
     assert "現金待機" in html
     assert "守り候補の確認" in html
+    assert "日本居住者向け確認" in html
+    assert "日本株の確認" in html
+    assert "国内金利" in html
+    assert "為替" in html
+    assert "国内インフレ" in html
     assert "データ不足" in html
     assert "待機判断の補助" in html
     assert "為替や商品価格の影響を受けます。" in html

@@ -28,13 +28,15 @@ def _inputs() -> dict:
     }
 
 
-def test_build_multi_asset_candidates_returns_four_asset_classes() -> None:
+def test_build_multi_asset_candidates_returns_japan_resident_asset_classes() -> None:
     result = build_multi_asset_candidates(_inputs())
 
     classes = [row["asset_class"] for row in result["candidates"]]
-    assert classes == ["equity", "gold", "bond", "cash"]
+    assert classes == ["equity", "gold", "bond", "bond_jpy", "jp_equity", "reit_jp", "cash"]
     assert result["affects_final_action"] is False
     assert result["affects_buy_readiness_score"] is False
+    assert "japan_resident_taxonomy" in result
+    assert "japan_resident_data_contract" in result
 
 
 def test_gold_and_bond_do_not_mix_with_equity_candidate_role() -> None:
@@ -88,6 +90,42 @@ def test_signal_connection_adds_non_impact_fields_to_non_equity_candidates() -> 
         assert row["caution_required"] is True
         assert row["must_not_affect_final_action"] is True
         assert row["must_not_affect_buy_readiness_score"] is True
+
+
+def test_japan_resident_context_rows_are_display_only_and_conservative() -> None:
+    result = build_multi_asset_candidates(_inputs())
+    by_class = {row["asset_class"]: row for row in result["candidates"]}
+
+    for asset_class in ("bond_jpy", "jp_equity", "reit_jp"):
+        row = by_class[asset_class]
+        assert row["status"] in {"informational", "unavailable", "watch"}
+        assert row["must_not_affect_final_action"] is True
+        assert row["must_not_affect_buy_readiness_score"] is True
+        assert row["japan_resident_must_not_affect_final_action"] is True
+        assert row["japan_resident_must_not_affect_buy_readiness_score"] is True
+        assert "japan_resident_context_score" in row
+        assert row["japan_resident_caution_required"] is True
+
+    assert by_class["bond_jpy"]["status"] == "unavailable"
+    assert by_class["reit_jp"]["status"] == "unavailable"
+
+
+def test_japan_resident_context_uses_existing_japan_proxy_when_available() -> None:
+    inputs = _inputs()
+    inputs["japan_tickers"] = {"topix_proxy": "1306.T"}
+    inputs["availability_map"]["1306.T"] = {"status": "ok"}
+    inputs["asset_compare"].append(
+        {"asset_class": "Japan_Stocks", "ticker": "1306.T", "ticker_name_ja": "TOPIX連動ETF", "momentum_12w": 0.03}
+    )
+
+    result = build_multi_asset_candidates(inputs)
+    jp_equity = {row["asset_class"]: row for row in result["candidates"]}["jp_equity"]
+
+    assert jp_equity["symbol"] == "1306.T"
+    assert jp_equity["display_name"] == "TOPIX連動ETF"
+    assert jp_equity["source_data_available"] is True
+    assert jp_equity["japan_resident_reason_category"] == "jp_equity_context"
+    assert jp_equity["japan_resident_must_not_affect_final_action"] is True
 
 
 def test_gold_available_without_asset_compare_uses_monitor_as_watch_context() -> None:

@@ -258,6 +258,9 @@ def _multi_asset_candidate_markdown_lines(report: dict[str, Any]) -> list[str]:
         )
         lines.append(f"  - 理由: {row.get('reason', '-')}")
         lines.append(f"  - 注意: {row.get('caution', '-')}")
+        context_line = _japan_resident_context_markdown(row)
+        if context_line:
+            lines.append(f"  - 日本居住者向け確認: {context_line}")
     return lines
 
 
@@ -272,7 +275,7 @@ def _multi_asset_candidate_html(report: dict[str, Any]) -> str:
         f"<td>{html.escape(str(row.get('role_label', '-')))}</td>"
         f"<td>{html.escape(_multi_asset_status_label(row.get('status')))}</td>"
         f"<td>{'あり' if row.get('source_data_available') else 'なし'}</td>"
-        f"<td>{html.escape(str(row.get('reason', '-')))}<br><span style='color:#52606d'>分類: {html.escape(_multi_asset_reason_category_label(row.get('reason_category')))} / 注意: {html.escape(str(row.get('caution', '-')))}</span></td>"
+        f"<td>{html.escape(str(row.get('reason', '-')))}<br><span style='color:#52606d'>分類: {html.escape(_multi_asset_reason_category_label(row.get('reason_category')))} / 注意: {html.escape(str(row.get('caution', '-')))}</span>{_japan_resident_context_html(row)}</td>"
         "</tr>"
         for row in payload.get("candidates", [])
     )
@@ -313,11 +316,46 @@ def _multi_asset_reason_category_label(category: Any) -> str:
     labels = {
         "defensive_context": "守り候補の確認",
         "rate_sensitive_context": "金利に敏感な確認",
+        "jpy_rate_context": "円金利の確認",
+        "jp_equity_context": "日本株の確認",
+        "jp_reit_context": "国内REITの確認",
         "insufficient_data": "データ不足",
         "wait_context": "待機判断の補助",
         "partial_data_context": "部分データ",
     }
     return labels.get(str(category), "補助確認")
+
+
+def _japan_resident_context_markdown(row: dict[str, Any]) -> str:
+    if "japan_resident_context_score" not in row:
+        return ""
+    score = _display_number(row.get("japan_resident_context_score"))
+    status = _multi_asset_status_label(row.get("japan_resident_context_status"))
+    category = _multi_asset_reason_category_label(row.get("japan_resident_reason_category"))
+    components = row.get("japan_resident_context_components") or {}
+    component_text = _japan_resident_component_summary(components)
+    return f"状態: {status} / 分類: {category} / 文脈スコア: {score} / {component_text}"
+
+
+def _japan_resident_context_html(row: dict[str, Any]) -> str:
+    context = _japan_resident_context_markdown(row)
+    if not context:
+        return ""
+    return f"<br><span style='color:#52606d'>日本居住者向け確認: {html.escape(context)}</span>"
+
+
+def _japan_resident_component_summary(components: dict[str, Any]) -> str:
+    if not components:
+        return "国内金利/為替/インフレ: データ不足"
+    labels = {
+        "domestic_rate": "国内金利",
+        "fx": "為替",
+        "inflation": "国内インフレ",
+        "jpy_relevance": "円建て文脈",
+        "data_quality": "データ品質",
+    }
+    parts = [f"{label}={_display_number(components.get(key))}" for key, label in labels.items() if key in components]
+    return " / ".join(parts) if parts else "国内金利/為替/インフレ: データ不足"
 
 
 def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
@@ -1668,7 +1706,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
             esc(row.get("role_label", "-")),
             esc(_multi_asset_status_label(row.get("status"))),
             "あり" if row.get("source_data_available") else "なし",
-            "{reason}<br><span class=\"subtext\">分類: {category} / 注意: {caution}</span>".format(
+            '{reason}<br><span class="subtext">分類: {category} / 注意: {caution}</span>'.format(
                 reason=esc(row.get("reason", "-")),
                 category=esc(_multi_asset_reason_category_label(row.get("reason_category"))),
                 caution=esc(row.get("caution", "-")),

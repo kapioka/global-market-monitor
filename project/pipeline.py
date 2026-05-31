@@ -256,6 +256,9 @@ def build_report(
             "investment_candidates": investment_candidates,
             "data_reliability": reliability,
             "risk_lines": risk_lines,
+            "japan_risk": japan_risk,
+            "japan_tickers": config["tickers"].get("japan", {}),
+            "acquisition_log": fetch.acquisition_log,
         }
     )
     recovery_candidates = build_recovery_candidates(

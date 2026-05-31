@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.30-v0.8.33 - Japan Resident Data Expansion Fast Track
+
+### Added
+
+- Added a display-only Japan-resident asset context inventory covering domestic JPY bonds, JGB yield curve context, USD/JPY FX context, Japanese equities, Japan inflation/rates, Japanese REIT, gold JPY proxy, foreign bonds, and cash/wait.
+- Added conservative candidate-layer context fields for Japan-resident multi-asset rows without feeding them into `final_action` or `buy_readiness_score`.
+- Added targeted tests for missing, failed, partial, sample-fallback, domestic JPY bond, Japanese equity, Japanese REIT, gold JPY proxy, foreign bond, and cash/wait context handling.
+
+### Scope
+
+- Kept `final_action`, equity buy-readiness scoring, threshold JSON and decisions, reliability policy, buy blocker/card logic, buy window/candidate thresholds, risk labels, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.29 - Multi-Asset Real-Input Compatibility Hardening
 
 ### Changed
