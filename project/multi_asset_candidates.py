@@ -53,11 +53,11 @@ def build_multi_asset_candidates(report_inputs: dict[str, Any]) -> dict[str, Any
 
     rows = [
         _equity_candidate(asset_compare, asset_map, availability_map, investment_candidates),
-        _gold_candidate(asset_compare, asset_map, availability_map, inflation_monitor, acquisition_log, context),
+        _gold_candidate(asset_compare, asset_map, availability_map, inflation_monitor, acquisition_log, japan_tickers, context),
         _bond_candidate(asset_compare, asset_map, availability_map, credit_monitor, acquisition_log, risk_lines, context),
-        _jpy_bond_candidate(asset_compare, availability_map, acquisition_log, context),
+        _jpy_bond_candidate(asset_compare, availability_map, acquisition_log, japan_tickers, context),
         _jp_equity_candidate(asset_compare, availability_map, acquisition_log, japan_tickers, context),
-        _jp_reit_candidate(asset_compare, availability_map, acquisition_log, context),
+        _jp_reit_candidate(asset_compare, availability_map, acquisition_log, japan_tickers, context),
         _cash_candidate(reliability, risk_lines, context),
     ]
 
@@ -107,6 +107,7 @@ def _gold_candidate(
     availability_map: dict[str, Any],
     inflation_monitor: list[dict[str, Any]],
     acquisition_log: list[dict[str, Any]],
+    japan_tickers: dict[str, Any],
     context: dict[str, Any],
 ) -> dict[str, Any]:
     preferred = _find_asset(asset_compare, {"Gold"})
@@ -120,6 +121,10 @@ def _gold_candidate(
         or "GLD"
     )
     available = _is_available(symbol, availability_map) or preferred is not None or monitor_row is not None
+    jpy_gold_symbol = str(japan_tickers.get("gold_jpy_proxy") or "")
+    jpy_gold_row = _find_acquisition(acquisition_log, {jpy_gold_symbol} if jpy_gold_symbol else set())
+    jpy_gold_available = bool(jpy_gold_symbol and _is_available(jpy_gold_symbol, availability_map)) or _acquisition_available(jpy_gold_row)
+    context_symbol = jpy_gold_symbol if jpy_gold_available else symbol
     signal = build_multi_asset_signal(
         {
             "asset_class": "gold",
@@ -145,8 +150,8 @@ def _gold_candidate(
         context_signal=build_japan_resident_context_signal(
             {
                 "asset_class": "gold_jpy_proxy",
-                "source_data_available": signal["source_data_available"],
-                "source_status": _source_status(symbol, availability_map, signal["source_data_available"]),
+                "source_data_available": jpy_gold_available or signal["source_data_available"],
+                "source_status": _source_status(context_symbol, availability_map, jpy_gold_available or signal["source_data_available"]),
                 "metrics": _metrics_from(preferred or monitor_row),
             },
             context,
@@ -217,13 +222,15 @@ def _jpy_bond_candidate(
     asset_compare: list[dict[str, Any]],
     availability_map: dict[str, Any],
     acquisition_log: list[dict[str, Any]],
+    japan_tickers: dict[str, Any],
     context: dict[str, Any],
 ) -> dict[str, Any]:
     preferred = _find_asset(asset_compare, {"Japan_Bonds", "JGB", "JPY_Bonds"})
-    acquisition_row = _find_acquisition(acquisition_log, {"2510.T", "2511.T", "JGB"})
-    symbol = str((preferred or {}).get("ticker") or _acquisition_symbol(acquisition_row) or "JGB_CONTEXT")
+    configured_symbol = str(japan_tickers.get("jpy_bond_intermediate") or "2510.T")
+    acquisition_row = _find_acquisition(acquisition_log, {configured_symbol, "2510.T", "2511.T", "JGB"})
+    symbol = str((preferred or {}).get("ticker") or _acquisition_symbol(acquisition_row) or configured_symbol)
     metrics = _metrics_from(preferred)
-    available = _is_available(symbol, availability_map) or preferred is not None or acquisition_row is not None
+    available = _is_available(symbol, availability_map) or preferred is not None or _acquisition_available(acquisition_row)
     context_signal = build_japan_resident_context_signal(
         {
             "asset_class": "bond_jpy_intermediate",
@@ -259,7 +266,7 @@ def _jp_equity_candidate(
     acquisition_row = _find_acquisition(acquisition_log, {topix_symbol, "1306.T", "1321.T"})
     symbol = str((preferred or {}).get("ticker") or _acquisition_symbol(acquisition_row) or topix_symbol)
     metrics = _metrics_from(preferred)
-    available = _is_available(symbol, availability_map) or preferred is not None or acquisition_row is not None
+    available = _is_available(symbol, availability_map) or preferred is not None or _acquisition_available(acquisition_row)
     context_signal = build_japan_resident_context_signal(
         {
             "asset_class": "equity_jp_topix",
@@ -287,13 +294,15 @@ def _jp_reit_candidate(
     asset_compare: list[dict[str, Any]],
     availability_map: dict[str, Any],
     acquisition_log: list[dict[str, Any]],
+    japan_tickers: dict[str, Any],
     context: dict[str, Any],
 ) -> dict[str, Any]:
     preferred = _find_asset(asset_compare, {"Japan_REIT", "J_REIT"})
-    acquisition_row = _find_acquisition(acquisition_log, {"1343.T", "1488.T", "JREIT"})
-    symbol = str((preferred or {}).get("ticker") or _acquisition_symbol(acquisition_row) or "JREIT_CONTEXT")
+    configured_symbol = str(japan_tickers.get("jp_reit_proxy") or "1343.T")
+    acquisition_row = _find_acquisition(acquisition_log, {configured_symbol, "1343.T", "1488.T", "JREIT"})
+    symbol = str((preferred or {}).get("ticker") or _acquisition_symbol(acquisition_row) or configured_symbol)
     metrics = _metrics_from(preferred)
-    available = _is_available(symbol, availability_map) or preferred is not None or acquisition_row is not None
+    available = _is_available(symbol, availability_map) or preferred is not None or _acquisition_available(acquisition_row)
     context_signal = build_japan_resident_context_signal(
         {
             "asset_class": "reit_jp",
@@ -489,6 +498,12 @@ def _acquisition_name(row: dict[str, Any] | None) -> str | None:
     if not row:
         return None
     return str(row.get("used_ticker_name_ja") or row.get("requested_ticker_name_ja") or "") or None
+
+
+def _acquisition_available(row: dict[str, Any] | None) -> bool:
+    if not row:
+        return False
+    return row.get("status") not in {None, "unavailable", "sample_fallback", "failed", "partial"}
 
 
 def _merge_acquisition_availability(

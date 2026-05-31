@@ -27,6 +27,9 @@ def test_taxonomy_covers_required_japan_resident_data_groups() -> None:
     }
 
     assert required.issubset(JAPAN_RESIDENT_TAXONOMY)
+    assert "config.tickers.japan.jp_reit_proxy" in DATA_SOURCE_CONTRACT["japanese_reit"]
+    assert "config.tickers.japan.gold_jpy_proxy" in DATA_SOURCE_CONTRACT["gold_jpy_proxy"]
+    assert "optional EURJPY=X acquisition log" in DATA_SOURCE_CONTRACT["fx_currency_context"]
     assert {
         "domestic_jpy_bonds",
         "jgb_yield_curve",

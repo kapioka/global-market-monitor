@@ -29,11 +29,21 @@ JAPAN_RESIDENT_TAXONOMY: dict[str, dict[str, Any]] = {
 DATA_SOURCE_CONTRACT: dict[str, list[str]] = {
     "domestic_jpy_bonds": ["asset_compare", "acquisition_log", "optional configured tickers"],
     "jgb_yield_curve": ["japan_resident_context.jgb_yields", "fixture adapter contract"],
-    "fx_currency_context": ["japan_risk.usd_jpy", "USDJPY=X acquisition log"],
-    "japanese_equities": ["asset_compare", "config.tickers.japan.topix_proxy", "acquisition_log"],
+    "fx_currency_context": ["japan_risk.usd_jpy", "USDJPY=X acquisition log", "optional EURJPY=X acquisition log"],
+    "japanese_equities": [
+        "asset_compare",
+        "config.tickers.japan.topix_proxy",
+        "config.tickers.japan.nikkei_proxy",
+        "acquisition_log",
+    ],
     "japan_inflation_rates": ["japan_resident_context.inflation", "fixture adapter contract"],
-    "japanese_reit": ["asset_compare", "config asset_classes REITs or Japan REIT proxy", "acquisition_log"],
-    "gold_jpy_proxy": ["asset_compare Gold", "inflation_monitor GC=F", "japan_risk.usd_jpy"],
+    "japanese_reit": ["asset_compare", "config.tickers.japan.jp_reit_proxy", "acquisition_log"],
+    "gold_jpy_proxy": [
+        "asset_compare Gold",
+        "inflation_monitor GC=F",
+        "japan_risk.usd_jpy",
+        "config.tickers.japan.gold_jpy_proxy",
+    ],
 }
 
 

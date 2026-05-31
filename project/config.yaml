@@ -73,7 +73,12 @@ tickers:
     US10Y: ^TNX
   japan:
     usd_jpy: USDJPY=X
+    eur_jpy: EURJPY=X
     topix_proxy: 1306.T
+    nikkei_proxy: 1321.T
+    jpy_bond_intermediate: 2510.T
+    jp_reit_proxy: 1343.T
+    gold_jpy_proxy: 1540.T
     sox_primary: ^SOX
     sox_fallback: SOXX
 

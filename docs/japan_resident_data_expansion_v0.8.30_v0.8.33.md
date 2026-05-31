@@ -94,6 +94,11 @@ CPI, or Japan REIT time series. Those rows should be shown as `データ不足`,
 `未取得`, or `参考表示`. The implementation must not invent values or fetch new
 network data to fill those gaps during sample-only runs.
 
+v0.8.34 adds optional config wiring for `EURJPY=X`, `1321.T`, `2510.T`,
+`1343.T`, and `1540.T` where the existing ticker acquisition path can handle
+them. JGB yield curve, CPI, and BOJ/domestic-rate fields remain adapter-contract
+items until an official source parser is designed separately.
+
 ## Conservative Gates
 
 The context signal treats these input states conservatively:

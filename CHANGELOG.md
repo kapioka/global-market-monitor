@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.34 - Japan Resident Series Inventory and Config Wiring
+
+### Added
+
+- Documented the Japan-resident real-data series inventory, separating currently available FX/Japanese equity/foreign bond/USD gold inputs from deferred JGB curve, CPI, BOJ rate, and JPY-strength adapter work.
+- Added optional config/ticker wiring for `EURJPY=X`, `1321.T`, `2510.T`, `1343.T`, and `1540.T` through the existing acquisition path.
+- Updated candidate-layer recognition so configured domestic JPY bond, Japanese REIT, and domestic gold proxy series can feed display-only Japan-resident context when available.
+
+### Scope
+
+- Kept `final_action`, equity buy-readiness scoring, threshold JSON and decisions, reliability policy, buy blocker/card logic, buy window/candidate thresholds, risk labels, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.30-v0.8.33 - Japan Resident Data Expansion Fast Track
 
 ### Added

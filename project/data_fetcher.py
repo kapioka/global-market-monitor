@@ -51,8 +51,13 @@ FALLBACK_TICKERS: dict[str, list[str]] = {
     "ZW=F": ["WEAT"],
     "ZC=F": ["CORN"],
     "USDJPY=X": ["JPY=X"],
+    "EURJPY=X": [],
     "^TNX": [],
     "1306.T": ["^TOPX"],
+    "1321.T": [],
+    "2510.T": [],
+    "1343.T": [],
+    "1540.T": ["GLD", "IAU"],
     "^SOX": ["SOXX"],
     "SOXX": ["^SOX"],
 }
@@ -384,7 +389,11 @@ def _sample_log_entry(ticker: str, sample: pd.DataFrame, reason: str) -> dict[st
             "used_ticker_name_ja": ticker_label_ja(ticker),
             "status": "sample_fallback",
             "provider": "synthetic_sample",
-            "message": "サンプル固定モードのため、サンプルデータを使用しました。" if reason == "sample-only mode" else "ライブ取得が使えないため、サンプルデータで代替しました。",
+            "message": (
+                "サンプル固定モードのため、サンプルデータを使用しました。"
+                if reason == "sample-only mode"
+                else "ライブ取得が使えないため、サンプルデータで代替しました。"
+            ),
             "alternatives": FALLBACK_TICKERS.get(ticker, []),
             "alternatives_name_ja": [ticker_label_ja(item) for item in FALLBACK_TICKERS.get(ticker, [])],
             "attempts": [],
@@ -396,7 +405,11 @@ def _sample_log_entry(ticker: str, sample: pd.DataFrame, reason: str) -> dict[st
         "used_ticker_name_ja": "-",
         "status": "unavailable",
         "provider": "none",
-        "message": "サンプル固定モードですが、この系列のサンプルデータはありません。" if reason == "sample-only mode" else "ライブ取得もサンプル代替も使えませんでした。",
+        "message": (
+            "サンプル固定モードですが、この系列のサンプルデータはありません。"
+            if reason == "sample-only mode"
+            else "ライブ取得もサンプル代替も使えませんでした。"
+        ),
         "alternatives": FALLBACK_TICKERS.get(ticker, []),
         "alternatives_name_ja": [ticker_label_ja(item) for item in FALLBACK_TICKERS.get(ticker, [])],
         "attempts": [],
@@ -505,7 +518,14 @@ def _build_diagnostics(
 
     hosts = sorted({host for item in failure_attempts for host in _extract_hosts(item["detail"])})
     failure_samples = [item["detail"] for item in failure_attempts[:5]]
-    network_keywords = ("failed to connect", "could not connect", "connectionerror", "timed out", "name or service not known", "temporary failure")
+    network_keywords = (
+        "failed to connect",
+        "could not connect",
+        "connectionerror",
+        "timed out",
+        "name or service not known",
+        "temporary failure",
+    )
     network_issue_count = sum(1 for item in failure_attempts if any(keyword in item["detail"].lower() for keyword in network_keywords))
 
     return {
