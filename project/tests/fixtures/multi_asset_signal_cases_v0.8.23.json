@@ -1,0 +1,125 @@
+{
+  "fixture_id": "multi_asset_signal_cases_v0.8.23",
+  "purpose": "Compact design fixture for future gold, bond, and cash/wait signal modeling. It documents expected missing-data behavior without implementing scores or final-action integration.",
+  "global_expectations": {
+    "must_not_affect_final_action": true,
+    "must_not_affect_buy_readiness_score": true,
+    "must_not_mix_with_equity_buy_readiness": true,
+    "no_fake_confidence_when_missing": true,
+    "no_forced_candidate_when_source_data_unavailable": true
+  },
+  "status_vocabulary": [
+    "watch",
+    "informational",
+    "not_available",
+    "wait"
+  ],
+  "reason_categories": [
+    "defensive_context",
+    "rate_sensitive_context",
+    "insufficient_data",
+    "wait_context",
+    "partial_data_context"
+  ],
+  "preferred_caution": "これは買い推奨ではなく、現在の市場状態を資産クラス別に整理したものです。外貨建て資産は為替の影響を受けます。",
+  "forbidden_wording": [
+    "買うべき",
+    "今が買い",
+    "安全",
+    "利益が出る",
+    "確実",
+    "推奨銘柄"
+  ],
+  "cases": [
+    {
+      "case_id": "gold_available",
+      "asset_class": "gold",
+      "symbol": "GLD",
+      "display_name": "金ETF",
+      "source_data_available": true,
+      "expected_status": "watch",
+      "expected_role": "defensive",
+      "expected_reason_category": "defensive_context",
+      "expected_caution_required": true,
+      "expected_missing_data_representation": "none",
+      "allowed_inputs": ["GLD", "IAU", "GC=F", "asset_compare", "inflation_monitor"],
+      "must_not_affect_final_action": true,
+      "must_not_affect_buy_readiness_score": true
+    },
+    {
+      "case_id": "gold_missing",
+      "asset_class": "gold",
+      "symbol": "GLD",
+      "display_name": "金ETF",
+      "source_data_available": false,
+      "expected_status": "not_available",
+      "expected_role": "defensive",
+      "expected_reason_category": "insufficient_data",
+      "expected_caution_required": true,
+      "expected_missing_data_representation": "source_data_unavailable",
+      "allowed_inputs": ["GLD", "IAU", "GC=F", "asset_compare", "inflation_monitor"],
+      "must_not_affect_final_action": true,
+      "must_not_affect_buy_readiness_score": true
+    },
+    {
+      "case_id": "bond_available",
+      "asset_class": "bond",
+      "symbol": "AGG",
+      "display_name": "米国総合債券ETF",
+      "source_data_available": true,
+      "expected_status": "watch",
+      "expected_role": "diversification",
+      "expected_reason_category": "rate_sensitive_context",
+      "expected_caution_required": true,
+      "expected_missing_data_representation": "none",
+      "allowed_inputs": ["AGG", "BND", "TIP", "SCHP", "LQD", "HYG", "credit_monitor", "risk_lines"],
+      "must_not_affect_final_action": true,
+      "must_not_affect_buy_readiness_score": true
+    },
+    {
+      "case_id": "bond_missing",
+      "asset_class": "bond",
+      "symbol": "AGG",
+      "display_name": "米国総合債券ETF",
+      "source_data_available": false,
+      "expected_status": "not_available",
+      "expected_role": "diversification",
+      "expected_reason_category": "insufficient_data",
+      "expected_caution_required": true,
+      "expected_missing_data_representation": "source_data_unavailable",
+      "allowed_inputs": ["AGG", "BND", "TIP", "SCHP", "LQD", "HYG", "credit_monitor", "risk_lines"],
+      "must_not_affect_final_action": true,
+      "must_not_affect_buy_readiness_score": true
+    },
+    {
+      "case_id": "cash_wait",
+      "asset_class": "cash",
+      "symbol": "CASH",
+      "display_name": "現金待機",
+      "source_data_available": true,
+      "expected_status": "wait",
+      "expected_role": "wait",
+      "expected_reason_category": "wait_context",
+      "expected_caution_required": true,
+      "expected_missing_data_representation": "not_market_ticker",
+      "allowed_inputs": ["data_reliability", "risk_lines", "blocker_severity"],
+      "must_not_affect_final_action": true,
+      "must_not_affect_buy_readiness_score": true
+    },
+    {
+      "case_id": "mixed_partial_data",
+      "asset_class": "multi_asset",
+      "symbol": "MIXED",
+      "display_name": "部分データ",
+      "source_data_available": false,
+      "expected_status": "informational",
+      "expected_role": "mixed_review",
+      "expected_reason_category": "partial_data_context",
+      "expected_caution_required": true,
+      "expected_missing_data_representation": "partial_data_only",
+      "allowed_inputs": ["available_asset_compare", "available_monitor_rows", "missing_symbols"],
+      "must_not_affect_final_action": true,
+      "must_not_affect_buy_readiness_score": true
+    }
+  ]
+}

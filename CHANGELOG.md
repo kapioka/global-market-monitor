@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.23 - Multi-Asset Signal Fixture and Missing-Data Policy
+
+### Added
+
+- Added compact synthetic fixture cases for future gold, bond, cash/wait, and mixed partial-data signal modeling.
+- Documented missing-data policy, status vocabulary, reason categories, non-advice wording, and separation from equity buy readiness.
+- Added a lightweight fixture schema guard for required cases, missing-data expectations, and non-advice case payloads.
+
+### Scope
+
+- Kept report UI, `final_action`, threshold JSON and decisions, reliability policy, buy-readiness calculation, buy blocker/card logic, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.22 - Multi-Asset Signal Design Inventory
 
 ### Added
