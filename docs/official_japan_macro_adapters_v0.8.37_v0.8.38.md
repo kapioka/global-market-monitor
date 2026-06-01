@@ -157,6 +157,32 @@ Fallback entries are source references only. They have no real macro value:
 `jgb_yields`, `inflation`, or `domestic_rates`. Fallback registry entries remain
 inside `macro_sources` and give no score boost.
 
+## v0.8.42 API-key-free public/manual source policy
+
+v0.8.42 keeps the MOF JGB public CSV resolver and changes the CPI/BOJ direction
+toward distribution-safe sources:
+
+- appId-free official public files first
+- optional local manual CSV files under `project/manual_sources/`
+- cache reuse only when freshness is explicitly validated in a future checkpoint
+- optional e-Stat API only when the user supplies `ESTAT_APP_ID`
+
+Normal use, tests, CI, and sample-only runs do not require an API key. The
+runtime does not bundle or log an e-Stat appId.
+
+Manual CPI file:
+
+- `project/manual_sources/japan_cpi.csv`
+
+Manual BOJ short-rate file:
+
+- `project/manual_sources/boj_short_rate.csv`
+
+Runtime does not create these files. Downloaded official files and manual source
+files must not be committed. See
+`docs/japan_macro_manual_sources_v0.8.42.md` for the compact CSV column
+contract.
+
 ## Integration
 
 The pipeline now attaches an optional Japan macro context to

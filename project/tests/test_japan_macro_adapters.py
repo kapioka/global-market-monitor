@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 from project.japan_macro_adapters import (
+    BOJ_MANUAL_FILENAMES,
     BOJ_SHORT_RATE_SOURCE,
-    CPI_ESTAT_SOURCE,
+    CPI_MANUAL_FILENAMES,
     JGB_SOURCE,
     _classify_download_response,
     _failed_result,
     _resolve_boj_live_source,
     _resolve_cpi_live_source,
+    _resolve_manual_csv_adapter,
     _source_reference_result,
     build_japan_macro_context,
     parse_boj_domestic_rate_csv,
@@ -75,6 +77,32 @@ def test_parse_japan_cpi_fixture_returns_trend_without_fake_values() -> None:
     assert "Statistics Bureau" in result["source_name"]
 
 
+def test_manual_cpi_csv_resolver_returns_local_manual_source(tmp_path) -> None:
+    manual_dir = tmp_path / "manual_sources"
+    manual_dir.mkdir()
+    (manual_dir / "japan_cpi.csv").write_text(CPI_CSV, encoding="utf-8")
+
+    result = _resolve_manual_csv_adapter(
+        {
+            "source_name": "Local manual Japan CPI CSV",
+            "source_url": "",
+            "source_group": "japan_cpi",
+            "source_type": "local_manual_file",
+            "source_kind": "local_manual_file",
+        },
+        "japan_cpi",
+        parse_japan_cpi_csv,
+        CPI_MANUAL_FILENAMES,
+        manual_dir=manual_dir,
+    )
+
+    assert result["status"] == "ok"
+    assert result["source_kind"] == "local_manual_file"
+    assert result["local_path"].endswith("japan_cpi.csv")
+    assert result["observations"]["jp_core_cpi_yoy"] == 2.4
+    assert result["metadata"]["safe_for_context"] is True
+
+
 def test_parse_boj_domestic_rate_fixture_returns_context() -> None:
     result = parse_boj_domestic_rate_csv(BOJ_CSV)
 
@@ -83,6 +111,32 @@ def test_parse_boj_domestic_rate_fixture_returns_context() -> None:
     assert result["observations"]["boj_call_rate"] == 0.28
     assert result["observations"]["domestic_rate_context"] == "rising"
     assert "Bank of Japan" in result["source_name"]
+
+
+def test_manual_boj_csv_resolver_returns_local_manual_source(tmp_path) -> None:
+    manual_dir = tmp_path / "manual_sources"
+    manual_dir.mkdir()
+    (manual_dir / "boj_short_rate.csv").write_text(BOJ_CSV, encoding="utf-8")
+
+    result = _resolve_manual_csv_adapter(
+        {
+            "source_name": "Local manual BOJ short-rate CSV",
+            "source_url": "",
+            "source_group": "boj_domestic_short_rate",
+            "source_type": "local_manual_file",
+            "source_kind": "local_manual_file",
+        },
+        "boj_domestic_short_rate",
+        parse_boj_domestic_rate_csv,
+        BOJ_MANUAL_FILENAMES,
+        manual_dir=manual_dir,
+    )
+
+    assert result["status"] == "ok"
+    assert result["source_kind"] == "local_manual_file"
+    assert result["local_path"].endswith("boj_short_rate.csv")
+    assert result["observations"]["boj_call_rate"] == 0.28
+    assert result["metadata"]["safe_for_context"] is True
 
 
 def test_parse_failures_return_structured_failed_status() -> None:
@@ -132,14 +186,35 @@ def test_landing_page_fallback_source_registry_is_non_data() -> None:
     assert result["metadata"]["safe_for_context"] is False
 
 
-def test_cpi_live_source_reports_missing_estat_app_id_without_request(monkeypatch) -> None:
+def test_manual_csv_missing_is_structured_non_data(tmp_path) -> None:
+    result = _resolve_manual_csv_adapter(
+        {
+            "source_name": "Local manual Japan CPI CSV",
+            "source_url": "",
+            "source_group": "japan_cpi",
+            "source_type": "local_manual_file",
+            "source_kind": "local_manual_file",
+        },
+        "japan_cpi",
+        parse_japan_cpi_csv,
+        CPI_MANUAL_FILENAMES,
+        manual_dir=tmp_path / "missing",
+    )
+
+    assert result["status"] == "manual_file_missing"
+    assert result["error_category"] == "manual_file_missing"
+    assert result["value"] is None
+    assert result["observations"] == {}
+
+
+def test_cpi_live_source_reports_manual_missing_without_estat_app_id(monkeypatch) -> None:
     monkeypatch.delenv("ESTAT_APP_ID", raising=False)
 
     result = _resolve_cpi_live_source()
 
-    assert result["status"] == "missing_credentials"
-    assert result["error_category"] == "missing_credentials"
-    assert result["source_name"] == CPI_ESTAT_SOURCE["source_name"]
+    assert result["status"] == "manual_file_missing"
+    assert result["error_category"] == "manual_file_missing"
+    assert result["source_name"] == "Local manual Japan CPI CSV"
     assert result["value"] is None
     assert result["observations"] == {}
     assert result["metadata"]["credential_name"] == "ESTAT_APP_ID"

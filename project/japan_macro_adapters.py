@@ -4,6 +4,7 @@ import io
 import os
 from dataclasses import asdict, dataclass
 from datetime import date
+from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -19,6 +20,7 @@ ADAPTER_STATUSES = {
     "unavailable",
     "endpoint_not_resolved",
     "landing_page_reference",
+    "manual_file_missing",
     "missing_credentials",
 }
 CSV_CONTENT_HINTS = ("text/csv", "application/csv", "application/vnd.ms-excel", "text/plain", "application/octet-stream")
@@ -28,37 +30,61 @@ JGB_SOURCE = {
     "source_url": "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/",
     "source_group": "jgb_yield_curve",
     "source_type": "official_landing_page",
+    "source_kind": "official_landing_page",
 }
 JGB_CSV_SOURCE = {
     "source_name": "Ministry of Finance Japan JGB yield curve CSV",
     "source_url": "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/historical/jgbcme_all.csv",
     "source_group": "jgb_yield_curve",
     "source_type": "official_csv",
+    "source_kind": "official_public_file",
 }
 CPI_SOURCE = {
     "source_name": "Statistics Bureau of Japan CPI",
     "source_url": "https://www.stat.go.jp/english/data/cpi/",
     "source_group": "japan_cpi",
     "source_type": "official_landing_page",
+    "source_kind": "official_landing_page",
+}
+CPI_MANUAL_SOURCE = {
+    "source_name": "Local manual Japan CPI CSV",
+    "source_url": "",
+    "source_group": "japan_cpi",
+    "source_type": "local_manual_file",
+    "source_kind": "local_manual_file",
 }
 CPI_ESTAT_SOURCE = {
     "source_name": "e-Stat Japan CPI API",
     "source_url": "https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData",
     "source_group": "japan_cpi",
     "source_type": "official_api",
+    "source_kind": "optional_api",
 }
 BOJ_SOURCE = {
     "source_name": "Bank of Japan domestic short-rate statistics",
     "source_url": "https://www.boj.or.jp/en/statistics/",
     "source_group": "boj_domestic_short_rate",
     "source_type": "official_landing_page",
+    "source_kind": "official_landing_page",
+}
+BOJ_MANUAL_SOURCE = {
+    "source_name": "Local manual BOJ short-rate CSV",
+    "source_url": "",
+    "source_group": "boj_domestic_short_rate",
+    "source_type": "local_manual_file",
+    "source_kind": "local_manual_file",
 }
 BOJ_SHORT_RATE_SOURCE = {
     "source_name": "Bank of Japan Call Money Market Data",
     "source_url": "https://www.boj.or.jp/en/statistics/market/short/mutan/index.htm",
     "source_group": "boj_domestic_short_rate",
     "source_type": "official_landing_page",
+    "source_kind": "official_landing_page",
 }
+
+MANUAL_SOURCE_DIR = Path("project/manual_sources")
+CPI_MANUAL_FILENAMES = ("japan_cpi.csv",)
+BOJ_MANUAL_FILENAMES = ("boj_short_rate.csv",)
 
 
 @dataclass(frozen=True)
@@ -115,6 +141,7 @@ def parse_jgb_yield_curve_csv(text: str, *, source_url: str = JGB_SOURCE["source
                 "required_fields": ["jgb_2y", "jgb_5y", "jgb_10y", "jgb_20y", "jgb_30y"],
                 "source_group": "jgb_yield_curve",
                 "source_type": "official_csv" if source_url == JGB_CSV_SOURCE["source_url"] else "fixture_or_configured_csv",
+                "source_kind": "official_public_file" if source_url == JGB_CSV_SOURCE["source_url"] else "fixture_or_configured_csv",
                 "safe_for_context": True,
             },
             source_url=source_url,
@@ -146,7 +173,12 @@ def parse_japan_cpi_csv(text: str, *, source_url: str = CPI_SOURCE["source_url"]
             value=core_yoy if core_yoy is not None else cpi_yoy,
             unit="percent_yoy",
             observations=observations,
-            metadata={"trend_policy": "high>=3, rising when latest core CPI YoY exceeds previous month"},
+            metadata={
+                "trend_policy": "high>=3, rising when latest core CPI YoY exceeds previous month",
+                "source_group": "japan_cpi",
+                "source_kind": "local_manual_file" if source_url.startswith("file://") else "fixture_or_configured_csv",
+                "safe_for_context": True,
+            },
             source_url=source_url,
         ).as_payload()
     except Exception as exc:
@@ -180,7 +212,12 @@ def parse_boj_domestic_rate_csv(text: str, *, source_url: str = BOJ_SOURCE["sour
             value=call_rate if call_rate is not None else policy_rate,
             unit="percent",
             observations=observations,
-            metadata={"context_policy": "rising when latest call rate exceeds previous; high when short rate >= 0.5"},
+            metadata={
+                "context_policy": "rising when latest call rate exceeds previous; high when short rate >= 0.5",
+                "source_group": "boj_domestic_short_rate",
+                "source_kind": "local_manual_file" if source_url.startswith("file://") else "fixture_or_configured_csv",
+                "safe_for_context": True,
+            },
             source_url=source_url,
         ).as_payload()
     except Exception as exc:
@@ -268,16 +305,22 @@ def _classify_download_response(content_type: str, text: str, body: bytes) -> tu
 
 
 def _resolve_cpi_live_source() -> dict[str, Any]:
+    manual = _resolve_manual_csv_adapter(CPI_MANUAL_SOURCE, "japan_cpi", parse_japan_cpi_csv, CPI_MANUAL_FILENAMES)
+    if manual["status"] != "manual_file_missing":
+        return manual
     app_id = os.environ.get("ESTAT_APP_ID", "").strip()
     if not app_id:
         return _source_reference_result(
-            CPI_ESTAT_SOURCE,
+            CPI_MANUAL_SOURCE,
             "japan_cpi",
-            status="missing_credentials",
-            error_category="missing_credentials",
-            human_action="set_estat_app_id_or_confirm_statistics_bureau_csv_schema",
-            human_note="e-Stat appId is not configured; no CPI API request was attempted.",
+            status="manual_file_missing",
+            error_category="manual_file_missing",
+            human_action="place_official_cpi_csv_under_project_manual_sources_or_set_optional_estat_app_id",
+            human_note="No local manual CPI CSV was found; e-Stat appId is not configured, so no CPI API request was attempted.",
             metadata={
+                "manual_dir": str(MANUAL_SOURCE_DIR),
+                "expected_filenames": list(CPI_MANUAL_FILENAMES),
+                "optional_api_source_name": CPI_ESTAT_SOURCE["source_name"],
                 "fallback_source_name": CPI_SOURCE["source_name"],
                 "fallback_source_url": CPI_SOURCE["source_url"],
                 "credential_name": "ESTAT_APP_ID",
@@ -299,6 +342,9 @@ def _resolve_cpi_live_source() -> dict[str, Any]:
 
 
 def _resolve_boj_live_source() -> dict[str, Any]:
+    manual = _resolve_manual_csv_adapter(BOJ_MANUAL_SOURCE, "boj_domestic_short_rate", parse_boj_domestic_rate_csv, BOJ_MANUAL_FILENAMES)
+    if manual["status"] != "manual_file_missing":
+        return manual
     return _source_reference_result(
         BOJ_SHORT_RATE_SOURCE,
         "boj_domestic_short_rate",
@@ -308,6 +354,76 @@ def _resolve_boj_live_source() -> dict[str, Any]:
         human_note="BOJ publishes short-rate pages and downloadable XLSX releases, but a stable no-credential CSV/API series endpoint is not resolved.",
         metadata={"fallback_source_name": BOJ_SOURCE["source_name"], "fallback_source_url": BOJ_SOURCE["source_url"]},
     )
+
+
+def _resolve_manual_csv_adapter(
+    source: dict[str, str],
+    series_name: str,
+    parser: Any,
+    filenames: tuple[str, ...],
+    *,
+    manual_dir: Path = MANUAL_SOURCE_DIR,
+) -> dict[str, Any]:
+    manual_path = _first_existing_manual_file(manual_dir, filenames)
+    if manual_path is None:
+        return _source_reference_result(
+            source,
+            series_name,
+            status="manual_file_missing",
+            error_category="manual_file_missing",
+            human_action="place_official_csv_under_project_manual_sources",
+            human_note=f"No local manual CSV found under {manual_dir}.",
+            metadata={"manual_dir": str(manual_dir), "expected_filenames": list(filenames)},
+        )
+    try:
+        text = _read_manual_text(manual_path)
+    except UnicodeError as exc:
+        return _failed_result(
+            source,
+            series_name,
+            _file_url(manual_path),
+            exc,
+            error_category="encoding_error",
+            metadata={"safe_for_context": False, "source_kind": "local_manual_file", "local_path": str(manual_path)},
+        )
+    result = parser(text, source_url=_file_url(manual_path))
+    result["source_name"] = source["source_name"]
+    result["source_group"] = source.get("source_group", series_name)
+    result["source_type"] = source.get("source_type", "local_manual_file")
+    result["source_kind"] = source.get("source_kind", "local_manual_file")
+    result["local_path"] = str(manual_path)
+    result.setdefault("metadata", {})
+    result["metadata"].update(
+        {
+            "source_group": source.get("source_group", series_name),
+            "source_type": source.get("source_type", "local_manual_file"),
+            "source_kind": source.get("source_kind", "local_manual_file"),
+            "local_path": str(manual_path),
+            "safe_for_context": result.get("status") in {"ok", "partial"},
+        }
+    )
+    return result
+
+
+def _first_existing_manual_file(manual_dir: Path, filenames: tuple[str, ...]) -> Path | None:
+    for filename in filenames:
+        path = manual_dir / filename
+        if path.is_file():
+            return path
+    return None
+
+
+def _read_manual_text(path: Path) -> str:
+    for encoding in ("utf-8-sig", "cp932"):
+        try:
+            return path.read_text(encoding=encoding)
+        except UnicodeDecodeError:
+            continue
+    return path.read_text(encoding="utf-8")
+
+
+def _file_url(path: Path) -> str:
+    return path.resolve().as_uri()
 
 
 def _latest_row(frame: pd.DataFrame, date_column: str) -> pd.Series:
@@ -470,6 +586,7 @@ def _source_reference_result(
         "safe_for_context": False,
         "source_group": source.get("source_group", series_name),
         "source_type": source.get("source_type", "official_landing_page"),
+        "source_kind": source.get("source_kind", source.get("source_type", "official_landing_page")),
         "error_category": error_category,
         "human_action": human_action,
         "human_note": human_note,
@@ -492,6 +609,7 @@ def _source_reference_result(
         {
             "source_group": source_metadata["source_group"],
             "source_type": source_metadata["source_type"],
+            "source_kind": source_metadata["source_kind"],
             "human_action": human_action,
             "human_note": human_note,
         }

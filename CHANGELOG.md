@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.8.42 - API-Key-Free Japan Macro Public File Resolver
+
+### Changed
+
+- Reoriented CPI and BOJ macro acquisition toward distribution-safe appId-free public/manual source files instead of normal-use API credentials.
+- Added optional local manual CSV resolution for CPI and BOJ short-rate context under `project/manual_sources/` without creating or requiring runtime manual files.
+- Kept e-Stat optional and disabled unless the user supplies `ESTAT_APP_ID`; missing appId does not trigger a network request.
+- Documented manual source filenames, compact CSV column contracts, and fallback behavior.
+
+### Scope
+
+- Kept `final_action`, equity buy-readiness scoring, threshold JSON and decisions, reliability policy, buy blocker/card logic, buy window/candidate thresholds, risk labels, CI, scripts, dependencies, generated reports, cache, manual source files, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.41 - Official Japan Macro Endpoint Discovery Fallback Registry
 
 ### Changed
