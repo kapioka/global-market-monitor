@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.40 - Official Macro Live Source Resolver
+
+### Changed
+
+- Classified optional Japan macro live-once responses before parser execution so official HTML landing pages become structured `landing_page` failures instead of raw CSV tokenizer errors.
+- Documented the live resolver endpoint limitation while keeping official macro fetching optional and non-blocking.
+
+### Scope
+
+- Kept `final_action`, equity buy-readiness scoring, threshold JSON and decisions, reliability policy, buy blocker/card logic, buy window/candidate thresholds, risk labels, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.37-v0.8.38 - Official Japan Macro Adapter Implementation and Validation
 
 ### Added

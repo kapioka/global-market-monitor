@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from project.japan_macro_adapters import (
+    JGB_SOURCE,
+    _classify_download_response,
+    _failed_result,
     build_japan_macro_context,
     parse_boj_domestic_rate_csv,
     parse_japan_cpi_csv,
@@ -62,7 +65,29 @@ def test_parse_failures_return_structured_failed_status() -> None:
 
     assert result["status"] == "failed"
     assert result["observations"] == {}
+    assert result["error_category"] == "missing_required_fields"
     assert result["error_message"]
+
+
+def test_landing_page_response_is_classified_before_csv_parser() -> None:
+    issue = _classify_download_response("text/html; charset=utf-8", "<!doctype html><html><body>download</body></html>", b"x")
+
+    assert issue == ("landing_page", "official source resolved to an HTML landing page, not a stable CSV/text data file")
+
+
+def test_failed_result_includes_source_specific_error_category() -> None:
+    result = _failed_result(
+        JGB_SOURCE,
+        "jgb_yield_curve",
+        JGB_SOURCE["source_url"],
+        ValueError("official source resolved to an HTML landing page"),
+        error_category="landing_page",
+        metadata={"safe_for_context": False, "content_type": "text/html"},
+    )
+
+    assert result["status"] == "failed"
+    assert result["error_category"] == "landing_page"
+    assert result["metadata"]["content_type"] == "text/html"
 
 
 def test_build_japan_macro_context_maps_adapter_outputs_to_display_context() -> None:

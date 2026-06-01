@@ -4,12 +4,14 @@ import io
 from dataclasses import asdict, dataclass
 from datetime import date
 from typing import Any
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 import pandas as pd
+from pandas.errors import ParserError
 
 ADAPTER_STATUSES = {"ok", "missing", "partial", "failed", "unavailable"}
+CSV_CONTENT_HINTS = ("text/csv", "application/csv", "application/vnd.ms-excel", "text/plain", "application/octet-stream")
 
 JGB_SOURCE = {
     "source_name": "Ministry of Finance Japan JGB yield curve",
@@ -36,11 +38,13 @@ class JapanMacroSeriesResult:
     observations: dict[str, Any]
     metadata: dict[str, Any]
     source_url: str
+    error_category: str | None = None
     error_message: str | None = None
 
     def as_payload(self, include_error: bool = False) -> dict[str, Any]:
         payload = asdict(self)
         if not include_error:
+            payload.pop("error_category", None)
             payload.pop("error_message", None)
         return payload
 
@@ -74,7 +78,7 @@ def parse_jgb_yield_curve_csv(text: str, *, source_url: str = JGB_SOURCE["source
             source_url=source_url,
         ).as_payload()
     except Exception as exc:
-        return _failed_result(JGB_SOURCE, "jgb_yield_curve", source_url, exc)
+        return _failed_result(JGB_SOURCE, "jgb_yield_curve", source_url, exc, error_category=_error_category(exc))
 
 
 def parse_japan_cpi_csv(text: str, *, source_url: str = CPI_SOURCE["source_url"]) -> dict[str, Any]:
@@ -104,7 +108,7 @@ def parse_japan_cpi_csv(text: str, *, source_url: str = CPI_SOURCE["source_url"]
             source_url=source_url,
         ).as_payload()
     except Exception as exc:
-        return _failed_result(CPI_SOURCE, "japan_cpi", source_url, exc)
+        return _failed_result(CPI_SOURCE, "japan_cpi", source_url, exc, error_category=_error_category(exc))
 
 
 def parse_boj_domestic_rate_csv(text: str, *, source_url: str = BOJ_SOURCE["source_url"]) -> dict[str, Any]:
@@ -138,7 +142,7 @@ def parse_boj_domestic_rate_csv(text: str, *, source_url: str = BOJ_SOURCE["sour
             source_url=source_url,
         ).as_payload()
     except Exception as exc:
-        return _failed_result(BOJ_SOURCE, "boj_domestic_short_rate", source_url, exc)
+        return _failed_result(BOJ_SOURCE, "boj_domestic_short_rate", source_url, exc, error_category=_error_category(exc))
 
 
 def build_japan_macro_context(adapter_results: list[dict[str, Any]]) -> dict[str, Any]:
@@ -186,10 +190,38 @@ def _fetch_csv_adapter(source: dict[str, str], series_name: str, parser: Any, ti
     try:
         request = Request(url, headers={"User-Agent": "CodexMarketMonitor/1.0", "Accept": "text/csv,text/plain,*/*"})
         with urlopen(request, timeout=timeout) as response:
-            text = response.read().decode("utf-8", errors="replace")
+            content_type = str(response.headers.get("Content-Type") or "").lower()
+            body = response.read()
+        text = body.decode("utf-8", errors="replace")
+        response_issue = _classify_download_response(content_type, text, body)
+        if response_issue is not None:
+            category, message = response_issue
+            return _failed_result(
+                source,
+                series_name,
+                url,
+                ValueError(message),
+                error_category=category,
+                metadata={"safe_for_context": False, "content_type": content_type or "unknown"},
+            )
         return parser(text, source_url=url)
+    except TimeoutError as exc:
+        return _failed_result(source, series_name, url, exc, error_category="timeout")
+    except HTTPError as exc:
+        return _failed_result(source, series_name, url, exc, error_category="source_unavailable")
     except (OSError, URLError, ValueError) as exc:
-        return _failed_result(source, series_name, url, exc)
+        return _failed_result(source, series_name, url, exc, error_category=_error_category(exc))
+
+
+def _classify_download_response(content_type: str, text: str, body: bytes) -> tuple[str, str] | None:
+    stripped = text.lstrip().lower()
+    if not body:
+        return "empty_response", "official source returned an empty response"
+    if "html" in content_type or stripped.startswith(("<!doctype html", "<html")):
+        return "landing_page", "official source resolved to an HTML landing page, not a stable CSV/text data file"
+    if content_type and not any(hint in content_type for hint in CSV_CONTENT_HINTS):
+        return "unsupported_format", f"official source returned unsupported content type: {content_type}"
+    return None
 
 
 def _latest_row(frame: pd.DataFrame, date_column: str) -> pd.Series:
@@ -284,7 +316,30 @@ def _iso_date(value: Any) -> str | None:
     return None
 
 
-def _failed_result(source: dict[str, str], series_name: str, source_url: str, exc: Exception) -> dict[str, Any]:
+def _error_category(exc: Exception) -> str:
+    if isinstance(exc, ParserError):
+        return "parse_error"
+    if isinstance(exc, TimeoutError):
+        return "timeout"
+    if isinstance(exc, URLError):
+        return "network_error"
+    message = str(exc).lower()
+    if "date column not found" in message or "required" in message:
+        return "missing_required_fields"
+    if "no dated rows" in message:
+        return "missing_required_fields"
+    return "parse_error"
+
+
+def _failed_result(
+    source: dict[str, str],
+    series_name: str,
+    source_url: str,
+    exc: Exception,
+    *,
+    error_category: str,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     return JapanMacroSeriesResult(
         source_name=source["source_name"],
         series_name=series_name,
@@ -293,8 +348,9 @@ def _failed_result(source: dict[str, str], series_name: str, source_url: str, ex
         value=None,
         unit="",
         observations={},
-        metadata={"safe_for_context": False},
+        metadata=metadata or {"safe_for_context": False},
         source_url=source_url,
+        error_category=error_category,
         error_message=str(exc).splitlines()[0][:200],
     ).as_payload(include_error=True)
 

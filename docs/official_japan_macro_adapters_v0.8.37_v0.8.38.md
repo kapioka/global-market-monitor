@@ -70,6 +70,24 @@ requirement and should not be retried repeatedly if a source fails or returns a
 non-CSV landing page. Failures remain structured as `failed` and are not shown
 as raw parser errors in beginner-facing output.
 
+## v0.8.40 live resolver note
+
+The initial live-once path pointed at official information pages for Ministry of
+Finance JGB rates, Statistics Bureau CPI, and BOJ statistics. Those URLs are
+official references, but they may return HTML landing pages rather than stable
+CSV/text datasets. v0.8.40 keeps the one-request-per-source behavior and adds
+source-specific response classification before parser execution:
+
+- `landing_page`: official URL returned HTML instead of data
+- `unsupported_format`: official URL returned a non-CSV/text content type
+- `empty_response`: official URL returned no body
+- `network_error` / `timeout` / `source_unavailable`: transport-level issue
+- `missing_required_fields` / `parse_error`: data-like response could not be parsed
+
+This is an improvement over raw CSV tokenizer failures. The result remains
+non-blocking and safe for display-only context. Stable downloadable endpoints can
+be added later without changing the fallback contract.
+
 ## Integration
 
 The pipeline now attaches an optional Japan macro context to
