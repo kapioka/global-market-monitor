@@ -88,6 +88,75 @@ This is an improvement over raw CSV tokenizer failures. The result remains
 non-blocking and safe for display-only context. Stable downloadable endpoints can
 be added later without changing the fallback contract.
 
+## v0.8.41 endpoint discovery and fallback registry
+
+v0.8.41 adds a two-level live source strategy:
+
+1. Use a stable first-party machine-readable endpoint only when the format is
+   small enough to parse robustly.
+2. Otherwise keep the official page as a fallback source registry entry and
+   return non-data structured status.
+
+### MOF JGB yield curve
+
+The Ministry of Finance exposes a first-party historical CSV endpoint:
+
+- `https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/historical/jgbcme_all.csv`
+
+The parser now accepts the MOF title row plus the `Date,1Y,2Y,...,40Y` header
+shape. It extracts:
+
+- `jgb_2y`
+- `jgb_5y`
+- `jgb_10y`
+- `jgb_20y`
+- `jgb_30y`
+- `jgb_curve_10y_2y`
+- `jgb_curve_30y_10y`
+
+If the endpoint returns a landing page or non-data response, the result becomes
+a source registry entry instead of a parser failure.
+
+### Japan CPI
+
+The Statistics Bureau CPI page exposes downloadable files, and e-Stat can be a
+future API source. v0.8.41 does not hard-code an e-Stat appId or stats table
+mapping.
+
+- If `ESTAT_APP_ID` is missing, the adapter returns `missing_credentials` and
+  does not attempt an e-Stat network request.
+- If `ESTAT_APP_ID` is present, the adapter still returns
+  `endpoint_not_resolved` until a stable CPI table mapping is explicitly
+  selected and tested.
+- The Statistics Bureau landing page remains a fallback official source
+  reference.
+
+No credential value is logged or included in payloads.
+
+### BOJ short-rate context
+
+BOJ publishes short-rate pages, Time-Series Data Search links, and current XLSX
+release files for call money market data. v0.8.41 does not scrape visual pages
+or parse changing release spreadsheets. Until a stable no-credential CSV/API
+series endpoint or BOJ series code is selected, the BOJ source returns
+`endpoint_not_resolved`.
+
+### Fallback registry contract
+
+Fallback entries are source references only. They have no real macro value:
+
+- `value: null`
+- `observations: {}`
+- `metadata.safe_for_context: false`
+- `source_type: official_landing_page` or equivalent
+- `error_category: landing_page_reference`, `endpoint_not_resolved`, or
+  `missing_credentials`
+- `human_action` describing what manual discovery is still required
+
+`build_japan_macro_context` only promotes `ok` or `partial` parser results into
+`jgb_yields`, `inflation`, or `domestic_rates`. Fallback registry entries remain
+inside `macro_sources` and give no score boost.
+
 ## Integration
 
 The pipeline now attaches an optional Japan macro context to

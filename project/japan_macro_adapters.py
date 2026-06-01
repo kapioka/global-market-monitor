@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import os
 from dataclasses import asdict, dataclass
 from datetime import date
 from typing import Any
@@ -10,20 +11,53 @@ from urllib.request import Request, urlopen
 import pandas as pd
 from pandas.errors import ParserError
 
-ADAPTER_STATUSES = {"ok", "missing", "partial", "failed", "unavailable"}
+ADAPTER_STATUSES = {
+    "ok",
+    "missing",
+    "partial",
+    "failed",
+    "unavailable",
+    "endpoint_not_resolved",
+    "landing_page_reference",
+    "missing_credentials",
+}
 CSV_CONTENT_HINTS = ("text/csv", "application/csv", "application/vnd.ms-excel", "text/plain", "application/octet-stream")
 
 JGB_SOURCE = {
     "source_name": "Ministry of Finance Japan JGB yield curve",
     "source_url": "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/",
+    "source_group": "jgb_yield_curve",
+    "source_type": "official_landing_page",
+}
+JGB_CSV_SOURCE = {
+    "source_name": "Ministry of Finance Japan JGB yield curve CSV",
+    "source_url": "https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/historical/jgbcme_all.csv",
+    "source_group": "jgb_yield_curve",
+    "source_type": "official_csv",
 }
 CPI_SOURCE = {
     "source_name": "Statistics Bureau of Japan CPI",
     "source_url": "https://www.stat.go.jp/english/data/cpi/",
+    "source_group": "japan_cpi",
+    "source_type": "official_landing_page",
+}
+CPI_ESTAT_SOURCE = {
+    "source_name": "e-Stat Japan CPI API",
+    "source_url": "https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData",
+    "source_group": "japan_cpi",
+    "source_type": "official_api",
 }
 BOJ_SOURCE = {
     "source_name": "Bank of Japan domestic short-rate statistics",
     "source_url": "https://www.boj.or.jp/en/statistics/",
+    "source_group": "boj_domestic_short_rate",
+    "source_type": "official_landing_page",
+}
+BOJ_SHORT_RATE_SOURCE = {
+    "source_name": "Bank of Japan Call Money Market Data",
+    "source_url": "https://www.boj.or.jp/en/statistics/market/short/mutan/index.htm",
+    "source_group": "boj_domestic_short_rate",
+    "source_type": "official_landing_page",
 }
 
 
@@ -53,6 +87,9 @@ def parse_jgb_yield_curve_csv(text: str, *, source_url: str = JGB_SOURCE["source
     try:
         frame = pd.read_csv(io.StringIO(text))
         date_column = _find_column(frame, {"date", "基準日", "年月日"})
+        if date_column is None and not frame.empty:
+            frame = pd.read_csv(io.StringIO(text), skiprows=1)
+            date_column = _find_column(frame, {"date", "基準日", "年月日"})
         if date_column is None:
             raise ValueError("date column not found")
         latest = _latest_row(frame, date_column)
@@ -67,14 +104,19 @@ def parse_jgb_yield_curve_csv(text: str, *, source_url: str = JGB_SOURCE["source
         observations["jgb_curve_30y_10y"] = _spread(observations.get("jgb_30y"), observations.get("jgb_10y"))
         status = "ok" if all(observations.get(key) is not None for key in ("jgb_2y", "jgb_10y", "jgb_30y")) else "partial"
         return JapanMacroSeriesResult(
-            source_name=JGB_SOURCE["source_name"],
+            source_name=JGB_CSV_SOURCE["source_name"] if source_url == JGB_CSV_SOURCE["source_url"] else JGB_SOURCE["source_name"],
             series_name="jgb_yield_curve",
             status=status,
             latest_date=_iso_date(latest[date_column]),
             value=observations.get("jgb_10y"),
             unit="percent",
             observations=observations,
-            metadata={"required_fields": ["jgb_2y", "jgb_5y", "jgb_10y", "jgb_20y", "jgb_30y"]},
+            metadata={
+                "required_fields": ["jgb_2y", "jgb_5y", "jgb_10y", "jgb_20y", "jgb_30y"],
+                "source_group": "jgb_yield_curve",
+                "source_type": "official_csv" if source_url == JGB_CSV_SOURCE["source_url"] else "fixture_or_configured_csv",
+                "safe_for_context": True,
+            },
             source_url=source_url,
         ).as_payload()
     except Exception as exc:
@@ -176,12 +218,12 @@ def run_official_japan_macro_dry_run(*, live: bool = False, timeout: int = 15) -
         context = unavailable_official_japan_macro_context("live official macro fetch was not requested")
         return {"status": "unavailable", "mode": "contract_only", "context": context}
     results = [
-        _fetch_csv_adapter(JGB_SOURCE, "jgb_yield_curve", parse_jgb_yield_curve_csv, timeout),
-        _fetch_csv_adapter(CPI_SOURCE, "japan_cpi", parse_japan_cpi_csv, timeout),
-        _fetch_csv_adapter(BOJ_SOURCE, "boj_domestic_short_rate", parse_boj_domestic_rate_csv, timeout),
+        _fetch_csv_adapter(JGB_CSV_SOURCE, "jgb_yield_curve", parse_jgb_yield_curve_csv, timeout),
+        _resolve_cpi_live_source(),
+        _resolve_boj_live_source(),
     ]
     statuses = {str(result.get("status")) for result in results}
-    status = "ok" if statuses == {"ok"} else "partial" if statuses & {"ok", "partial"} else "failed"
+    status = "ok" if statuses == {"ok"} else "partial" if statuses & {"ok", "partial"} else "unavailable"
     return {"status": status, "mode": "live_once", "results": results, "context": build_japan_macro_context(results)}
 
 
@@ -196,13 +238,14 @@ def _fetch_csv_adapter(source: dict[str, str], series_name: str, parser: Any, ti
         response_issue = _classify_download_response(content_type, text, body)
         if response_issue is not None:
             category, message = response_issue
-            return _failed_result(
+            return _source_reference_result(
                 source,
                 series_name,
-                url,
-                ValueError(message),
-                error_category=category,
-                metadata={"safe_for_context": False, "content_type": content_type or "unknown"},
+                status="landing_page_reference" if category == "landing_page" else "unavailable",
+                error_category="landing_page_reference" if category == "landing_page" else category,
+                human_action="download_endpoint_discovery_required",
+                human_note=message,
+                metadata={"content_type": content_type or "unknown"},
             )
         return parser(text, source_url=url)
     except TimeoutError as exc:
@@ -222,6 +265,49 @@ def _classify_download_response(content_type: str, text: str, body: bytes) -> tu
     if content_type and not any(hint in content_type for hint in CSV_CONTENT_HINTS):
         return "unsupported_format", f"official source returned unsupported content type: {content_type}"
     return None
+
+
+def _resolve_cpi_live_source() -> dict[str, Any]:
+    app_id = os.environ.get("ESTAT_APP_ID", "").strip()
+    if not app_id:
+        return _source_reference_result(
+            CPI_ESTAT_SOURCE,
+            "japan_cpi",
+            status="missing_credentials",
+            error_category="missing_credentials",
+            human_action="set_estat_app_id_or_confirm_statistics_bureau_csv_schema",
+            human_note="e-Stat appId is not configured; no CPI API request was attempted.",
+            metadata={
+                "fallback_source_name": CPI_SOURCE["source_name"],
+                "fallback_source_url": CPI_SOURCE["source_url"],
+                "credential_name": "ESTAT_APP_ID",
+            },
+        )
+    return _source_reference_result(
+        CPI_ESTAT_SOURCE,
+        "japan_cpi",
+        status="endpoint_not_resolved",
+        error_category="endpoint_not_resolved",
+        human_action="estat_stats_data_id_discovery_required",
+        human_note="e-Stat appId is configured, but the stable CPI statsDataId/table mapping is not resolved in this checkpoint.",
+        metadata={
+            "credential_configured": True,
+            "fallback_source_name": CPI_SOURCE["source_name"],
+            "fallback_source_url": CPI_SOURCE["source_url"],
+        },
+    )
+
+
+def _resolve_boj_live_source() -> dict[str, Any]:
+    return _source_reference_result(
+        BOJ_SHORT_RATE_SOURCE,
+        "boj_domestic_short_rate",
+        status="endpoint_not_resolved",
+        error_category="endpoint_not_resolved",
+        human_action="boj_time_series_code_discovery_required",
+        human_note="BOJ publishes short-rate pages and downloadable XLSX releases, but a stable no-credential CSV/API series endpoint is not resolved.",
+        metadata={"fallback_source_name": BOJ_SOURCE["source_name"], "fallback_source_url": BOJ_SOURCE["source_url"]},
+    )
 
 
 def _latest_row(frame: pd.DataFrame, date_column: str) -> pd.Series:
@@ -265,7 +351,10 @@ def _number(value: Any) -> float | None:
     try:
         if value is None or pd.isna(value):
             return None
-        return float(str(value).replace("%", "").replace(",", "").strip())
+        text = str(value).replace("%", "").replace(",", "").strip()
+        if text in {"", "-", "―", "－"}:
+            return None
+        return float(text)
     except (TypeError, ValueError):
         return None
 
@@ -356,14 +445,55 @@ def _failed_result(
 
 
 def _unavailable_result(source: dict[str, str], series_name: str, reason: str) -> dict[str, Any]:
-    return JapanMacroSeriesResult(
+    return _source_reference_result(
+        source,
+        series_name,
+        status="unavailable",
+        error_category="source_unavailable",
+        human_action="live_fetch_optional",
+        human_note=reason,
+        metadata={"reason": reason},
+    )
+
+
+def _source_reference_result(
+    source: dict[str, str],
+    series_name: str,
+    *,
+    status: str,
+    error_category: str,
+    human_action: str,
+    human_note: str,
+    metadata: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    source_metadata = {
+        "safe_for_context": False,
+        "source_group": source.get("source_group", series_name),
+        "source_type": source.get("source_type", "official_landing_page"),
+        "error_category": error_category,
+        "human_action": human_action,
+        "human_note": human_note,
+        **(metadata or {}),
+    }
+    payload = JapanMacroSeriesResult(
         source_name=source["source_name"],
         series_name=series_name,
-        status="unavailable",
+        status=status,
         latest_date=None,
         value=None,
         unit="",
         observations={},
-        metadata={"safe_for_context": True, "reason": reason},
+        metadata=source_metadata,
         source_url=source["source_url"],
-    ).as_payload()
+        error_category=error_category,
+        error_message=human_note,
+    ).as_payload(include_error=True)
+    payload.update(
+        {
+            "source_group": source_metadata["source_group"],
+            "source_type": source_metadata["source_type"],
+            "human_action": human_action,
+            "human_note": human_note,
+        }
+    )
+    return payload

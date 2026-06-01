@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 from project.japan_macro_adapters import (
+    BOJ_SHORT_RATE_SOURCE,
+    CPI_ESTAT_SOURCE,
     JGB_SOURCE,
     _classify_download_response,
     _failed_result,
+    _resolve_boj_live_source,
+    _resolve_cpi_live_source,
+    _source_reference_result,
     build_japan_macro_context,
     parse_boj_domestic_rate_csv,
     parse_japan_cpi_csv,
@@ -26,6 +31,12 @@ BOJ_CSV = """Date,Policy Rate,Call Rate
 2026-05-01,0.25,0.28
 """
 
+MOF_JGB_CSV = """Interest Rate,,,,,,,,,,,,,,,(Unit : %)
+Date,1Y,2Y,3Y,4Y,5Y,6Y,7Y,8Y,9Y,10Y,15Y,20Y,25Y,30Y,40Y
+2026/05/28,0.50,0.75,0.80,0.90,1.00,1.05,1.10,1.15,1.20,1.30,1.55,1.80,1.95,2.05,2.25
+2026/05/29,0.51,0.76,0.81,0.91,1.01,1.06,1.11,1.16,1.21,1.32,1.56,1.82,1.96,2.08,2.26
+"""
+
 
 def test_parse_jgb_yield_curve_fixture_returns_required_fields() -> None:
     result = parse_jgb_yield_curve_csv(JGB_CSV)
@@ -38,6 +49,20 @@ def test_parse_jgb_yield_curve_fixture_returns_required_fields() -> None:
     assert result["observations"]["jgb_curve_10y_2y"] == 0.74
     assert result["observations"]["jgb_curve_30y_10y"] == 1.04
     assert "Ministry of Finance" in result["source_name"]
+
+
+def test_parse_mof_jgb_csv_with_title_row_returns_latest_curve() -> None:
+    result = parse_jgb_yield_curve_csv(
+        MOF_JGB_CSV, source_url="https://www.mof.go.jp/english/policy/jgbs/reference/interest_rate/historical/jgbcme_all.csv"
+    )
+
+    assert result["status"] == "ok"
+    assert result["latest_date"] == "2026-05-29"
+    assert result["observations"]["jgb_2y"] == 0.76
+    assert result["observations"]["jgb_10y"] == 1.32
+    assert result["observations"]["jgb_30y"] == 2.08
+    assert result["observations"]["jgb_curve_10y_2y"] == 0.56
+    assert result["metadata"]["source_type"] == "official_csv"
 
 
 def test_parse_japan_cpi_fixture_returns_trend_without_fake_values() -> None:
@@ -90,6 +115,57 @@ def test_failed_result_includes_source_specific_error_category() -> None:
     assert result["metadata"]["content_type"] == "text/html"
 
 
+def test_landing_page_fallback_source_registry_is_non_data() -> None:
+    result = _source_reference_result(
+        JGB_SOURCE,
+        "jgb_yield_curve",
+        status="landing_page_reference",
+        error_category="landing_page_reference",
+        human_action="download_endpoint_discovery_required",
+        human_note="official source resolved to a landing page",
+    )
+
+    assert result["status"] == "landing_page_reference"
+    assert result["source_type"] == "official_landing_page"
+    assert result["value"] is None
+    assert result["observations"] == {}
+    assert result["metadata"]["safe_for_context"] is False
+
+
+def test_cpi_live_source_reports_missing_estat_app_id_without_request(monkeypatch) -> None:
+    monkeypatch.delenv("ESTAT_APP_ID", raising=False)
+
+    result = _resolve_cpi_live_source()
+
+    assert result["status"] == "missing_credentials"
+    assert result["error_category"] == "missing_credentials"
+    assert result["source_name"] == CPI_ESTAT_SOURCE["source_name"]
+    assert result["value"] is None
+    assert result["observations"] == {}
+    assert result["metadata"]["credential_name"] == "ESTAT_APP_ID"
+
+
+def test_cpi_live_source_with_app_id_still_requires_endpoint_mapping(monkeypatch) -> None:
+    monkeypatch.setenv("ESTAT_APP_ID", "test-app-id")
+
+    result = _resolve_cpi_live_source()
+
+    assert result["status"] == "endpoint_not_resolved"
+    assert result["error_category"] == "endpoint_not_resolved"
+    assert result["metadata"]["credential_configured"] is True
+    assert "test-app-id" not in str(result)
+
+
+def test_boj_live_source_returns_endpoint_not_resolved_registry_entry() -> None:
+    result = _resolve_boj_live_source()
+
+    assert result["status"] == "endpoint_not_resolved"
+    assert result["source_name"] == BOJ_SHORT_RATE_SOURCE["source_name"]
+    assert result["source_type"] == "official_landing_page"
+    assert result["value"] is None
+    assert result["observations"] == {}
+
+
 def test_build_japan_macro_context_maps_adapter_outputs_to_display_context() -> None:
     context = build_japan_macro_context(
         [
@@ -103,6 +179,26 @@ def test_build_japan_macro_context_maps_adapter_outputs_to_display_context() -> 
     assert context["inflation"]["jp_cpi_trend"] == "rising"
     assert context["domestic_rates"]["domestic_rate_context"] == "rising"
     assert set(context["macro_sources"]) == {"jgb_yield_curve", "japan_cpi", "boj_domestic_short_rate"}
+
+
+def test_build_japan_macro_context_treats_fallback_registry_as_missing_data() -> None:
+    context = build_japan_macro_context(
+        [
+            _source_reference_result(
+                JGB_SOURCE,
+                "jgb_yield_curve",
+                status="endpoint_not_resolved",
+                error_category="endpoint_not_resolved",
+                human_action="download_endpoint_discovery_required",
+                human_note="endpoint not resolved",
+            ),
+            _resolve_boj_live_source(),
+        ]
+    )
+
+    assert "jgb_yields" not in context
+    assert "domestic_rates" not in context
+    assert context["macro_sources"]["jgb_yield_curve"]["status"] == "endpoint_not_resolved"
 
 
 def test_dry_run_contract_is_safe_without_live_fetch() -> None:

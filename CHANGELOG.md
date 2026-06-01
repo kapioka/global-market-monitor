@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.8.41 - Official Japan Macro Endpoint Discovery Fallback Registry
+
+### Changed
+
+- Added a two-level optional Japan official macro live strategy: robust first-party endpoints when available, otherwise source registry fallback entries.
+- Switched the JGB live source to the MOF historical CSV endpoint and added parser support for its title-row/header shape.
+- Added structured non-data fallback statuses for CPI missing `ESTAT_APP_ID`, unresolved e-Stat table mapping, and unresolved BOJ short-rate endpoint discovery.
+- Kept fallback registry entries out of real macro observations so missing official macro data gives no score boost.
+
+### Scope
+
+- Kept `final_action`, equity buy-readiness scoring, threshold JSON and decisions, reliability policy, buy blocker/card logic, buy window/candidate thresholds, risk labels, CI, scripts, dependencies, generated reports, cache, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.40 - Official Macro Live Source Resolver
 
 ### Changed
