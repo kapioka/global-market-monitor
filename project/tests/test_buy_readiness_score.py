@@ -6,7 +6,6 @@ from pathlib import Path
 from project.buy_blocker_breakdown import build_buy_blocker_breakdown
 from project.buy_readiness_score import build_buy_readiness_score
 
-
 ACTUAL_CASE_PATH = Path(__file__).parent / "fixtures" / "actual_readiness_case_v0.8.16.json"
 
 
@@ -131,6 +130,78 @@ def test_fx_caution_only_is_not_over_penalized() -> None:
 
     assert blockers["blocker_severity"] == {"fx_risk": "caution"}
     assert payload["buy_readiness_score"] == 43
+
+
+def test_actual_watch_fx_caution_and_score_shortfall_calculate_40() -> None:
+    report = _watch_with_caution_blockers()
+    report["spot_signal"]["blocker_assessment"]["flags"] = [
+        "japan_fx_risk_moderate",
+        "foreign_asset_fx_dependency",
+    ]
+    report["score"]["total_score"] = 0.5854
+    blockers = build_buy_blocker_breakdown(report)
+    payload = build_buy_readiness_score(report, blockers)
+
+    assert blockers["blocker_rank"] == ["fx_risk", "score_shortfall"]
+    assert blockers["blocker_severity"] == {"fx_risk": "caution", "score_shortfall": "medium"}
+    assert payload["buy_readiness_score"] == 40
+    assert payload["readiness_level"] == "watch"
+
+
+def test_buy_readiness_score_is_not_clamped_to_40() -> None:
+    low_report = _watch_with_caution_blockers()
+    low_report["spot_signal"]["blocker_assessment"]["flags"] = []
+    low_report["data_reliability"]["sample_fallback_count"] = 1
+    low_blockers = build_buy_blocker_breakdown(low_report)
+    low_payload = build_buy_readiness_score(low_report, low_blockers)
+
+    forty_report = _watch_with_caution_blockers()
+    forty_report["spot_signal"]["blocker_assessment"]["flags"] = [
+        "japan_fx_risk_moderate",
+        "foreign_asset_fx_dependency",
+    ]
+    forty_report["score"]["total_score"] = 0.5854
+    forty_payload = build_buy_readiness_score(forty_report, build_buy_blocker_breakdown(forty_report))
+
+    higher_report = _watch_with_caution_blockers()
+    higher_report["spot_signal"]["blocker_assessment"]["flags"] = []
+    higher_payload = build_buy_readiness_score(higher_report, build_buy_blocker_breakdown(higher_report))
+
+    assert low_payload["buy_readiness_score"] <= 10
+    assert forty_payload["buy_readiness_score"] == 40
+    assert higher_payload["buy_readiness_score"] == 49
+
+
+def test_japan_resident_context_is_excluded_from_buy_readiness_score() -> None:
+    report = _watch_with_caution_blockers()
+    report["spot_signal"]["blocker_assessment"]["flags"] = [
+        "japan_fx_risk_moderate",
+        "foreign_asset_fx_dependency",
+    ]
+    report["score"]["total_score"] = 0.5854
+    blockers = build_buy_blocker_breakdown(report)
+    baseline = build_buy_readiness_score(report, blockers)
+
+    report["japan_resident_context"] = {
+        "jgb_yields": {"jgb_10y": 2.52, "jgb_curve_10y_2y": 1.118},
+        "inflation": {"jp_cpi_yoy": 2.7, "jp_cpi_trend": "rising"},
+        "domestic_rates": {"boj_call_rate": 0.5, "domestic_rate_context": "rising"},
+    }
+    report["multi_asset_candidates"] = {
+        "affects_buy_readiness_score": False,
+        "candidates": [
+            {
+                "asset_class": "bond_jpy",
+                "japan_resident_context_score": 20,
+                "japan_resident_must_not_affect_buy_readiness_score": True,
+            }
+        ],
+    }
+    with_context = build_buy_readiness_score(report, blockers)
+
+    assert baseline["buy_readiness_score"] == 40
+    assert with_context["buy_readiness_score"] == baseline["buy_readiness_score"]
+    assert with_context["affects_final_action"] is False
 
 
 def test_sample_fallback_remains_low_even_with_positive_context() -> None:

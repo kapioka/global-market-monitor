@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.43 - Smoke and Buy Readiness Logic Audit
+
+### Changed
+
+- Added audit documentation for controlled smoke validation, numeric acquisition, and the observed `buy_readiness_score` of 40.
+- Added regression tests showing the current watch + FX caution + score-shortfall case calculates 40 by design.
+- Added coverage proving Japan-resident macro/context payloads remain display-only and do not feed equity `buy_readiness_score`.
+
+### Scope
+
+- Kept `final_action`, threshold JSON and decisions, reliability policy, buy blocker/card logic, buy window/candidate thresholds, risk labels, CI, scripts, dependencies, generated reports, cache, manual source files, release archives, tags, GitHub Release, and push out of scope.
+
 ## v0.8.42 - API-Key-Free Japan Macro Public File Resolver
 
 ### Changed
