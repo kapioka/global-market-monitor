@@ -238,3 +238,32 @@ Fixture-backed parser tests cover:
 Live official fetch is intentionally optional because official pages may expose
 HTML, Excel, or changing CSV schemas. If live parsing needs a larger design, it
 should be handled in a separate Goal.
+
+## v0.8.45 domestic data wiring fix
+
+The normal report pipeline now builds an optional Japan macro context without
+making a live official fetch mandatory. The default path:
+
+- keeps MOF JGB live fetching disabled unless the explicit live-once dry run is
+  requested
+- reads `project/manual_sources/japan_cpi.csv` when the local manual file exists
+- reads `project/manual_sources/boj_short_rate.csv` when the local manual file
+  exists
+- records missing CPI/BOJ manual files as limitations, not risk signals
+
+Tests also cover explicit macro context injection into report generation. This
+lets MOF JGB fixture values reach `japan_resident_context`,
+`multi_asset_candidates`, and `domestic_danger_context` during controlled tests
+without adding network dependence.
+
+Missing JGB data is neutral for domestic bond and Japan REIT display
+components. Absence of a JGB curve remains a data limitation and must not create
+domestic bond or Japan REIT caution by itself.
+
+The boundary remains display-only:
+
+- no `final_action` change
+- no `buy_readiness_score` change
+- no threshold JSON change
+- no reliability policy change
+- no generated report, cache, or manual source file is committed

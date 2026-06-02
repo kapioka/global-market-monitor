@@ -1,14 +1,18 @@
 from __future__ import annotations
 
-from datetime import date
 import logging
-from pathlib import Path
 import shutil
 import sys
 import uuid
+from datetime import date
+from pathlib import Path
 
+import pandas as pd
+
+from project.data_fetcher import FetchResult
 from project.main import (
     build_parser,
+    build_report,
     collect_tickers,
     compute_backfill_dates,
     default_config_path,
@@ -16,15 +20,12 @@ from project.main import (
     load_fetch_snapshot,
     load_latest_fetch_snapshot,
     open_dashboard_file,
+    persist_report,
     run_actual_smoke,
     save_fetch_snapshot,
     snapshot_exists_for_slot,
 )
-from project.main import build_report, persist_report
-from project.data_fetcher import FetchResult
 from project.pipeline import load_action_validation_summary
-import pandas as pd
-
 
 TEST_TMP_ROOT = Path(__file__).resolve().parents[2] / ".tmp" / "pytest" / "manual" / "main"
 
@@ -533,10 +534,23 @@ def test_build_report_keeps_history_alignment_metadata():
         config,
         fetch,
         history_alignment={"target_date": "2026-03-20", "source": "saved_canonical_snapshot"},
+        japan_macro_context={
+            "jgb_yields": {"jgb_10y": 1.32, "jgb_curve_10y_2y": 0.56},
+            "inflation": {"jp_cpi_yoy": 2.7, "jp_core_cpi_yoy": 2.4, "jp_cpi_trend": "rising"},
+            "domestic_rates": {"boj_call_rate": 0.28, "domestic_rate_context": "rising"},
+            "macro_sources": {
+                "jgb_yield_curve": {"status": "ok"},
+                "japan_cpi": {"status": "ok"},
+                "boj_domestic_short_rate": {"status": "ok"},
+            },
+        },
     )
 
     assert report["history_alignment"]["target_date"] == "2026-03-20"
     assert report["history_alignment"]["source"] == "saved_canonical_snapshot"
+    assert report["japan_resident_context"]["jgb_yields"]["jgb_10y"] == 1.32
+    assert report["japan_resident_context"]["inflation"]["jp_cpi_trend"] == "rising"
+    assert report["domestic_danger_context"]["must_not_affect_final_action"] is True
 
 
 def test_persist_report_skips_non_live_history_and_prunes_same_day_entries():

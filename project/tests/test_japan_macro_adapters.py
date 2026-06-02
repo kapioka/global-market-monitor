@@ -12,6 +12,7 @@ from project.japan_macro_adapters import (
     _resolve_manual_csv_adapter,
     _source_reference_result,
     build_japan_macro_context,
+    build_optional_japan_macro_context,
     parse_boj_domestic_rate_csv,
     parse_japan_cpi_csv,
     parse_jgb_yield_curve_csv,
@@ -254,6 +255,22 @@ def test_build_japan_macro_context_maps_adapter_outputs_to_display_context() -> 
     assert context["inflation"]["jp_cpi_trend"] == "rising"
     assert context["domestic_rates"]["domestic_rate_context"] == "rising"
     assert set(context["macro_sources"]) == {"jgb_yield_curve", "japan_cpi", "boj_domestic_short_rate"}
+
+
+def test_optional_pipeline_macro_context_uses_manual_sources_without_live_fetch(tmp_path) -> None:
+    manual_dir = tmp_path / "manual_sources"
+    manual_dir.mkdir()
+    (manual_dir / "japan_cpi.csv").write_text(CPI_CSV, encoding="utf-8")
+    (manual_dir / "boj_short_rate.csv").write_text(BOJ_CSV, encoding="utf-8")
+
+    context = build_optional_japan_macro_context(manual_dir=manual_dir)
+
+    assert "jgb_yields" not in context
+    assert context["macro_sources"]["jgb_yield_curve"]["status"] == "unavailable"
+    assert context["inflation"]["jp_cpi_trend"] == "rising"
+    assert context["domestic_rates"]["domestic_rate_context"] == "rising"
+    assert context["macro_sources"]["japan_cpi"]["source_kind"] == "local_manual_file"
+    assert context["macro_sources"]["boj_domestic_short_rate"]["source_kind"] == "local_manual_file"
 
 
 def test_build_japan_macro_context_treats_fallback_registry_as_missing_data() -> None:

@@ -84,6 +84,21 @@ def test_domestic_danger_context_keeps_foreign_and_domestic_assets_separate() ->
     assert "GLD" not in by_symbol
 
 
+def test_missing_jgb_context_does_not_create_domestic_bond_or_reit_caution() -> None:
+    inputs = _inputs()
+    inputs["japan_resident_context"] = {"macro_sources": {}}
+    for row in inputs["multi_asset_candidates"]["candidates"]:
+        if row["asset_class"] in {"bond_jpy", "reit_jp"}:
+            row["japan_resident_context_components"] = {"domestic_rate": 0}
+
+    payload = build_domestic_danger_context(inputs)
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+
+    assert by_symbol["2510.T"]["level"] != "caution"
+    assert by_symbol["1343.T"]["level"] != "caution"
+    assert any("MOF JGB利回りが未取得" in item for item in payload["domestic_data_limitations"])
+
+
 def test_domestic_danger_context_copy_avoids_advice_phrases() -> None:
     rendered = str(build_domestic_danger_context(_inputs()))
 

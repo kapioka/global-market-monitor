@@ -250,9 +250,18 @@ def unavailable_official_japan_macro_context(reason: str = "official macro live 
     return build_japan_macro_context(results)
 
 
+def build_optional_japan_macro_context(*, manual_dir: Path = MANUAL_SOURCE_DIR) -> dict[str, Any]:
+    results = [
+        _unavailable_result(JGB_SOURCE, "jgb_yield_curve", "live official macro fetch was not requested"),
+        _resolve_cpi_live_source(manual_dir=manual_dir),
+        _resolve_boj_live_source(manual_dir=manual_dir),
+    ]
+    return build_japan_macro_context(results)
+
+
 def run_official_japan_macro_dry_run(*, live: bool = False, timeout: int = 15) -> dict[str, Any]:
     if not live:
-        context = unavailable_official_japan_macro_context("live official macro fetch was not requested")
+        context = build_optional_japan_macro_context()
         return {"status": "unavailable", "mode": "contract_only", "context": context}
     results = [
         _fetch_csv_adapter(JGB_CSV_SOURCE, "jgb_yield_curve", parse_jgb_yield_curve_csv, timeout),
@@ -304,8 +313,14 @@ def _classify_download_response(content_type: str, text: str, body: bytes) -> tu
     return None
 
 
-def _resolve_cpi_live_source() -> dict[str, Any]:
-    manual = _resolve_manual_csv_adapter(CPI_MANUAL_SOURCE, "japan_cpi", parse_japan_cpi_csv, CPI_MANUAL_FILENAMES)
+def _resolve_cpi_live_source(*, manual_dir: Path = MANUAL_SOURCE_DIR) -> dict[str, Any]:
+    manual = _resolve_manual_csv_adapter(
+        CPI_MANUAL_SOURCE,
+        "japan_cpi",
+        parse_japan_cpi_csv,
+        CPI_MANUAL_FILENAMES,
+        manual_dir=manual_dir,
+    )
     if manual["status"] != "manual_file_missing":
         return manual
     app_id = os.environ.get("ESTAT_APP_ID", "").strip()
@@ -341,8 +356,14 @@ def _resolve_cpi_live_source() -> dict[str, Any]:
     )
 
 
-def _resolve_boj_live_source() -> dict[str, Any]:
-    manual = _resolve_manual_csv_adapter(BOJ_MANUAL_SOURCE, "boj_domestic_short_rate", parse_boj_domestic_rate_csv, BOJ_MANUAL_FILENAMES)
+def _resolve_boj_live_source(*, manual_dir: Path = MANUAL_SOURCE_DIR) -> dict[str, Any]:
+    manual = _resolve_manual_csv_adapter(
+        BOJ_MANUAL_SOURCE,
+        "boj_domestic_short_rate",
+        parse_boj_domestic_rate_csv,
+        BOJ_MANUAL_FILENAMES,
+        manual_dir=manual_dir,
+    )
     if manual["status"] != "manual_file_missing":
         return manual
     return _source_reference_result(

@@ -155,7 +155,7 @@ def _domestic_rate_component(asset: dict[str, Any], context: dict[str, Any], tax
             return -8 if group in {"domestic_bonds", "japanese_reit"} else 5 if asset.get("asset_class") == "cash" else 0
         if domestic_context in {"falling", "stable"}:
             return 4 if group == "domestic_bonds" else 0
-        return -3 if group in {"domestic_bonds", "japanese_reit"} else 0
+        return 0
     if change < 0:
         return 10 if group == "domestic_bonds" else 5 if group == "japanese_reit" else 0
     if change > 0:

@@ -18,7 +18,7 @@ from project.domestic_danger_context import build_domestic_danger_context
 from project.fx_risk_policy import apply_fx_policy_candidate, classify_fx_policy
 from project.inflation_monitor import build_inflation_monitor
 from project.investment_candidates import build_investment_candidates
-from project.japan_macro_adapters import unavailable_official_japan_macro_context
+from project.japan_macro_adapters import build_optional_japan_macro_context
 from project.japan_risk_monitor import build_japan_risk_monitor
 from project.multi_asset_candidates import build_multi_asset_candidates
 from project.preprocess import compute_returns, preprocess_prices
@@ -93,6 +93,7 @@ def build_report(
     resample_weekly: bool = False,
     maintenance_summary: dict[str, Any] | None = None,
     history_alignment: dict[str, Any] | None = None,
+    japan_macro_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     prices = fetch.prices
     if as_of_date is not None and not prices.empty:
@@ -168,7 +169,7 @@ def build_report(
         int(config["data"].get("zscore_window_weeks", 52)),
         settings=config.get("japan_risk", {}),
     )
-    japan_macro_context = unavailable_official_japan_macro_context()
+    japan_macro_context = japan_macro_context if japan_macro_context is not None else build_optional_japan_macro_context()
     usable_credit_monitor = _filter_live_monitor_rows(credit_monitor, availability_map)
     usable_inflation_monitor = _filter_live_monitor_rows(inflation_monitor, availability_map)
     usable_risk_monitor = _filter_live_monitor_rows(risk_monitor, availability_map)
@@ -315,6 +316,7 @@ def build_report(
         "inflation_monitor": usable_inflation_monitor,
         "risk_monitor": usable_risk_monitor,
         "japan_risk": japan_risk,
+        "japan_resident_context": japan_macro_context,
         "risk_thresholds": active_threshold_payload.get("threshold_set", {}),
         "risk_threshold_drift": risk_threshold_drift,
         "risk_threshold_review": risk_threshold_review,

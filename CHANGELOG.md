@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.45 - Domestic Data Wiring Fix
+
+### Changed
+
+- Wired optional Japan macro context into the normal report pipeline so local manual CPI/BOJ CSV inputs can reach Japan-resident multi-asset and domestic danger display sections without requiring live fetches.
+- Added explicit report-payload injection coverage for MOF JGB, CPI, and BOJ macro context.
+- Kept missing JGB/domestic-rate data neutral for domestic bond and Japan REIT display components instead of treating absence as a caution signal.
+
+### Scope
+
+- Kept `final_action`, `buy_readiness_score`, threshold JSON, reliability policy, buy blocker/card logic, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.44 - Domestic Market Monitoring and Danger-Line Integration
 
 ### Changed

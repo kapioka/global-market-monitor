@@ -89,6 +89,22 @@ def test_jpy_domestic_bond_uses_jgb_rate_context_without_becoming_decision_logic
     assert falling_yields["status"] in {"informational", "watch"}
 
 
+def test_missing_jgb_context_is_neutral_for_domestic_bond_and_reit() -> None:
+    bond = build_japan_resident_context_signal(
+        {"asset_class": "bond_jpy_intermediate", "source_data_available": True, "source_status": "ok"},
+        {},
+    )
+    reit = build_japan_resident_context_signal(
+        {"asset_class": "reit_jp", "source_data_available": True, "source_status": "ok"},
+        {},
+    )
+
+    assert bond["components"]["domestic_rate"] == 0
+    assert reit["components"]["domestic_rate"] == 0
+    assert bond["must_not_affect_final_action"] is True
+    assert reit["must_not_affect_buy_readiness_score"] is True
+
+
 def test_foreign_assets_require_fx_context_and_keep_caution() -> None:
     without_fx = build_japan_resident_context_signal(
         {
