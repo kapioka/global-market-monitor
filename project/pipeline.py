@@ -14,6 +14,7 @@ from project.credit_monitor import build_credit_monitor
 from project.cycle_analysis import analyze_cycle
 from project.data_fetcher import FetchResult, fetch_market_data
 from project.decision_attribution import build_decision_attribution
+from project.domestic_danger_context import build_domestic_danger_context
 from project.fx_risk_policy import apply_fx_policy_candidate, classify_fx_policy
 from project.inflation_monitor import build_inflation_monitor
 from project.investment_candidates import build_investment_candidates
@@ -264,6 +265,14 @@ def build_report(
             "acquisition_log": fetch.acquisition_log,
         }
     )
+    domestic_danger_context = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": multi_asset_candidates,
+            "japan_risk": japan_risk,
+            "japan_resident_context": japan_macro_context,
+            "acquisition_log": fetch.acquisition_log,
+        }
+    )
     recovery_candidates = build_recovery_candidates(
         prices=prices,
         asset_map=config["tickers"]["asset_classes"],
@@ -331,6 +340,7 @@ def build_report(
         "fx_soft_cap_watchlist": fx_soft_cap_watchlist,
         "investment_candidates": investment_candidates,
         "multi_asset_candidates": multi_asset_candidates,
+        "domestic_danger_context": domestic_danger_context,
         "recovery_candidates": recovery_candidates,
         "regime_leading_candidates": regime_leading_candidates,
         "alerts": alerts,

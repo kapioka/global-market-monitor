@@ -14,7 +14,6 @@ from project.report_sections.data_quality_section import data_quality_html_rows,
 from project.sector_labeling import classify_sector_candidate
 from project.sector_vector_analysis import calculate_sector_vectors
 
-
 STATUS_LABELS = {
     "ok": "取得成功",
     "proxy_fallback": "代替ティッカーで取得",
@@ -67,6 +66,7 @@ SECTION_EXPLANATIONS = {
     "decision_reasons": "判定理由は、地合い、サイクル、合成スコア、信用市場の補助情報を文章でつないだ要約です。数値一覧だけで見落としやすい悪化要因を先に読むために使います。",
     "candidates": "投資候補は、既存の地合い判定を前提に、相対強度の高い資産クラスや先導セクターを候補として整理する補助層です。強い推奨ではなく、優先候補・観察候補・候補なしの三段で示します。",
     "multi_asset_candidates": "資産クラス別の確認候補は、株式・ゴールド・債券・現金待機を同じ買い候補度に混ぜず、役割別に整理する補助層です。",
+    "domestic_danger_context": "国内文脈の補助危険確認は、国内株式、円建て債券、国内REIT、円建て金、為替、JGB利回り、CPI/BOJ取得状況を、既存の危険ラインとは分けて見る表示専用の補助層です。",
     "recovery_candidates": "先回り候補は、今は強くなくても、下落後に改善初期へ入りつつある資産やセクターを拾う補助層です。安いだけでなく、短期の改善と深い調整の両方を見ます。",
     "regime_leading_candidates": "レジーム先回り候補は、次の地合いで効きやすいセクターテーマを拾う補助層です。価格の底打ちだけではなく、現レジームとの相性と直近の改善兆候を合わせて見ます。",
     "alerts": "警告レイヤーは、既存の市場判定を上書きせずに、内部ロジックがどこで警戒を発火しているかを見えるようにする補助層です。市場警告、生活影響警告、補足メモに分けて表示します。",
@@ -356,6 +356,97 @@ def _japan_resident_component_summary(components: dict[str, Any]) -> str:
     }
     parts = [f"{label}={_display_number(components.get(key))}" for key, label in labels.items() if key in components]
     return " / ".join(parts) if parts else "国内金利/為替/インフレ: データ不足"
+
+
+def _domestic_danger_markdown_lines(report: dict[str, Any]) -> list[str]:
+    payload = report.get("domestic_danger_context") or {}
+    if not payload:
+        return []
+    lines = [
+        "",
+        "### 国内文脈の補助危険確認",
+        f"- {SECTION_EXPLANATIONS['domestic_danger_context']}",
+        f"- 判定: {_domestic_danger_level_label(payload.get('domestic_danger_level'))}",
+        f"- final_action への影響: {not bool(payload.get('must_not_affect_final_action', True))}",
+        f"- buy_readiness_score への影響: {not bool(payload.get('must_not_affect_buy_readiness_score', True))}",
+    ]
+    for reason in payload.get("domestic_danger_reasons", []):
+        lines.append(f"- 理由: {reason}")
+    for row in payload.get("domestic_watch_items", []):
+        lines.append(
+            "- {group}: {name} ({symbol}) / 状態: {status} / 補助判定: {level} / 理由: {reason}".format(
+                group=row.get("group", "-"),
+                name=row.get("name", "-"),
+                symbol=row.get("symbol", "-"),
+                status=row.get("status", "-"),
+                level=_domestic_danger_level_label(row.get("level")),
+                reason=row.get("reason", "-"),
+            )
+        )
+        lines.append(f"  - 注意: {row.get('caution', '-')}")
+    for limitation in payload.get("domestic_data_limitations", []):
+        lines.append(f"- データ制約: {limitation}")
+    return lines
+
+
+def _domestic_danger_level_label(level: Any) -> str:
+    labels = {
+        "normal": "通常",
+        "watch": "確認",
+        "caution": "注意",
+        "unavailable": "データ不足",
+    }
+    return labels.get(str(level), "確認")
+
+
+def _domestic_danger_table_html(payload: dict[str, Any], small_table: Any, esc: Any) -> str:
+    rows = [
+        [
+            esc(row.get("group", "-")),
+            esc(row.get("symbol", "-")),
+            esc(row.get("name", "-")),
+            esc(_domestic_danger_level_label(row.get("level"))),
+            esc(row.get("reason", "-")),
+            esc(row.get("caution", "-")),
+        ]
+        for row in payload.get("domestic_watch_items", [])
+    ]
+    return small_table(["分類", "系列", "名称", "補助判定", "理由", "注意"], rows)
+
+
+def _domestic_danger_panel_html(payload: dict[str, Any], small_table: Any, esc: Any, source_chip: Any) -> str:
+    if not payload:
+        return ""
+    reason_items = "".join(f"<li>{esc(reason)}</li>" for reason in payload.get("domestic_danger_reasons", [])) or "<li>-</li>"
+    limitation_items = (
+        "".join(f"<li>{esc(item)}</li>" for item in payload.get("domestic_data_limitations", []))
+        or "<li>追加のデータ制約はありません。</li>"
+    )
+    table = _domestic_danger_table_html(payload, small_table, esc)
+    return (
+        '<section class="panel mt"><h3>国内文脈の補助危険確認 {source}</h3>'
+        "<p>{summary}</p>"
+        '<ul class="compact-list">'
+        "<li>補助判定: {level}</li>"
+        "<li>uses_domestic_values: {uses_values}</li>"
+        "<li>final_action への影響: {final_action}</li>"
+        "<li>buy_readiness_score への影響: {readiness}</li>"
+        "</ul>"
+        '<div class="table-wrap mt">{table}</div>'
+        '<h3 class="mt">国内文脈の理由</h3><ul class="compact-list">{reasons}</ul>'
+        '<h3 class="mt">国内マクロ取得制約</h3><ul class="compact-list">{limitations}</ul>'
+        "</section>"
+    ).format(
+        source=source_chip("国内文脈の補助危険確認"),
+        summary=esc(SECTION_EXPLANATIONS["domestic_danger_context"]),
+        level=esc(_domestic_danger_level_label(payload.get("domestic_danger_level"))),
+        uses_values=esc(payload.get("uses_domestic_values", False)),
+        final_action=esc(not bool(payload.get("must_not_affect_final_action", True))),
+        readiness=esc(not bool(payload.get("must_not_affect_buy_readiness_score", True))),
+        table=table,
+        reasons=reason_items,
+        limitations=limitation_items,
+    )
 
 
 def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
@@ -802,7 +893,6 @@ def render_markdown(report: dict[str, Any]) -> str:
     recovery_grade = str(recovery_evidence.get("grade", "-"))
     blocker_level = str(blocker_assessment.get("level", "-"))
     decision_action = _jp_action(str(action_decision.get("action", report["spot_signal"].get("action", ""))))
-    risk_stage_badge_html = _risk_badge_html(risk_lines.get("stage_label", "-"), _risk_stage_tone(risk_lines.get("stage_key")))
     risk_stage_badge = _risk_badge_markdown(risk_lines.get("stage_label", "-"), _risk_stage_tone(risk_lines.get("stage_key")))
     internal_warning_count = len(report.get("warnings", []))
     sector_context = _build_sector_rotation_context(report.get("sector_rotation", {}))
@@ -970,6 +1060,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append(
             f"- {row.get('ticker_name_ja', row.get('ticker', '-'))} ({row.get('ticker', '-')}): 現在値 {_display_number(row.get('current'))} / 1週 {_display_number(row.get('change_1w'))} / 4週 {_display_number(row.get('change_4w'))} / z {_display_number(row.get('zscore'))} / 判定 {line_badge} / warning {_format_risk_threshold_markdown(row.get('warning_line', '-'))} / danger {_format_risk_threshold_markdown(row.get('danger_line', '-'))} / extreme {_format_risk_threshold_markdown(row.get('extreme_line', '-'))}"
         )
+    lines.extend(_domestic_danger_markdown_lines(report))
 
     lines.extend(["", "## 投資候補", f"- {SECTION_EXPLANATIONS['candidates']}"])
     lines.append(f"- 判定: {candidate.get('label', '候補なし')}")
@@ -1053,7 +1144,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         used = entry.get("used_ticker") or "-"
         used_name = entry.get("used_ticker_name_ja") or "-"
         alt = (
-            ", ".join(f"{ticker}({name})" for ticker, name in zip(entry.get("alternatives", []), entry.get("alternatives_name_ja", [])))
+            ", ".join(
+                f"{ticker}({name})"
+                for ticker, name in zip(entry.get("alternatives", []), entry.get("alternatives_name_ja", []), strict=False)
+            )
             if entry.get("alternatives")
             else "なし"
         )
@@ -1468,8 +1562,9 @@ def _build_history_embed_payload(entries: list[dict[str, Any]]) -> dict[str, Any
 
 def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_entries: list[dict[str, Any]] | None = None) -> str:
     """Render the earlier tabbed supplemental dashboard layout."""
-    sector_context = _build_sector_rotation_context(report.get("sector_rotation", {}))
     sector_payload = report.get("sector_rotation", {})
+    sector_context = _build_sector_rotation_context(sector_payload)
+    sector_svg = _render_sector_rotation_svg(sector_payload, sector_context)
     sector_structure = sector_payload.get("internal_structure") or report.get("internal_structure", {})
     sector_next_candidates = sector_payload.get("next_candidates") or report.get("next_candidates", [])
     sector_peakout_sectors = sector_payload.get("peakout_sectors") or report.get("peakout_sectors", [])
@@ -1486,6 +1581,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
     candidate = report.get("investment_candidates", {})
     recovery = report.get("recovery_candidates", {})
     regime_leading = report.get("regime_leading_candidates", {})
+    domestic_danger = report.get("domestic_danger_context") or {}
     japan_risk = report.get("japan_risk", {})
     diagnostics = report.get("fetch_diagnostics", {})
     runtime_context = report.get("runtime_context", {})
@@ -1549,6 +1645,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
         for row in risk_lines.get("indicators", [])
     ]
     risk_line_table = small_table(["指標", "判定", "現在値", "warning", "danger", "extreme", "根拠"], risk_line_rows)
+    domestic_danger_panel = _domestic_danger_panel_html(domestic_danger, small_table, esc, source_chip)
 
     sector_rows = [
         [
@@ -1657,7 +1754,10 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
             f'<span class="status-pill ok">{esc(STATUS_LABELS.get(entry.get("status"), entry.get("status")))}</span>',
             ticker_label(entry.get("used_ticker") or "-", entry.get("used_ticker_name_ja") or "-"),
             esc(
-                ", ".join(f"{ticker}({name})" for ticker, name in zip(entry.get("alternatives", []), entry.get("alternatives_name_ja", [])))
+                ", ".join(
+                    f"{ticker}({name})"
+                    for ticker, name in zip(entry.get("alternatives", []), entry.get("alternatives_name_ja", []), strict=False)
+                )
                 if entry.get("alternatives")
                 else "なし"
             ),
@@ -1966,6 +2066,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
           <h3>危険ライン詳細表</h3>
           <div class="table-wrap">{risk_line_table}</div>
         </section>
+        {domestic_danger_panel}
         <div class="grid-3 mt">
           <section class="panel"><h3>投資候補 {source_chip('投資候補')}</h3><p>{esc(candidate.get('summary', '-'))}</p><ul class="compact-list"><li>判定: {esc(candidate.get('label', '候補なし'))}</li><li>候補ティッカー: {esc(candidate_tickers)}</li>{candidate_rationale}</ul></section>
           <section class="panel"><h3>先回り候補 {source_chip('先回り候補')}</h3><p>{esc(recovery.get('summary', '-'))}</p><ul class="compact-list"><li>判定: {esc(recovery.get('label', '候補なし'))}</li><li>候補ティッカー: {esc(recovery_tickers)}</li>{recovery_rationale}</ul></section>
@@ -2011,6 +2112,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
           <section class="panel"><h3>警告レイヤー {source_chip('警告レイヤー')}</h3>{alert_cards}</section>
         </div>
         <section class="panel mt"><h3>円建て・為替リスク {source_chip('円建て・為替リスク')}</h3><p>{esc(japan_risk.get('summary', '-'))}</p><div class="table-wrap">{fx_table}</div><div class="table-wrap mt">{yen_asset_table}</div></section>
+        {domestic_danger_panel}
         <section class="panel mt"><h3>類似局面 {source_chip('類似局面')}</h3><div class="table-wrap">{analogue_table}</div></section>
       </section>
 
@@ -2176,13 +2278,6 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     history_payload_json = json.dumps(history_payload, ensure_ascii=False).replace("</", "<\\/")
     first_read_summary_html = _first_read_summary_html(report)
     buy_decision_card_html = _buy_decision_card_html(report)
-    primary_candidate_chips = (
-        "".join(
-            f"<span class='candidate-chip'>{html.escape(str(item.get('ticker', '-')))}</span>"
-            for item in candidate.get("candidate_tickers", [])[:2]
-        )
-        or "<span class='candidate-chip muted'>候補なし</span>"
-    )
     recovery_candidate_chips = (
         "".join(
             f"<span class='candidate-chip gold'>{html.escape(str(item.get('ticker', '-')))}</span>"
@@ -2361,7 +2456,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
             f"<td>{html.escape(entry['requested_ticker'])}<br><span style='color:#52606d;font-size:12px'>{html.escape(entry.get('requested_ticker_name_ja', entry['requested_ticker']))}</span></td>"
             f"<td>{html.escape(STATUS_LABELS.get(entry['status'], entry['status']))}</td>"
             f"<td>{html.escape(entry.get('used_ticker') or '-')}<br><span style='color:#52606d;font-size:12px'>{html.escape(entry.get('used_ticker_name_ja') or '-')}</span></td>"
-            f"<td>{html.escape(', '.join(f'{ticker}({name})' for ticker, name in zip(entry.get('alternatives', []), entry.get('alternatives_name_ja', []))) if entry.get('alternatives') else 'なし')}</td>"
+            f"<td>{html.escape(', '.join(f'{ticker}({name})' for ticker, name in zip(entry.get('alternatives', []), entry.get('alternatives_name_ja', []), strict=False)) if entry.get('alternatives') else 'なし')}</td>"
             f"<td>{html.escape(entry['message'])}</td>"
             "</tr>"
             for entry in report.get("data_availability", [])
@@ -3563,7 +3658,7 @@ def _blend_hex_color(base_hex: str, mix_hex: str, mix_ratio: float) -> str:
     ratio = min(max(float(mix_ratio), 0.0), 1.0)
     base = [int(base_hex[index : index + 2], 16) for index in (1, 3, 5)]
     mix = [int(mix_hex[index : index + 2], 16) for index in (1, 3, 5)]
-    blended = [round((base_value * (1.0 - ratio)) + (mix_value * ratio)) for base_value, mix_value in zip(base, mix)]
+    blended = [round((base_value * (1.0 - ratio)) + (mix_value * ratio)) for base_value, mix_value in zip(base, mix, strict=False)]
     return "#" + "".join(f"{value:02x}" for value in blended)
 
 
@@ -3702,6 +3797,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
     candidate = report.get("investment_candidates", {})
     recovery = report.get("recovery_candidates", {})
     regime_leading = report.get("regime_leading_candidates", {})
+    domestic_danger = report.get("domestic_danger_context") or {}
     japan_risk = report.get("japan_risk", {})
     threshold_drift = report.get("risk_threshold_drift") or {}
     drift_summary = threshold_drift.get("summary") or {}
@@ -3981,6 +4077,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
         or '<div class="empty-note">重要な警告はありません。</div>'
     )
     warning_items = "".join(f"<li>{esc(warning)}</li>" for warning in report.get("warnings", [])) or "<li>重要な警告はありません。</li>"
+    domestic_danger_panel = _domestic_danger_panel_html(domestic_danger, table, esc, source)
 
     def localize_signal_value(value: Any) -> str:
         text = str(value)
@@ -4411,7 +4508,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
       </article>
 
       <article class="screen" id="decision">
-        <header class="screen-head"><span class="screen-no">2</span><span class="screen-title">判定</span>{source('判定理由 / 危険ライン監視 / 投資候補 / 先回り候補 / レジーム先回り候補 / 判定の読み方')}<div class="screen-tools"><span>{generated_at}</span></div></header>
+        <header class="screen-head"><span class="screen-no">2</span><span class="screen-title">判定</span>{source('判定理由 / 危険ライン監視 / 国内文脈の補助危険確認 / 投資候補 / 先回り候補 / レジーム先回り候補 / 判定の読み方')}<div class="screen-tools"><span>{generated_at}</span></div></header>
         <div class="screen-body">{mini_nav('decision')}<div class="content">
           <div class="metrics">
             {metric('市場レジーム', esc(_jp_regime(report.get('regime', {}).get('regime_label'))))}
@@ -4425,6 +4522,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
             <section class="card"><h3>判定理由 {source('判定理由')} {source('判定の読み方')}</h3><div class="flow"><div><b>上昇再開の証拠</b><span>{esc(localize_signal_value(recovery_evidence.get('grade', '-')))}</span></div><div><b>騙し上昇の警戒</b><span>{esc(localize_signal_value(blocker_assessment.get('level', '-')))}</span></div><div><b>信用面</b><span>{esc(localize_signal_value(blocker_assessment.get('credit_state', 'neutral')))}</span></div><div><b>危険ライン</b><span>{esc(localize_signal_value(risk_lines.get('stage_label', '-')))}</span></div></div><ul class="compact-list">{decision_rationale}</ul></section>
             <section class="card"><h3>危険ライン監視 {source('危険ライン監視')}</h3><div class="metrics" style="grid-template-columns:1fr 1fr; margin-bottom:7px;">{metric('総合ストレス指数', compact(risk_lines.get('composite_risk_score')))}{metric('危険ライン超過', f"{esc(risk_lines.get('danger_count', 0))} / {esc(risk_lines.get('extreme_count', 0))}", 'warn')}</div><ul class="compact-list">{risk_reason_items}</ul><div class="risk-detail-block"><h4>危険ライン詳細</h4><div class="table-wrap">{table(['指標','判定','現在値','注意ライン','危険ライン','非常に危険'], risk_line_rows)}</div></div></section>
           </div>
+          {domestic_danger_panel}
           <section class="card candidate-combo"><h3>候補一覧</h3><h4>投資候補</h4><div class="table-wrap">{table(['銘柄','判定','理由'], candidate_rows)}</div><h4>先回り候補</h4><div class="table-wrap">{table(['銘柄','判定','理由'], recovery_rows)}</div><h4>レジーム先回り候補</h4><div class="table-wrap">{table(['銘柄','判定','理由'], regime_leading_rows)}</div></section>
         </div></div>
       </article>
@@ -4441,11 +4539,12 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
       </article>
 
       <article class="screen" id="market">
-        <header class="screen-head"><span class="screen-no">4</span><span class="screen-title">市場監視</span>{source('資産クラス比較 / 信用監視 / インフレ監視 / 円建て・為替リスク / 警告レイヤー / 類似局面')}</header>
+        <header class="screen-head"><span class="screen-no">4</span><span class="screen-title">市場監視</span>{source('資産クラス比較 / 信用監視 / インフレ監視 / 円建て・為替リスク / 国内文脈の補助危険確認 / 警告レイヤー / 類似局面')}</header>
         <div class="screen-body">{mini_nav('market')}<div class="content">
           <div class="metrics">{metric('資産比較', f"{len(report.get('asset_compare', []))}件", 'good')}{metric('信用', f"{len(report.get('credit_monitor', []))}系列")}{metric('インフレ', f"{len(report.get('inflation_monitor', []))}系列", 'warn')}{metric('為替リスク', esc(_jp_japan_risk_level(japan_risk.get('level'))), 'warn')}{metric('警告', f"{len(report.get('alerts', []))}件", 'bad' if report.get('alerts') else '')}</div>
           <div class="market-grid"><section class="card"><h3>警告レイヤー {source('警告レイヤー')}</h3>{alert_cards}</section><section class="card"><h3>類似局面 {source('類似局面')}</h3><div class="table-wrap">{table(['基準日','類似度','その後12週'], analogue_rows)}</div></section><section class="card"><h3>インフレ監視 {source('インフレ監視')}</h3><div class="table-wrap">{table(['系列','現在値','1週','4週','12週','z','判定'], inflation_rows)}</div></section><section class="card"><h3>信用監視 {source('信用監視')}</h3><div class="table-wrap">{table(['系列','現在値','1週','4週','12週','z','判定'], credit_rows)}</div></section></div>
           <div class="split-even" style="margin-top:9px;"><section class="card"><h3>円建て・為替リスク {source('円建て・為替リスク')}</h3><div class="table-wrap">{table(['為替','現在値','1週','4週','12週','判定'], fx_rows)}</div><div class="table-wrap" style="margin-top:7px;">{table(['資産','銘柄','ドル建て4週','円建て4週','為替寄与','円建て最大下落','判定'], yen_asset_rows)}</div></section><section class="card"><h3>資産クラス比較 {source('資産クラス比較')}</h3><div class="table-wrap">{table(['資産クラス','ティッカー','12週','年率ボラ','最大DD'], asset_rows)}</div></section></div>
+          {domestic_danger_panel}
         </div></div>
       </article>
 

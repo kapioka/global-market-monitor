@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.44 - Domestic Market Monitoring and Danger-Line Integration
+
+### Changed
+
+- Added a supplemental domestic danger-context payload for domestic stocks, JPY bonds, Japan REIT, JPY gold, FX, JGB yield, and CPI/BOJ fallback limitations.
+- Integrated domestic/Japan-resident context into supplemental market monitoring, supplemental judgement, danger-line monitoring, and danger-line detail display without changing core danger-line thresholds.
+- Added tests proving domestic danger context stays display-only and does not affect `final_action` or `buy_readiness_score`.
+
+### Scope
+
+- Kept `final_action`, `buy_readiness_score`, threshold JSON, reliability policy, buy blocker/card logic, CI, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.43 - Smoke and Buy Readiness Logic Audit
 
 ### Changed

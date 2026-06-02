@@ -821,6 +821,61 @@ def test_render_html_includes_multi_asset_candidates_table():
     assert "final_action への影響: False" in html
 
 
+def test_render_supplement_dashboard_includes_domestic_danger_context():
+    report = deepcopy(_report())
+    report["domestic_danger_context"] = {
+        "domestic_danger_level": "caution",
+        "domestic_danger_reasons": ["MOF JGB利回りは国内金利の補助危険確認に使われます。"],
+        "domestic_watch_items": [
+            {
+                "group": "円建て債券",
+                "name": "円建て債券確認",
+                "symbol": "2510.T",
+                "status": "ok",
+                "level": "caution",
+                "reason": "円建て債券は国内金利上昇時に価格下落リスクがあるため、国内金利文脈で補助確認します。",
+                "caution": "債券は金利上昇時に価格が下がることがあります。",
+            },
+            {
+                "group": "国内REIT",
+                "name": "国内REIT確認",
+                "symbol": "1343.T",
+                "status": "ok",
+                "level": "caution",
+                "reason": "国内REITは米国REITとは分けて確認します。",
+                "caution": "債券は金利上昇時に価格が下がることがあります。",
+            },
+            {
+                "group": "円建て金",
+                "name": "純金上場信託",
+                "symbol": "1540.T",
+                "status": "ok",
+                "level": "watch",
+                "reason": "円建て金は金価格と為替の文脈を分けて補助確認します。",
+                "caution": "円建て資産と外貨建て資産では、為替の影響が異なります。",
+            },
+        ],
+        "domestic_data_limitations": [
+            "CPI は manual_file_missing のため、japan_cpi.csv または安定した公開系列がない限り補助危険値として扱いません。",
+            "BOJ短期金利 は endpoint_not_resolved のため、boj_short_rate.csv または安定した公開系列がない限り補助危険値として扱いません。",
+        ],
+        "uses_domestic_values": True,
+        "must_not_affect_final_action": True,
+        "must_not_affect_buy_readiness_score": True,
+    }
+
+    html = render_supplement_dashboard_html(report)
+    markdown = render_markdown(report)
+
+    for text in ("国内文脈の補助危険確認", "円建て債券", "2510.T", "国内REIT", "1343.T", "円建て金", "1540.T"):
+        assert text in html
+        assert text in markdown
+    assert "final_action への影響: False" in html
+    assert "buy_readiness_score への影響: False" in html
+    assert "manual_file_missing" in html
+    assert "endpoint_not_resolved" in html
+
+
 def test_render_html_handles_legacy_multi_asset_candidate_shape_with_safe_labels():
     report = deepcopy(_report())
     payload = _multi_asset_payload()
