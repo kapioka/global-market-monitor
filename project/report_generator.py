@@ -393,6 +393,9 @@ def _domestic_danger_markdown_lines(report: dict[str, Any]) -> list[str]:
     for reason in payload.get("domestic_danger_reasons", []):
         lines.append(f"- 理由: {reason}")
     for row in payload.get("domestic_watch_items", []):
+        reason = _domestic_danger_reason_text(row)
+        row_limitations = row.get("limitations") or []
+        limitation_text = f" / 制約: {', '.join(str(item) for item in row_limitations)}" if row_limitations else ""
         lines.append(
             "- {group}: {name} ({symbol}) / 状態: {status} / 補助判定: {level} / 理由: {reason}".format(
                 group=row.get("group", "-"),
@@ -400,7 +403,7 @@ def _domestic_danger_markdown_lines(report: dict[str, Any]) -> list[str]:
                 symbol=row.get("symbol", "-"),
                 status=row.get("status", "-"),
                 level=_domestic_danger_level_label(row.get("level")),
-                reason=f"{row.get('reason', '-')} / 指標: {row.get('metrics', '-')}",
+                reason=f"{reason}{limitation_text}",
             )
         )
         lines.append(f"  - 注意: {row.get('caution', '-')}")
@@ -420,18 +423,30 @@ def _domestic_danger_level_label(level: Any) -> str:
 
 
 def _domestic_danger_table_html(payload: dict[str, Any], small_table: Any, esc: Any) -> str:
+    def reason_with_metrics(row: dict[str, Any]) -> str:
+        limitations = row.get("limitations") or []
+        limitation_text = f" / 制約: {', '.join(str(item) for item in limitations)}" if limitations else ""
+        return f"{_domestic_danger_reason_text(row)}{limitation_text}"
+
     rows = [
         [
             esc(row.get("group", "-")),
             esc(row.get("symbol", "-")),
             esc(row.get("name", "-")),
             esc(_domestic_danger_level_label(row.get("level"))),
-            esc(f"{row.get('reason', '-')} / 指標: {row.get('metrics', '-') }"),
+            esc(reason_with_metrics(row)),
             esc(row.get("caution", "-")),
         ]
         for row in payload.get("domestic_watch_items", [])
     ]
     return small_table(["分類", "系列", "名称", "補助判定", "理由", "注意"], rows)
+
+
+def _domestic_danger_reason_text(row: dict[str, Any]) -> str:
+    reason = str(row.get("reason", "-"))
+    if "指標:" in reason:
+        return reason
+    return f"{reason} / 指標: {row.get('metrics', '-')}"
 
 
 def _domestic_danger_panel_html(payload: dict[str, Any], small_table: Any, esc: Any, source_chip: Any) -> str:

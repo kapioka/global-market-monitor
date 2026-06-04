@@ -840,6 +840,8 @@ def test_render_supplement_dashboard_includes_domestic_danger_context():
                 "status": "ok",
                 "level": "caution",
                 "reason": "円建て債券は国内金利上昇時に価格下落リスクがあるため、国内金利文脈で補助確認します。",
+                "metrics": "価格メトリクス未接続",
+                "limitations": ["price_metrics_missing"],
                 "caution": "債券は金利上昇時に価格が下がることがあります。",
             },
             {
@@ -849,6 +851,8 @@ def test_render_supplement_dashboard_includes_domestic_danger_context():
                 "status": "ok",
                 "level": "caution",
                 "reason": "国内REITは米国REITとは分けて確認します。",
+                "metrics": "4週=-5.0 / 12週=-9.0",
+                "limitations": [],
                 "caution": "債券は金利上昇時に価格が下がることがあります。",
             },
             {
@@ -858,6 +862,8 @@ def test_render_supplement_dashboard_includes_domestic_danger_context():
                 "status": "ok",
                 "level": "watch",
                 "reason": "円建て金は金価格と為替の文脈を分けて補助確認します。",
+                "metrics": "4週=-4.2 / 傾向=weakening",
+                "limitations": [],
                 "caution": "円建て資産と外貨建て資産では、為替の影響が異なります。",
             },
         ],
@@ -880,6 +886,8 @@ def test_render_supplement_dashboard_includes_domestic_danger_context():
     assert "buy_readiness_score への影響: False" in html
     assert "manual_file_missing" in html
     assert "endpoint_not_resolved" in html
+    assert "price_metrics_missing" in html
+    assert "price_metrics_missing" in markdown
 
 
 def test_render_html_handles_legacy_multi_asset_candidate_shape_with_safe_labels():

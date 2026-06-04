@@ -219,6 +219,123 @@ def test_jpy_bond_weakness_plus_jgb_pressure_creates_caution() -> None:
     assert by_symbol["2510.T"]["level"] == "caution"
 
 
+def test_jgb_pressure_alone_is_watch_not_caution() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {"candidates": []},
+            "japan_risk": {},
+            "japan_resident_context": {
+                "jgb_yields": {
+                    "jgb_2y": 0.8,
+                    "jgb_10y": 1.7,
+                    "jgb_30y": 2.4,
+                    "jgb_curve_10y_2y": 0.9,
+                    "jgb_curve_30y_10y": 0.7,
+                },
+                "macro_sources": {},
+            },
+            "acquisition_log": [],
+        }
+    )
+
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+    assert by_symbol["JGB_YIELD_CURVE"]["level"] == "watch"
+    assert payload["domestic_danger_level"] == "watch"
+    assert by_symbol["JGB_YIELD_CURVE"]["metrics_used"]["jgb_curve_10y_2y"] == 0.9
+
+
+def test_available_cpi_and_boj_sources_stay_normal_observed_context() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {"candidates": []},
+            "japan_risk": {},
+            "japan_resident_context": {
+                "macro_sources": {
+                    "japan_cpi": {"status": "ok"},
+                    "boj_domestic_short_rate": {"status": "partial"},
+                }
+            },
+            "acquisition_log": [],
+        }
+    )
+
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+    assert by_symbol["japan_cpi"]["level"] == "normal"
+    assert by_symbol["boj_domestic_short_rate"]["level"] == "normal"
+    assert payload["domestic_danger_level"] == "unavailable"
+
+
+def test_missing_price_metrics_are_limitations_not_caution() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {
+                "candidates": [
+                    {
+                        "asset_class": "bond_jpy",
+                        "symbol": "2510.T",
+                        "display_name": "円建て債券確認",
+                        "status": "informational",
+                        "japan_resident_context_components": {"domestic_rate": 0},
+                    },
+                    {
+                        "asset_class": "reit_jp",
+                        "symbol": "1343.T",
+                        "display_name": "国内REIT確認",
+                        "status": "informational",
+                        "japan_resident_context_components": {"domestic_rate": 0},
+                    },
+                ]
+            },
+            "japan_risk": {},
+            "japan_resident_context": {},
+            "acquisition_log": [],
+        }
+    )
+
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+    assert by_symbol["2510.T"]["level"] == "normal"
+    assert by_symbol["1343.T"]["level"] == "normal"
+    assert by_symbol["2510.T"]["limitations"] == ["price_metrics_missing"]
+    assert by_symbol["1343.T"]["limitations"] == ["price_metrics_missing"]
+
+
+def test_jpy_gold_uses_1540_metrics_separately_from_usd_gold() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {
+                "candidates": [
+                    {
+                        "asset_class": "gold",
+                        "symbol": "1540.T",
+                        "display_name": "純金上場信託",
+                        "status": "informational",
+                        "metrics": {"change_4w": -4.2, "trend_label": "weakening"},
+                        "japan_resident_context_components": {"fx": 0, "trend": 0},
+                    },
+                    {
+                        "asset_class": "gold",
+                        "symbol": "GLD",
+                        "display_name": "SPDR Gold Shares",
+                        "status": "informational",
+                        "metrics": {"change_4w": 0.5, "trend_label": "flat"},
+                        "japan_resident_context_components": {"fx": 0, "trend": 0},
+                    },
+                ]
+            },
+            "japan_risk": {},
+            "japan_resident_context": {},
+            "acquisition_log": [],
+        }
+    )
+
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+    assert by_symbol["1540.T"]["group"] == "円建て金"
+    assert by_symbol["1540.T"]["level"] == "watch"
+    assert by_symbol["GLD"]["group"] == "外貨建て金"
+    assert by_symbol["GLD"]["level"] == "normal"
+    assert "GLD/GC=Fとは分け" in by_symbol["1540.T"]["reason"]
+
+
 def test_eurjpy_metric_can_create_fx_caution_without_dxy_substitution() -> None:
     payload = build_domestic_danger_context(
         {

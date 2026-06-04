@@ -4,6 +4,15 @@ from typing import Any
 
 FORBIDDEN_COPY = ("買うべき", "今が買い", "安全", "利益が出る", "確実", "推奨銘柄")
 
+WEAK_4W_CHANGE = -4.0
+WEAK_12W_CHANGE = -8.0
+WEAK_DRAWDOWN = -12.0
+SHARP_4W_CHANGE = -8.0
+SHARP_DRAWDOWN = -20.0
+JGB_PRESSURE_10Y = 1.5
+FX_WATCH_MOVE = 2.0
+FX_CAUTION_MOVE = 4.0
+
 
 def build_domestic_danger_context(report_inputs: dict[str, Any]) -> dict[str, Any]:
     candidates = ((report_inputs.get("multi_asset_candidates") or {}).get("candidates")) or []
@@ -28,6 +37,7 @@ def build_domestic_danger_context(report_inputs: dict[str, Any]) -> dict[str, An
         "domestic_danger_reasons": _dedupe(reasons) or ["国内文脈は補助確認として表示し、既存の危険ライン判定を上書きしません。"],
         "domestic_watch_items": watch_items,
         "domestic_data_limitations": _dedupe(limitations),
+        "domestic_metric_summary": _domestic_metric_summary(watch_items),
         "uses_domestic_values": bool(watch_items),
         "must_not_affect_final_action": True,
         "must_not_affect_buy_readiness_score": True,
@@ -53,16 +63,22 @@ def _add_domestic_candidate_items(watch_items: list[dict[str, Any]], candidates:
         metrics = row.get("metrics") or {}
         severity = _severity_from_components(asset_class, domestic_rate, fx, trend, str(row.get("status") or ""), metrics)
         reason = _candidate_reason(asset_class, domestic_rate, fx, trend, metrics)
+        metric_limitations = _metric_limitations(metrics)
         watch_items.append(
             {
                 "group": _group_label(asset_class, symbol),
+                "asset_group": asset_class,
+                "label": row.get("display_name") or row.get("asset_class_label") or symbol,
                 "name": row.get("display_name") or row.get("asset_class_label") or symbol,
                 "symbol": symbol,
                 "status": row.get("status", "informational"),
+                "source_status": row.get("status", "informational"),
                 "level": severity,
                 "reason": reason,
                 "caution": row.get("caution") or _default_caution(asset_class),
                 "metrics": _metric_summary(metrics),
+                "metrics_used": _metrics_used(metrics),
+                "limitations": metric_limitations,
                 "source": "multi_asset_candidates",
             }
         )
@@ -80,13 +96,14 @@ def _add_fx_items(
     if not usd_jpy and not usd_jpy_metric:
         limitations.append("USDJPY=X が未取得のため、外貨建て資産の円換算影響は限定的にしか確認できません。")
     change_4w = _number(usd_jpy.get("change_4w"))
-    if change_4w is None:
+    if change_4w is not None:
+        change_4w = _fraction_to_percent(change_4w)
+    else:
         change_4w = _number(usd_jpy_metric.get("change_4w"))
-    change_4w = _fx_move_percent(change_4w)
-    level = "watch"
-    if change_4w is not None and abs(change_4w) >= 0.04:
+    level = "normal"
+    if change_4w is not None and abs(change_4w) >= FX_CAUTION_MOVE:
         level = "caution"
-    elif change_4w is not None and abs(change_4w) >= 2:
+    elif change_4w is not None and abs(change_4w) >= FX_WATCH_MOVE:
         level = "watch"
     elif change_4w is None:
         level = "unavailable"
@@ -94,13 +111,18 @@ def _add_fx_items(
         watch_items.append(
             {
                 "group": "為替確認",
+                "asset_group": "fx",
+                "label": usd_jpy.get("ticker_name_ja") or usd_jpy_metric.get("display_name") or "米ドル円",
                 "name": usd_jpy.get("ticker_name_ja") or usd_jpy_metric.get("display_name") or "米ドル円",
                 "symbol": usd_jpy.get("ticker") or "USDJPY=X",
                 "status": "ok" if change_4w is not None else "unavailable",
+                "source_status": usd_jpy_metric.get("source_status") or ("ok" if change_4w is not None else "unavailable"),
                 "level": level,
                 "reason": "USDJPY=X の実変化で外貨建て資産の円換算影響を確認します。",
                 "caution": "外貨建て資産は為替の影響を受けます。",
                 "metrics": _metric_summary(usd_jpy_metric),
+                "metrics_used": _metrics_used(usd_jpy_metric),
+                "limitations": _metric_limitations(usd_jpy_metric),
                 "source": "japan_risk" if usd_jpy else "domestic_market_metrics",
             }
         )
@@ -108,22 +130,26 @@ def _add_fx_items(
     eur_jpy_metric = market_metrics.get("EURJPY=X") or {}
     if eur_jpy_metric:
         eur_change_4w = _number(eur_jpy_metric.get("change_4w"))
-        eur_change_4w = _fx_move_percent(eur_change_4w)
         eur_level = (
             "caution"
-            if eur_change_4w is not None and abs(eur_change_4w) >= 4
-            else "watch" if eur_change_4w is not None and abs(eur_change_4w) >= 2 else "normal"
+            if eur_change_4w is not None and abs(eur_change_4w) >= FX_CAUTION_MOVE
+            else "watch" if eur_change_4w is not None and abs(eur_change_4w) >= FX_WATCH_MOVE else "normal"
         )
         watch_items.append(
             {
                 "group": "為替確認",
+                "asset_group": "fx",
+                "label": eur_jpy_metric.get("display_name") or "ユーロ円",
                 "name": eur_jpy_metric.get("display_name") or "ユーロ円",
                 "symbol": "EURJPY=X",
                 "status": "ok" if eur_jpy_metric.get("is_available") else "unavailable",
+                "source_status": eur_jpy_metric.get("source_status") or "unavailable",
                 "level": eur_level,
                 "reason": "EURJPY=X の実変化で外貨建て資産の円換算影響を補助確認します。",
                 "caution": "外貨建て資産は為替の影響を受けます。",
                 "metrics": _metric_summary(eur_jpy_metric),
+                "metrics_used": _metrics_used(eur_jpy_metric),
+                "limitations": _metric_limitations(eur_jpy_metric),
                 "source": "domestic_market_metrics",
             }
         )
@@ -139,16 +165,34 @@ def _add_macro_items(
     jgb = macro_context.get("jgb_yields") or {}
     jgb_10y = _number(jgb.get("jgb_10y"))
     if jgb:
-        level = "caution" if jgb_10y is not None and jgb_10y >= 1.5 else "watch"
+        level = "watch" if jgb_10y is not None and jgb_10y >= JGB_PRESSURE_10Y else "normal"
         watch_items.append(
             {
                 "group": "国内金利・国内インフレ",
+                "asset_group": "jgb_yield_curve",
+                "label": "MOF JGB yield curve",
                 "name": "MOF JGB yield curve",
                 "symbol": "JGB_YIELD_CURVE",
                 "status": "ok",
+                "source_status": "ok",
                 "level": level,
                 "reason": _jgb_reason(jgb),
                 "caution": "JGB利回り上昇時は、円建て長期債・国内REITに注意します。",
+                "metrics": _jgb_reason(jgb),
+                "metrics_used": {
+                    key: jgb.get(key)
+                    for key in (
+                        "jgb_2y",
+                        "jgb_5y",
+                        "jgb_10y",
+                        "jgb_20y",
+                        "jgb_30y",
+                        "jgb_curve_10y_2y",
+                        "jgb_curve_30y_10y",
+                    )
+                    if jgb.get(key) is not None
+                },
+                "limitations": [],
                 "source": "official_japan_macro",
             }
         )
@@ -166,12 +210,18 @@ def _add_macro_items(
             watch_items.append(
                 {
                     "group": "国内金利・国内インフレ",
+                    "asset_group": key,
+                    "label": label,
                     "name": label,
                     "symbol": key,
                     "status": status,
-                    "level": "watch",
+                    "source_status": status,
+                    "level": "normal",
                     "reason": f"{label} は国内文脈の補助確認に使われます。",
                     "caution": "この表示は資産クラス別の確認用であり、売買指示ではありません。",
+                    "metrics": "補助マクロ系列あり",
+                    "metrics_used": {},
+                    "limitations": [],
                     "source": "official_japan_macro",
                 }
             )
@@ -198,13 +248,18 @@ def _add_acquisition_fallback_items(watch_items: list[dict[str, Any]], acquisiti
         watch_items.append(
             {
                 "group": group,
+                "asset_group": _fallback_asset_group(symbol),
+                "label": row.get("used_ticker_name_ja") or row.get("requested_ticker_name_ja") or name,
                 "name": row.get("used_ticker_name_ja") or row.get("requested_ticker_name_ja") or name,
                 "symbol": symbol,
                 "status": status,
+                "source_status": status,
                 "level": "normal" if status == "ok" else "unavailable",
                 "reason": f"{group}の補助確認系列として表示します。取得状況だけでは注意判定にしません。",
                 "caution": _fallback_caution(group),
                 "metrics": "価格メトリクス未接続",
+                "metrics_used": {},
+                "limitations": ["price_metrics_missing"],
                 "source": "data_availability",
             }
         )
@@ -253,6 +308,8 @@ def _severity_from_components(
         return "normal"
     if asset_class == "gold":
         if sharp_price or str(metrics.get("volatility_label") or "") == "elevated":
+            return "caution"
+        if weak_price:
             return "watch"
         return "normal"
     if fx is not None and abs(fx) >= 8:
@@ -281,9 +338,9 @@ def _weak_price_metrics(metrics: dict[str, Any]) -> bool:
     drawdown = _number(metrics.get("max_drawdown"))
     trend_label = str(metrics.get("trend_label") or "")
     return (
-        (change_4w is not None and change_4w <= -4)
-        or (change_12w is not None and change_12w <= -8)
-        or (drawdown is not None and drawdown <= -12)
+        (change_4w is not None and change_4w <= WEAK_4W_CHANGE)
+        or (change_12w is not None and change_12w <= WEAK_12W_CHANGE)
+        or (drawdown is not None and drawdown <= WEAK_DRAWDOWN)
         or trend_label in {"weakening", "falling"}
     )
 
@@ -291,7 +348,7 @@ def _weak_price_metrics(metrics: dict[str, Any]) -> bool:
 def _sharp_price_metrics(metrics: dict[str, Any]) -> bool:
     change_4w = _number(metrics.get("change_4w"))
     drawdown = _number(metrics.get("max_drawdown"))
-    return (change_4w is not None and change_4w <= -8) or (drawdown is not None and drawdown <= -20)
+    return (change_4w is not None and change_4w <= SHARP_4W_CHANGE) or (drawdown is not None and drawdown <= SHARP_DRAWDOWN)
 
 
 def _metric_summary(metrics: dict[str, Any]) -> str:
@@ -312,6 +369,42 @@ def _metric_summary(metrics: dict[str, Any]) -> str:
     if limitations:
         parts.append(f"制約={','.join(str(item) for item in limitations)}")
     return " / ".join(parts) if parts else "利用可能な表示指標なし"
+
+
+def _metrics_used(metrics: dict[str, Any]) -> dict[str, Any]:
+    keys = ("current_value", "change_1w", "change_4w", "change_12w", "momentum_12w", "max_drawdown", "zscore", "trend_label")
+    return {key: metrics.get(key) for key in keys if metrics.get(key) is not None}
+
+
+def _metric_limitations(metrics: dict[str, Any]) -> list[str]:
+    if not metrics:
+        return ["price_metrics_missing"]
+    limitations = metrics.get("limitations") or []
+    if isinstance(limitations, list):
+        return [str(item) for item in limitations]
+    return [str(limitations)]
+
+
+def _domestic_metric_summary(watch_items: list[dict[str, Any]]) -> dict[str, Any]:
+    return {
+        "item_count": len(watch_items),
+        "level_counts": {
+            level: sum(1 for item in watch_items if item.get("level") == level) for level in ("normal", "watch", "caution", "unavailable")
+        },
+        "metrics_available_count": sum(1 for item in watch_items if item.get("metrics_used")),
+        "limitations_count": sum(1 for item in watch_items if item.get("limitations")),
+    }
+
+
+def _fallback_asset_group(symbol: str) -> str:
+    return {
+        "1306.T": "jp_equity",
+        "1321.T": "jp_equity",
+        "2510.T": "jpy_bond",
+        "1343.T": "jp_reit",
+        "1540.T": "gold_jpy",
+        "EURJPY=X": "fx",
+    }.get(symbol, "domestic_context")
 
 
 def _group_label(asset_class: str, symbol: str) -> str:
@@ -370,12 +463,10 @@ def _number(value: Any) -> float | None:
         return None
 
 
-def _fx_move_percent(value: float | None) -> float | None:
+def _fraction_to_percent(value: float | None) -> float | None:
     if value is None:
         return None
-    if abs(value) <= 1:
-        return value * 100
-    return value
+    return value * 100
 
 
 def _dedupe(items: list[str]) -> list[str]:

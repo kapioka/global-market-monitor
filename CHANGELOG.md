@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.47 - Domestic Danger Logic Rebuild
+
+### Changed
+
+- Rebuilt supplemental domestic danger context so observed domestic market metrics, not acquisition status alone, drive `normal` / `watch` / `caution` / `unavailable` display levels.
+- Kept missing Japan-oriented sources as limitations or unavailable context instead of treating missing CPI, BOJ, JGB, JPY bond, Japan REIT, FX, or JPY gold data as caution signals.
+- Added per-row metric/limitation display and documentation for the domestic danger context while keeping Public Equity Investing context workflow-supporting only.
+
+### Scope
+
+- Kept `final_action`, `buy_readiness_score`, threshold JSON, reliability policy, buy blocker/card logic, risk labels, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.46 - Domestic Market Metrics Layer
 
 ### Changed
