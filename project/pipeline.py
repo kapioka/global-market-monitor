@@ -27,6 +27,7 @@ from project.recovery_candidates import build_recovery_candidates
 from project.regime_analysis import analyze_market_regime
 from project.regime_leading_candidates import build_regime_leading_candidates
 from project.reliability_policy import assess_data_reliability
+from project.risk_line_confidence_audit import build_risk_line_confidence_audit
 from project.risk_line_review_status import load_risk_line_review_status
 from project.risk_line_threshold_drift_report import load_risk_line_threshold_drift_snapshot
 from project.risk_line_threshold_store import load_threshold_payload
@@ -189,6 +190,7 @@ def build_report(
     cycle_ticker = regime["benchmark"]
     cycle = analyze_cycle(prices[cycle_ticker])
     risk_lines = evaluate_risk_lines(regime, cycle, usable_credit_monitor, usable_inflation_monitor, usable_risk_monitor)
+    risk_line_confidence_audit = build_risk_line_confidence_audit(active_threshold_payload, risk_lines)
     score = score_market(
         regime,
         cycle,
@@ -329,6 +331,7 @@ def build_report(
         "threshold_usage": threshold_usage,
         "threshold_rule_certification": threshold_rule_certification,
         "risk_lines": risk_lines,
+        "risk_line_confidence_audit": risk_line_confidence_audit,
         "spot_signal": spot_signal,
         "decision_attribution": decision_attribution,
         "action_validation": action_validation,

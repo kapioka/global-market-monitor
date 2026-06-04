@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.48 - Global Risk Logic Confidence Audit
+
+### Changed
+
+- Added a display-only global risk-line confidence audit for active threshold provenance, confidence buckets, and final-action isolation.
+- Documented that `DX-Y.NYB` is the global dollar stress input while `USDJPY=X` / `EURJPY=X` remain Japan-resident FX context inputs.
+- Added report and test coverage for fallback_review / low_precision / pass distinction and the composite risk score / trigger path relationship.
+
+### Scope
+
+- Kept threshold JSON, `final_action`, `buy_readiness_score`, reliability policy, buy blocker/card logic, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.47 - Domestic Danger Logic Rebuild
 
 ### Changed

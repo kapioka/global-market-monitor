@@ -378,6 +378,31 @@ def _japan_resident_component_summary(components: dict[str, Any]) -> str:
     return " / ".join(parts) if parts else "国内金利/為替/インフレ: データ不足"
 
 
+def _risk_line_confidence_audit_markdown_lines(audit: dict[str, Any]) -> list[str]:
+    dxy_label = ((audit.get("dxy_role") or {}).get("label")) or "-"
+    jpy_fx_label = ((audit.get("jpy_fx_role") or {}).get("label")) or "-"
+    return [
+        f"- 信頼度監査: {audit.get('monitoring_scope_label', '-')}",
+        (
+            "- 閾値由来: "
+            f"fallback_review={audit.get('fallback_review_rules', 0)} / "
+            f"low_precision={audit.get('low_precision_rules', 0)} / "
+            f"pass={audit.get('pass_rules', 0)}"
+        ),
+        f"- DXY と円建てFX: {dxy_label} / {jpy_fx_label}",
+        f"- 総合ストレス指数と trigger path: {audit.get('composite_trigger_relationship', '-')}",
+    ]
+
+
+def _risk_line_confidence_audit_html(audit: dict[str, Any]) -> str:
+    if not audit:
+        return ""
+    items = "".join(
+        f"<li>{html.escape(line[2:] if line.startswith('- ') else line)}</li>" for line in _risk_line_confidence_audit_markdown_lines(audit)
+    )
+    return f"<ul>{items}</ul>"
+
+
 def _domestic_danger_markdown_lines(report: dict[str, Any]) -> list[str]:
     payload = report.get("domestic_danger_context") or {}
     if not payload:
@@ -1087,6 +1112,9 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.append(f"- 総合ストレス指数: {_display_number(risk_lines.get('composite_risk_score'))}")
     lines.append(f"- 合成スコア側の内部警告件数: {internal_warning_count}")
     lines.append("- 注記: 内部警告件数は alerts/warnings の件数で、危険ライン段階とは別の判定です。")
+    audit = report.get("risk_line_confidence_audit") or {}
+    if audit:
+        lines.extend(_risk_line_confidence_audit_markdown_lines(audit))
     lines.append(f"- 危険ライン本数: {risk_lines.get('danger_count', 0)} / 非常に危険ライン本数: {risk_lines.get('extreme_count', 0)}")
     for reason in risk_lines.get("reasons", []):
         lines.append(f"- {reason}")
@@ -1680,6 +1708,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
         for row in risk_lines.get("indicators", [])
     ]
     risk_line_table = small_table(["指標", "判定", "現在値", "warning", "danger", "extreme", "根拠"], risk_line_rows)
+    risk_line_confidence_audit_html = _risk_line_confidence_audit_html(report.get("risk_line_confidence_audit") or {})
     domestic_danger_panel = _domestic_danger_panel_html(domestic_danger, small_table, esc, source_chip)
 
     sector_rows = [
@@ -2094,6 +2123,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
               {kv_card('不足指標', ', '.join(risk_lines.get('missing_indicators', [])) or 'なし')}
               {kv_card('危険 / 非常に危険', f"{risk_lines.get('danger_count', 0)} / {risk_lines.get('extreme_count', 0)}")}
             </div>
+            {risk_line_confidence_audit_html}
             <ul class="compact-list">{risk_reason_items}</ul>
           </section>
         </div>
@@ -2371,6 +2401,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         or "<tr><td colspan='7'>有効データなし</td></tr>"
     )
     risk_stage_badge_html = _risk_badge_html(risk_lines.get("stage_label", "-"), _risk_stage_tone(risk_lines.get("stage_key")))
+    risk_line_confidence_audit_html = _risk_line_confidence_audit_html(report.get("risk_line_confidence_audit") or {})
 
     inflation_rows = (
         "".join(
@@ -2953,6 +2984,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         <h3>危険ライン</h3>
         <div class=\"mini-content\">
           {risk_highlight_rows}
+          {risk_line_confidence_audit_html}
         </div>
       </section>
 
@@ -3160,6 +3192,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         <li>危険ライン本数: {risk_lines.get("danger_count", 0)} / 非常に危険ライン本数: {risk_lines.get("extreme_count", 0)}</li>
         <li>注記: 内部警告件数は alerts/warnings の件数で、危険ライン段階とは別の判定です。</li>
       </ul>
+      {risk_line_confidence_audit_html}
       <ul>{risk_line_reason_items}</ul>
       <table>
         <thead><tr><th>指標</th><th>判定</th><th>現在値</th><th>warning</th><th>danger</th><th>extreme</th><th>根拠</th></tr></thead>

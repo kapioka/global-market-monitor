@@ -77,6 +77,18 @@ def _report() -> dict:
                 }
             ],
         },
+        "risk_line_confidence_audit": {
+            "status": "display_only",
+            "monitoring_scope_label": "米国・グローバル中心の危険監視",
+            "fallback_review_rules": 10,
+            "low_precision_rules": 7,
+            "pass_rules": 2,
+            "dxy_role": {"label": "米ドル指数は米国・グローバルのドル高ストレス確認に使います。"},
+            "jpy_fx_role": {"label": "USDJPY/EURJPY は日本円で見た外貨建て資産の円換算影響確認に使います。"},
+            "composite_trigger_relationship": "総合ストレス指数 48.2 は trigger path に含まれ、段階判定の補助根拠として表示されます。",
+            "must_not_affect_final_action": True,
+            "must_not_change_threshold_json": True,
+        },
         "spot_signal": {
             "action": "watch",
             "legacy_action": "buy_window",
@@ -520,6 +532,9 @@ def test_render_markdown_uses_real_newlines():
     assert "TimesFM" not in text
     assert "- 最終判断: 監視" in text
     assert "危険ライン trigger path" in text
+    assert "信頼度監査: 米国・グローバル中心の危険監視" in text
+    assert "fallback_review=10 / low_precision=7 / pass=2" in text
+    assert "DXY と円建てFX" in text
     assert "\n## サマリー\n" in text
     assert "データ取得状況" in text
     assert "接続診断" in text
@@ -576,6 +591,9 @@ def test_render_html_includes_first_read_summary():
     assert "日本株ETF" in text
     assert "金ETF" in text
     assert "危険ライン監視" in text
+    assert "米国・グローバル中心の危険監視" in html
+    assert "米ドル指数は米国・グローバルのドル高ストレス確認に使います。" in html
+    assert "USDJPY/EURJPY は日本円で見た外貨建て資産の円換算影響確認に使います。" in html
     assert "信用波及初期" in text
     assert "VIX指数" in text
     assert "警告レイヤー" in text
