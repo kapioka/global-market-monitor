@@ -243,7 +243,7 @@ def _multi_asset_candidate_markdown_lines(report: dict[str, Any]) -> list[str]:
     lines.append(f"- buy_readiness_score への影響: {payload.get('affects_buy_readiness_score', False)}")
     for row in payload.get("candidates", []):
         metrics = row.get("metrics") or {}
-        metric_text = ", ".join(f"{key}={_display_number(value)}" for key, value in metrics.items()) or "利用可能な表示指標なし"
+        metric_text = _market_metric_summary(metrics)
         lines.append(
             "- {label}: {symbol} ({name}) / 役割: {role} / 状態: {status} / 分類: {category} / データ: {available} / 指標: {metrics}".format(
                 label=row.get("asset_class_label", "-"),
@@ -275,7 +275,7 @@ def _multi_asset_candidate_html(report: dict[str, Any]) -> str:
         f"<td>{html.escape(str(row.get('role_label', '-')))}</td>"
         f"<td>{html.escape(_multi_asset_status_label(row.get('status')))}</td>"
         f"<td>{'あり' if row.get('source_data_available') else 'なし'}</td>"
-        f"<td>{html.escape(str(row.get('reason', '-')))}<br><span style='color:#52606d'>分類: {html.escape(_multi_asset_reason_category_label(row.get('reason_category')))} / 注意: {html.escape(str(row.get('caution', '-')))}</span>{_japan_resident_context_html(row)}</td>"
+        f"<td>{html.escape(str(row.get('reason', '-')))}<br><span style='color:#52606d'>分類: {html.escape(_multi_asset_reason_category_label(row.get('reason_category')))} / 指標: {html.escape(_market_metric_summary(row.get('metrics') or {}))} / 注意: {html.escape(str(row.get('caution', '-')))}</span>{_japan_resident_context_html(row)}</td>"
         "</tr>"
         for row in payload.get("candidates", [])
     )
@@ -344,6 +344,26 @@ def _japan_resident_context_html(row: dict[str, Any]) -> str:
     return f"<br><span style='color:#52606d'>日本居住者向け確認: {html.escape(context)}</span>"
 
 
+def _market_metric_summary(metrics: dict[str, Any]) -> str:
+    if not metrics:
+        return "利用可能な表示指標なし"
+    parts = []
+    for key, label in (
+        ("current_value", "現在値"),
+        ("change_4w", "4週"),
+        ("change_12w", "12週"),
+        ("trend_label", "傾向"),
+        ("max_drawdown", "最大DD"),
+    ):
+        value = metrics.get(key)
+        if value is not None:
+            parts.append(f"{label}={_display_number(value)}")
+    limitations = metrics.get("limitations")
+    if limitations:
+        parts.append("制約=" + ",".join(str(item) for item in limitations))
+    return " / ".join(parts) if parts else "利用可能な表示指標なし"
+
+
 def _japan_resident_component_summary(components: dict[str, Any]) -> str:
     if not components:
         return "国内金利/為替/インフレ: データ不足"
@@ -380,7 +400,7 @@ def _domestic_danger_markdown_lines(report: dict[str, Any]) -> list[str]:
                 symbol=row.get("symbol", "-"),
                 status=row.get("status", "-"),
                 level=_domestic_danger_level_label(row.get("level")),
-                reason=row.get("reason", "-"),
+                reason=f"{row.get('reason', '-')} / 指標: {row.get('metrics', '-')}",
             )
         )
         lines.append(f"  - 注意: {row.get('caution', '-')}")
@@ -406,7 +426,7 @@ def _domestic_danger_table_html(payload: dict[str, Any], small_table: Any, esc: 
             esc(row.get("symbol", "-")),
             esc(row.get("name", "-")),
             esc(_domestic_danger_level_label(row.get("level"))),
-            esc(row.get("reason", "-")),
+            esc(f"{row.get('reason', '-')} / 指標: {row.get('metrics', '-') }"),
             esc(row.get("caution", "-")),
         ]
         for row in payload.get("domestic_watch_items", [])

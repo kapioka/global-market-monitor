@@ -148,6 +148,43 @@ def test_japan_resident_configured_bond_and_reit_tickers_feed_display_rows() -> 
     assert by_class["reit_jp"]["japan_resident_must_not_affect_final_action"] is True
 
 
+def test_domestic_market_metrics_feed_japan_resident_rows_without_acquisition_only_signal() -> None:
+    inputs = _inputs()
+    inputs["japan_tickers"] = {"jpy_bond_intermediate": "2510.T", "jp_reit_proxy": "1343.T", "gold_jpy_proxy": "1540.T"}
+    inputs["domestic_market_metrics"] = {
+        "by_symbol": {
+            "2510.T": {
+                "symbol": "2510.T",
+                "is_available": True,
+                "current_value": 90.0,
+                "change_4w": -4.2,
+                "change_12w": -9.1,
+                "max_drawdown": -12.0,
+                "trend_label": "weakening",
+            },
+            "1343.T": {
+                "symbol": "1343.T",
+                "is_available": True,
+                "current_value": 88.0,
+                "change_4w": -5.5,
+                "change_12w": -10.0,
+                "max_drawdown": -18.0,
+                "trend_label": "weakening",
+            },
+            "1540.T": {"symbol": "1540.T", "is_available": True, "current_value": 111.0, "change_4w": 2.0},
+        }
+    }
+
+    result = build_multi_asset_candidates(inputs)
+    by_class = {row["asset_class"]: row for row in result["candidates"]}
+
+    assert by_class["bond_jpy"]["metrics"]["current_value"] == 90.0
+    assert by_class["bond_jpy"]["source_data_available"] is True
+    assert by_class["reit_jp"]["metrics"]["trend_label"] == "weakening"
+    assert by_class["gold"]["japan_resident_context_components"]["trend"] >= 0
+    assert by_class["bond_jpy"]["japan_resident_must_not_affect_final_action"] is True
+
+
 def test_official_macro_context_feeds_display_only_japan_rows() -> None:
     inputs = _inputs()
     inputs["japan_tickers"] = {"jpy_bond_intermediate": "2510.T", "jp_reit_proxy": "1343.T", "gold_jpy_proxy": "1540.T"}

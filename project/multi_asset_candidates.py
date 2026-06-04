@@ -48,16 +48,19 @@ def build_multi_asset_candidates(report_inputs: dict[str, Any]) -> dict[str, Any
     japan_risk = report_inputs.get("japan_risk") or {}
     japan_tickers = report_inputs.get("japan_tickers") or {}
     japan_resident_context = report_inputs.get("japan_resident_context") or {}
+    domestic_market_metrics = (report_inputs.get("domestic_market_metrics") or {}).get("by_symbol") or {}
     availability_map = _merge_acquisition_availability(availability_map, acquisition_log)
     context = _japan_resident_context(japan_risk, japan_resident_context, risk_lines)
 
     rows = [
         _equity_candidate(asset_compare, asset_map, availability_map, investment_candidates),
-        _gold_candidate(asset_compare, asset_map, availability_map, inflation_monitor, acquisition_log, japan_tickers, context),
+        _gold_candidate(
+            asset_compare, asset_map, availability_map, inflation_monitor, acquisition_log, japan_tickers, context, domestic_market_metrics
+        ),
         _bond_candidate(asset_compare, asset_map, availability_map, credit_monitor, acquisition_log, risk_lines, context),
-        _jpy_bond_candidate(asset_compare, availability_map, acquisition_log, japan_tickers, context),
-        _jp_equity_candidate(asset_compare, availability_map, acquisition_log, japan_tickers, context),
-        _jp_reit_candidate(asset_compare, availability_map, acquisition_log, japan_tickers, context),
+        _jpy_bond_candidate(asset_compare, availability_map, acquisition_log, japan_tickers, context, domestic_market_metrics),
+        _jp_equity_candidate(asset_compare, availability_map, acquisition_log, japan_tickers, context, domestic_market_metrics),
+        _jp_reit_candidate(asset_compare, availability_map, acquisition_log, japan_tickers, context, domestic_market_metrics),
         _cash_candidate(reliability, risk_lines, context),
     ]
 
@@ -109,6 +112,7 @@ def _gold_candidate(
     acquisition_log: list[dict[str, Any]],
     japan_tickers: dict[str, Any],
     context: dict[str, Any],
+    domestic_market_metrics: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     preferred = _find_asset(asset_compare, {"Gold"})
     monitor_row = _find_monitor(inflation_monitor, {"GC=F", "GLD", "IAU"})
@@ -123,7 +127,12 @@ def _gold_candidate(
     available = _is_available(symbol, availability_map) or preferred is not None or monitor_row is not None
     jpy_gold_symbol = str(japan_tickers.get("gold_jpy_proxy") or "")
     jpy_gold_row = _find_acquisition(acquisition_log, {jpy_gold_symbol} if jpy_gold_symbol else set())
-    jpy_gold_available = bool(jpy_gold_symbol and _is_available(jpy_gold_symbol, availability_map)) or _acquisition_has_series(jpy_gold_row)
+    jpy_gold_metric = domestic_market_metrics.get(jpy_gold_symbol) if jpy_gold_symbol else None
+    jpy_gold_available = (
+        bool(jpy_gold_metric and jpy_gold_metric.get("is_available"))
+        or bool(jpy_gold_symbol and _is_available(jpy_gold_symbol, availability_map))
+        or _acquisition_has_series(jpy_gold_row)
+    )
     context_symbol = jpy_gold_symbol if jpy_gold_available else symbol
     signal = build_multi_asset_signal(
         {
@@ -152,7 +161,7 @@ def _gold_candidate(
                 "asset_class": "gold_jpy_proxy",
                 "source_data_available": jpy_gold_available or signal["source_data_available"],
                 "source_status": _source_status(context_symbol, availability_map, jpy_gold_available or signal["source_data_available"]),
-                "metrics": _metrics_from(preferred or monitor_row),
+                "metrics": _metrics_from(jpy_gold_metric) or _metrics_from(preferred or monitor_row),
             },
             context,
         ),
@@ -224,13 +233,20 @@ def _jpy_bond_candidate(
     acquisition_log: list[dict[str, Any]],
     japan_tickers: dict[str, Any],
     context: dict[str, Any],
+    domestic_market_metrics: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     preferred = _find_asset(asset_compare, {"Japan_Bonds", "JGB", "JPY_Bonds"})
     configured_symbol = str(japan_tickers.get("jpy_bond_intermediate") or "2510.T")
     acquisition_row = _find_acquisition(acquisition_log, {configured_symbol, "2510.T", "2511.T", "JGB"})
     symbol = str((preferred or {}).get("ticker") or _acquisition_symbol(acquisition_row) or configured_symbol)
-    metrics = _metrics_from(preferred)
-    available = _is_available(symbol, availability_map) or preferred is not None or _acquisition_has_series(acquisition_row)
+    metric_row = domestic_market_metrics.get(symbol)
+    metrics = _metrics_from(metric_row) or _metrics_from(preferred)
+    available = (
+        bool(metric_row and metric_row.get("is_available"))
+        or _is_available(symbol, availability_map)
+        or preferred is not None
+        or _acquisition_has_series(acquisition_row)
+    )
     context_signal = build_japan_resident_context_signal(
         {
             "asset_class": "bond_jpy_intermediate",
@@ -260,13 +276,20 @@ def _jp_equity_candidate(
     acquisition_log: list[dict[str, Any]],
     japan_tickers: dict[str, Any],
     context: dict[str, Any],
+    domestic_market_metrics: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     preferred = _find_asset(asset_compare, {"Japan_Stocks", "TOPIX", "Nikkei"})
     topix_symbol = str(japan_tickers.get("topix_proxy") or "1306.T")
     acquisition_row = _find_acquisition(acquisition_log, {topix_symbol, "1306.T", "1321.T"})
     symbol = str((preferred or {}).get("ticker") or _acquisition_symbol(acquisition_row) or topix_symbol)
-    metrics = _metrics_from(preferred)
-    available = _is_available(symbol, availability_map) or preferred is not None or _acquisition_has_series(acquisition_row)
+    metric_row = domestic_market_metrics.get(symbol)
+    metrics = _metrics_from(metric_row) or _metrics_from(preferred)
+    available = (
+        bool(metric_row and metric_row.get("is_available"))
+        or _is_available(symbol, availability_map)
+        or preferred is not None
+        or _acquisition_has_series(acquisition_row)
+    )
     context_signal = build_japan_resident_context_signal(
         {
             "asset_class": "equity_jp_topix",
@@ -296,13 +319,20 @@ def _jp_reit_candidate(
     acquisition_log: list[dict[str, Any]],
     japan_tickers: dict[str, Any],
     context: dict[str, Any],
+    domestic_market_metrics: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     preferred = _find_asset(asset_compare, {"Japan_REIT", "J_REIT"})
     configured_symbol = str(japan_tickers.get("jp_reit_proxy") or "1343.T")
     acquisition_row = _find_acquisition(acquisition_log, {configured_symbol, "1343.T", "1488.T", "JREIT"})
     symbol = str((preferred or {}).get("ticker") or _acquisition_symbol(acquisition_row) or configured_symbol)
-    metrics = _metrics_from(preferred)
-    available = _is_available(symbol, availability_map) or preferred is not None or _acquisition_has_series(acquisition_row)
+    metric_row = domestic_market_metrics.get(symbol)
+    metrics = _metrics_from(metric_row) or _metrics_from(preferred)
+    available = (
+        bool(metric_row and metric_row.get("is_available"))
+        or _is_available(symbol, availability_map)
+        or preferred is not None
+        or _acquisition_has_series(acquisition_row)
+    )
     context_signal = build_japan_resident_context_signal(
         {
             "asset_class": "reit_jp",
@@ -539,5 +569,18 @@ def _source_status(symbol: str, availability_map: dict[str, Any], available: boo
 def _metrics_from(row: dict[str, Any] | None) -> dict[str, Any]:
     if not row:
         return {}
-    metric_keys = ("momentum_12w", "change_4w", "change_12w", "annualized_volatility", "max_drawdown", "zscore", "signal_label")
+    metric_keys = (
+        "current_value",
+        "change_1w",
+        "change_4w",
+        "change_12w",
+        "momentum_12w",
+        "annualized_volatility",
+        "max_drawdown",
+        "zscore",
+        "trend_label",
+        "volatility_label",
+        "signal_label",
+        "limitations",
+    )
     return {key: row.get(key) for key in metric_keys if key in row}

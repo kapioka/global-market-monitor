@@ -15,6 +15,7 @@ from project.cycle_analysis import analyze_cycle
 from project.data_fetcher import FetchResult, fetch_market_data
 from project.decision_attribution import build_decision_attribution
 from project.domestic_danger_context import build_domestic_danger_context
+from project.domestic_market_metrics import build_domestic_market_metrics
 from project.fx_risk_policy import apply_fx_policy_candidate, classify_fx_policy
 from project.inflation_monitor import build_inflation_monitor
 from project.investment_candidates import build_investment_candidates
@@ -206,6 +207,7 @@ def build_report(
         sector_rotation=sector_rotation,
     )
     asset_compare = compare_asset_classes(prices, config["tickers"]["asset_classes"])
+    domestic_market_metrics = build_domestic_market_metrics(prices, acquisition_log=fetch.acquisition_log)
     spot_signal = evaluate_spot_signal(
         score,
         regime,
@@ -264,6 +266,7 @@ def build_report(
             "japan_tickers": config["tickers"].get("japan", {}),
             "japan_resident_context": japan_macro_context,
             "acquisition_log": fetch.acquisition_log,
+            "domestic_market_metrics": domestic_market_metrics,
         }
     )
     domestic_danger_context = build_domestic_danger_context(
@@ -272,6 +275,7 @@ def build_report(
             "japan_risk": japan_risk,
             "japan_resident_context": japan_macro_context,
             "acquisition_log": fetch.acquisition_log,
+            "domestic_market_metrics": domestic_market_metrics,
         }
     )
     recovery_candidates = build_recovery_candidates(
@@ -342,6 +346,7 @@ def build_report(
         "fx_soft_cap_watchlist": fx_soft_cap_watchlist,
         "investment_candidates": investment_candidates,
         "multi_asset_candidates": multi_asset_candidates,
+        "domestic_market_metrics": domestic_market_metrics,
         "domestic_danger_context": domestic_danger_context,
         "recovery_candidates": recovery_candidates,
         "regime_leading_candidates": regime_leading_candidates,

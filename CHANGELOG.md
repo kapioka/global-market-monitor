@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.46 - Domestic Market Metrics Layer
+
+### Changed
+
+- Added display-only domestic market metrics for Japan equity, JPY bond, Japan REIT, JPY gold proxy, and FX context series when acquired price data is available.
+- Connected domestic metrics to Japan-resident multi-asset rows and domestic danger context so acquisition logs alone do not create watch/caution states.
+- Added report display for useful domestic metrics and limitations while keeping missing data as a limitation rather than a risk signal.
+
+### Scope
+
+- Kept `final_action`, `buy_readiness_score`, threshold JSON, reliability policy, buy blocker/card logic, risk labels, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.45 - Domestic Data Wiring Fix
 
 ### Changed

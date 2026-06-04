@@ -446,7 +446,7 @@ def _multi_asset_payload() -> dict:
                 "must_not_affect_final_action": True,
                 "must_not_affect_buy_readiness_score": True,
                 "source_data_available": True,
-                "metrics": {},
+                "metrics": {"current_value": 103.0, "change_4w": -3.7, "change_12w": -5.1, "trend_label": "weakening"},
                 "japan_resident_context_score": 43,
                 "japan_resident_context_status": "informational",
                 "japan_resident_reason_category": "jp_equity_context",
@@ -475,7 +475,7 @@ def _multi_asset_payload() -> dict:
                 "must_not_affect_final_action": True,
                 "must_not_affect_buy_readiness_score": True,
                 "source_data_available": False,
-                "metrics": {},
+                "metrics": {"limitations": ["missing_series"]},
                 "japan_resident_context_score": 15,
                 "japan_resident_context_status": "unavailable",
                 "japan_resident_reason_category": "insufficient_data",
@@ -784,6 +784,9 @@ def test_render_markdown_includes_multi_asset_candidates_without_changing_decisi
     assert "国内インフレ" in markdown
     assert "状態: データ不足" in markdown
     assert "状態: 待機" in markdown
+    assert "現在値=103" in markdown
+    assert "4週=-3.7" in markdown
+    assert "制約=missing_series" in markdown
     assert "これは買い推奨ではなく" in markdown
     assert "final_action への影響: False" in markdown
     assert "buy_readiness_score への影響: False" in markdown
@@ -815,6 +818,9 @@ def test_render_html_includes_multi_asset_candidates_table():
     assert "国内インフレ" in html
     assert "データ不足" in html
     assert "待機判断の補助" in html
+    assert "現在値=103" in html
+    assert "4週=-3.7" in html
+    assert "制約=missing_series" in html
     assert "為替や商品価格の影響を受けます。" in html
     section = html[html.index("資産クラス別の確認候補") : html.index("先回り候補")]
     assert "unavailable" not in section

@@ -99,6 +99,151 @@ def test_missing_jgb_context_does_not_create_domestic_bond_or_reit_caution() -> 
     assert any("MOF JGB利回りが未取得" in item for item in payload["domestic_data_limitations"])
 
 
+def test_acquisition_log_only_does_not_create_watch_or_caution() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {"candidates": []},
+            "japan_risk": {},
+            "japan_resident_context": {},
+            "acquisition_log": [{"requested_ticker": "2510.T", "used_ticker": "2510.T", "status": "ok"}],
+        }
+    )
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+
+    assert by_symbol["2510.T"]["level"] == "normal"
+    assert payload["domestic_danger_level"] == "unavailable"
+
+
+def test_domestic_danger_context_uses_real_price_metrics_for_equity_and_fx() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {
+                "candidates": [
+                    {
+                        "asset_class": "jp_equity",
+                        "symbol": "1306.T",
+                        "display_name": "TOPIX連動ETF",
+                        "status": "informational",
+                        "metrics": {"change_4w": -9.0, "change_12w": -12.0, "max_drawdown": -21.0, "trend_label": "falling"},
+                        "japan_resident_context_components": {"domestic_rate": 0},
+                    }
+                ]
+            },
+            "japan_risk": {},
+            "domestic_market_metrics": {
+                "by_symbol": {"USDJPY=X": {"symbol": "USDJPY=X", "display_name": "米ドル円", "is_available": True, "change_4w": 5.0}}
+            },
+            "japan_resident_context": {},
+            "acquisition_log": [],
+        }
+    )
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+
+    assert by_symbol["1306.T"]["level"] == "caution"
+    assert by_symbol["USDJPY=X"]["level"] == "caution"
+    assert "4週=-9.0" in by_symbol["1306.T"]["metrics"]
+
+
+def test_neutral_domestic_metrics_stay_normal_observed_context() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {
+                "candidates": [
+                    {
+                        "asset_class": "jp_equity",
+                        "symbol": "1321.T",
+                        "display_name": "日経225連動ETF",
+                        "status": "informational",
+                        "metrics": {"current_value": 120.0, "change_4w": 0.5, "change_12w": 1.2, "trend_label": "flat"},
+                        "japan_resident_context_components": {"domestic_rate": 0},
+                    }
+                ]
+            },
+            "japan_risk": {},
+            "japan_resident_context": {},
+            "acquisition_log": [],
+        }
+    )
+
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+    assert by_symbol["1321.T"]["level"] == "normal"
+
+
+def test_reit_caution_requires_weakness_plus_rate_pressure() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {
+                "candidates": [
+                    {
+                        "asset_class": "reit_jp",
+                        "symbol": "1343.T",
+                        "display_name": "国内REIT確認",
+                        "status": "informational",
+                        "metrics": {"change_4w": -5.0, "change_12w": -9.0, "trend_label": "weakening"},
+                        "japan_resident_context_components": {"domestic_rate": -8},
+                    }
+                ]
+            },
+            "japan_risk": {},
+            "japan_resident_context": {},
+            "acquisition_log": [],
+        }
+    )
+
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+    assert by_symbol["1343.T"]["level"] == "caution"
+
+
+def test_jpy_bond_weakness_plus_jgb_pressure_creates_caution() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {
+                "candidates": [
+                    {
+                        "asset_class": "bond_jpy",
+                        "symbol": "2510.T",
+                        "display_name": "円建て債券確認",
+                        "status": "informational",
+                        "metrics": {"change_4w": -4.5, "change_12w": -8.2, "trend_label": "weakening"},
+                        "japan_resident_context_components": {"domestic_rate": -6},
+                    }
+                ]
+            },
+            "japan_risk": {},
+            "japan_resident_context": {},
+            "acquisition_log": [],
+        }
+    )
+
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+    assert by_symbol["2510.T"]["level"] == "caution"
+
+
+def test_eurjpy_metric_can_create_fx_caution_without_dxy_substitution() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {"candidates": []},
+            "japan_risk": {},
+            "japan_resident_context": {},
+            "domestic_market_metrics": {
+                "by_symbol": {
+                    "EURJPY=X": {
+                        "symbol": "EURJPY=X",
+                        "display_name": "ユーロ円",
+                        "is_available": True,
+                        "change_4w": -4.2,
+                    }
+                }
+            },
+            "acquisition_log": [],
+        }
+    )
+
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+    assert by_symbol["EURJPY=X"]["level"] == "caution"
+    assert "DX-Y.NYB" not in by_symbol
+
+
 def test_domestic_danger_context_copy_avoids_advice_phrases() -> None:
     rendered = str(build_domestic_danger_context(_inputs()))
 
