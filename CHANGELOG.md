@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.50 - Report UX Rebuild for Risk Context
+
+### Changed
+
+- Added a standard HTML report hub that separates core decision output, supplemental risk context, global risk-line detail, data limitations, and source acquisition status.
+- Kept Japan-resident integrated context visible as supplemental context while making data limitations and acquisition counts easier to distinguish from observed risk.
+
+### Scope
+
+- Kept `final_action`, `buy_readiness_score`, threshold JSON, reliability policy, buy blocker/card logic, risk labels, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.49 - Japan Resident Integrated Risk Context
 
 ### Changed

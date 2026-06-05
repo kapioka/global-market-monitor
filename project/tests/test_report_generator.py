@@ -914,6 +914,23 @@ def test_render_outputs_include_japan_resident_integrated_risk_context():
         assert "manual_file_missing" in rendered
 
 
+def test_render_html_groups_core_supplemental_data_limits_and_acquisition_status():
+    report = deepcopy(_report())
+    report["japan_resident_integrated_risk_context"] = _integrated_context_payload()
+
+    html = render_html(report)
+
+    assert "判断とリスク文脈の読み分け" in html
+    assert "本体判断" in html
+    assert "補助判断" in html
+    assert "グローバル危険ライン" in html
+    assert "データ制約・取得状況" in html
+    assert "final_action" in html
+    assert "買い候補度" in html
+    assert "manual_file_missing" in html
+    assert "proxy_fallback=1" in html
+
+
 def test_render_supplement_dashboard_includes_domestic_danger_context():
     report = deepcopy(_report())
     report["domestic_danger_context"] = {

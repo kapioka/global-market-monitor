@@ -590,6 +590,69 @@ def _japan_resident_integrated_context_panel_html(payload: dict[str, Any], small
     )
 
 
+def _risk_context_ux_hub_html(report: dict[str, Any]) -> str:
+    card = report.get("buy_decision_card") or {}
+    risk_lines = report.get("risk_lines") or {}
+    integrated = report.get("japan_resident_integrated_risk_context") or {}
+    domestic = report.get("domestic_danger_context") or {}
+    availability = report.get("data_availability") or []
+    limitations = integrated.get("data_limitations") or domestic.get("domestic_data_limitations") or []
+    availability_counts: dict[str, int] = {}
+    for row in availability:
+        status = str(row.get("status") or "-")
+        availability_counts[status] = availability_counts.get(status, 0) + 1
+    availability_text = ", ".join(f"{key}={value}" for key, value in sorted(availability_counts.items())) or "取得状況データなし"
+    limitation_text = " / ".join(str(item) for item in limitations[:3]) if limitations else "追加のデータ制約はありません。"
+    rows = [
+        (
+            "本体判断",
+            f"final_action: {_jp_action(str(card.get('final_action', '-')))} / 買い候補度: {card.get('buy_readiness_score', '-')}",
+            "買い判断カードの結論です。補助文脈はここを上書きしません。",
+        ),
+        (
+            "補助判断",
+            (
+                "統合: {combined} / 国内: {domestic} / 為替: {fx} / 国内金利: {rate}".format(
+                    combined=_domestic_danger_level_label(integrated.get("combined_context_level")),
+                    domestic=_domestic_danger_level_label(integrated.get("domestic_risk_level")),
+                    fx=_domestic_danger_level_label(integrated.get("fx_risk_level")),
+                    rate=_domestic_danger_level_label(integrated.get("rate_risk_level")),
+                )
+                if integrated
+                else "統合リスク文脈なし"
+            ),
+            "日本在住者向け統合文脈と国内補助文脈をまとめます。",
+        ),
+        (
+            "グローバル危険ライン",
+            f"{risk_lines.get('stage_label', '-')} / 総合ストレス指数 {_display_number(risk_lines.get('composite_risk_score'))}",
+            "米国・グローバル中心の危険監視です。国内文脈とは役割を分けます。",
+        ),
+        (
+            "データ制約・取得状況",
+            f"{limitation_text} / {availability_text}",
+            "不足系列や取得状態は、観測された危険と分けて読みます。",
+        ),
+    ]
+    cards = "".join(
+        "<article class='risk-context-card'>"
+        f"<div class='risk-context-type'>{html.escape(title)}</div>"
+        f"<strong>{html.escape(value)}</strong>"
+        f"<p>{html.escape(note)}</p>"
+        "</article>"
+        for title, value, note in rows
+    )
+    return (
+        "<section class='risk-context-hub'>"
+        "<div class='risk-context-head'>"
+        "<h2>判断とリスク文脈の読み分け</h2>"
+        "<p>本体判断、補助判断、データ制約、取得状況を分けて確認します。</p>"
+        "</div>"
+        f"<div class='risk-context-grid'>{cards}</div>"
+        "</section>"
+    )
+
+
 def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
     spot_signal = report.get("spot_signal", {}) or {}
     action_decision = spot_signal.get("action_decision", {}) or {}
@@ -2429,6 +2492,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     history_payload_json = json.dumps(history_payload, ensure_ascii=False).replace("</", "<\\/")
     first_read_summary_html = _first_read_summary_html(report)
     buy_decision_card_html = _buy_decision_card_html(report)
+    risk_context_ux_hub_html = _risk_context_ux_hub_html(report)
     recovery_candidate_chips = (
         "".join(
             f"<span class='candidate-chip gold'>{html.escape(str(item.get('ticker', '-')))}</span>"
@@ -2909,6 +2973,15 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .alert-stack-copy {{ margin-top:4px; color:#52606d; font-size:14px; line-height:1.55; }}
     .alert-stack-arrow {{ color:#52606d; font-size:28px; }}
     .support-grid {{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-top:16px; margin-bottom:18px; align-items:stretch; }}
+    .risk-context-hub {{ margin-top:18px; padding:18px 20px; border:1px solid var(--line); border-radius:22px; background:rgba(255,255,255,0.72); }}
+    .risk-context-head {{ display:flex; justify-content:space-between; gap:16px; align-items:flex-start; }}
+    .risk-context-head h2 {{ margin:0; font-size:20px; color:#17366d; }}
+    .risk-context-head p {{ margin:2px 0 0; color:#52606d; line-height:1.55; }}
+    .risk-context-grid {{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:14px; }}
+    .risk-context-card {{ padding:14px 14px; border:1px solid var(--line); border-radius:16px; background:#fff; min-width:0; }}
+    .risk-context-type {{ color:#52606d; font-size:13px; font-weight:800; }}
+    .risk-context-card strong {{ display:block; margin-top:7px; color:#17366d; line-height:1.45; word-break:break-word; }}
+    .risk-context-card p {{ margin:8px 0 0; color:#52606d; font-size:13px; line-height:1.55; }}
     .support-panel {{ padding:16px 18px; height:202px; display:flex; flex-direction:column; }}
     .support-body {{ margin-top:12px; }}
     .support-head {{ display:flex; align-items:center; gap:12px; }}
@@ -2959,6 +3032,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       .mini-grid {{ grid-template-columns:1fr 1fr; }}
       .overview-grid {{ grid-template-columns:1fr; }}
       .support-grid {{ grid-template-columns:1fr 1fr; }}
+      .risk-context-grid {{ grid-template-columns:1fr 1fr; }}
       .grid {{ grid-template-columns: 1fr; }}
       .summary-main {{ grid-template-columns: 1fr; }}
       .summary-metrics {{ grid-template-columns: 1fr; }}
@@ -2985,6 +3059,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       .hero-metrics {{ grid-template-columns:1fr 1fr; row-gap:8px; }}
       .hero-metric:nth-child(3) {{ border-left:0; }}
       .support-grid {{ grid-template-columns:1fr 1fr; }}
+      .risk-context-grid {{ grid-template-columns:1fr 1fr; }}
       .glance-grid {{ grid-template-columns:repeat(3,minmax(0,1fr)); }}
       .buy-flow-layout {{ grid-template-columns:1fr; }}
       .buy-steps {{ grid-template-columns:repeat(5,minmax(0,1fr)); }}
@@ -3075,6 +3150,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         <div class=\"candidate-inline\">参考候補: <strong>{html.escape(', '.join(item.get('ticker', '-') for item in candidate.get('candidate_tickers', [])[:2]) or 'なし')}</strong></div>
       </section>
     </div>
+    {risk_context_ux_hub_html}
 
     <div class=\"mini-grid\">
       <section class=\"mini-panel\">
