@@ -20,6 +20,7 @@ from project.fx_risk_policy import apply_fx_policy_candidate, classify_fx_policy
 from project.inflation_monitor import build_inflation_monitor
 from project.investment_candidates import build_investment_candidates
 from project.japan_macro_adapters import build_optional_japan_macro_context
+from project.japan_resident_integrated_context import build_japan_resident_integrated_risk_context
 from project.japan_risk_monitor import build_japan_risk_monitor
 from project.multi_asset_candidates import build_multi_asset_candidates
 from project.preprocess import compute_returns, preprocess_prices
@@ -280,6 +281,16 @@ def build_report(
             "domestic_market_metrics": domestic_market_metrics,
         }
     )
+    japan_resident_integrated_risk_context = build_japan_resident_integrated_risk_context(
+        {
+            "risk_lines": risk_lines,
+            "risk_line_confidence_audit": risk_line_confidence_audit,
+            "domestic_danger_context": domestic_danger_context,
+            "japan_risk": japan_risk,
+            "japan_resident_context": japan_macro_context,
+            "domestic_market_metrics": domestic_market_metrics,
+        }
+    )
     recovery_candidates = build_recovery_candidates(
         prices=prices,
         asset_map=config["tickers"]["asset_classes"],
@@ -351,6 +362,7 @@ def build_report(
         "multi_asset_candidates": multi_asset_candidates,
         "domestic_market_metrics": domestic_market_metrics,
         "domestic_danger_context": domestic_danger_context,
+        "japan_resident_integrated_risk_context": japan_resident_integrated_risk_context,
         "recovery_candidates": recovery_candidates,
         "regime_leading_candidates": regime_leading_candidates,
         "alerts": alerts,

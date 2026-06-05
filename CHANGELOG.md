@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.49 - Japan Resident Integrated Risk Context
+
+### Changed
+
+- Added a display-only Japan-resident integrated risk context that combines US/global risk lines, risk-line confidence audit, domestic danger context, FX context, rate context, and Japan macro data limitations.
+- Added report display and tests for the integrated context, including DXY versus USDJPY/EURJPY role separation and explicit non-impact flags.
+
+### Scope
+
+- Kept `final_action`, `buy_readiness_score`, threshold JSON, reliability policy, buy blocker/card logic, risk labels, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.48 - Global Risk Logic Confidence Audit
 
 ### Changed

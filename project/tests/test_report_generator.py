@@ -4,6 +4,7 @@ from copy import deepcopy
 
 import pytest
 
+from project.japan_resident_integrated_context import build_japan_resident_integrated_risk_context
 from project.report_generator import render_html, render_markdown, render_supplement_dashboard_html
 
 
@@ -523,6 +524,55 @@ def _multi_asset_payload() -> dict:
     }
 
 
+def _integrated_context_payload() -> dict:
+    return build_japan_resident_integrated_risk_context(
+        {
+            "risk_lines": {
+                "stage_key": "credit_spillover_initial",
+                "stage_label": "信用波及初期",
+                "summary": "米国・グローバルの危険ラインは注意段階です。",
+                "composite_risk_score": 48.2,
+            },
+            "risk_line_confidence_audit": {
+                "monitoring_scope_label": "米国・グローバル中心の危険監視",
+                "dxy_role": {"label": "米ドル指数は米国・グローバルのドル高ストレス確認に使います。"},
+                "jpy_fx_role": {"label": "USDJPY/EURJPY は日本円で見た外貨建て資産の円換算影響確認に使います。"},
+            },
+            "domestic_danger_context": {
+                "domestic_danger_level": "watch",
+                "domestic_danger_reasons": ["MOF JGB利回りは国内金利の補助危険確認に使われます。"],
+                "domestic_watch_items": [
+                    {
+                        "group": "円建て債券",
+                        "asset_group": "bond_jpy",
+                        "name": "円建て債券確認",
+                        "level": "watch",
+                        "reason": "円建て債券は国内金利と価格推移を分けて補助確認します。",
+                        "source": "multi_asset_candidates",
+                    },
+                    {
+                        "group": "為替確認",
+                        "asset_group": "fx",
+                        "name": "米ドル円",
+                        "level": "caution",
+                        "reason": "USDJPY=X の実変化で外貨建て資産の円換算影響を確認します。",
+                        "source": "japan_risk",
+                    },
+                ],
+                "domestic_data_limitations": ["CPI は manual_file_missing のため補助危険値として扱いません。"],
+            },
+            "japan_risk": {"level": "moderate", "summary": "USDJPY=X は円建て換算影響の確認対象です。"},
+            "japan_resident_context": {
+                "jgb_yields": {"jgb_10y": 1.7},
+                "macro_sources": {
+                    "japan_cpi": {"status": "manual_file_missing"},
+                    "boj_domestic_short_rate": {"status": "endpoint_not_resolved"},
+                },
+            },
+        }
+    )
+
+
 def test_render_markdown_uses_real_newlines():
     text = render_markdown(_report())
     assert "`n" not in text
@@ -843,6 +893,25 @@ def test_render_html_includes_multi_asset_candidates_table():
     section = html[html.index("資産クラス別の確認候補") : html.index("先回り候補")]
     assert "unavailable" not in section
     assert "final_action への影響: False" in html
+
+
+def test_render_outputs_include_japan_resident_integrated_risk_context():
+    report = deepcopy(_report())
+    report["japan_resident_integrated_risk_context"] = _integrated_context_payload()
+
+    markdown = render_markdown(report)
+    html = render_html(report)
+    supplement = render_supplement_dashboard_html(report)
+
+    for rendered in (markdown, html, supplement):
+        assert "日本在住者向け統合リスク文脈" in rendered
+        assert "米国・グローバル" in rendered
+        assert "USDJPY/EURJPY" in rendered
+        assert "国内インフレデータ品質" in rendered
+        assert "final_action への影響" in rendered
+        assert "buy_readiness_score への影響" in rendered
+        assert "False" in rendered
+        assert "manual_file_missing" in rendered
 
 
 def test_render_supplement_dashboard_includes_domestic_danger_context():
