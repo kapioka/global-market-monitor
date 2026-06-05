@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.8.51 - Decision Boundary Experiment
+
+### Changed
+
+- Added a disabled-by-default `decision_boundary_experiment` payload that compares baseline `final_action` / `buy_readiness_score` against an experimental integrated-context score adjustment.
+- Added markdown and standard HTML display for the baseline versus experimental comparison without writing back to the buy decision card.
+
+### Scope
+
+- Kept production `final_action`, production `buy_readiness_score`, threshold JSON, reliability policy, buy blocker/card logic, risk labels, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.50 - Report UX Rebuild for Risk Context
 
 ### Changed

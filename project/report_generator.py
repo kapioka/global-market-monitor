@@ -592,6 +592,10 @@ def _japan_resident_integrated_context_panel_html(payload: dict[str, Any], small
 
 def _risk_context_ux_hub_html(report: dict[str, Any]) -> str:
     card = report.get("buy_decision_card") or {}
+    experiment = report.get("decision_boundary_experiment") or {}
+    experiment_baseline = experiment.get("baseline") or {}
+    experiment_payload = experiment.get("experimental") or {}
+    experiment_diff = experiment.get("diff") or {}
     risk_lines = report.get("risk_lines") or {}
     integrated = report.get("japan_resident_integrated_risk_context") or {}
     domestic = report.get("domestic_danger_context") or {}
@@ -634,6 +638,20 @@ def _risk_context_ux_hub_html(report: dict[str, Any]) -> str:
             "不足系列や取得状態は、観測された危険と分けて読みます。",
         ),
     ]
+    if experiment:
+        rows.append(
+            (
+                "実験比較",
+                (
+                    "baseline {base} -> experimental {exp} / delta {delta}".format(
+                        base=experiment_baseline.get("buy_readiness_score", "-"),
+                        exp=experiment_payload.get("adjusted_buy_readiness_score", "-"),
+                        delta=experiment_diff.get("score_delta", 0),
+                    )
+                ),
+                "production既定値は変更せず、統合文脈を使う場合の境界だけ比較します。",
+            )
+        )
     cards = "".join(
         "<article class='risk-context-card'>"
         f"<div class='risk-context-type'>{html.escape(title)}</div>"
@@ -726,6 +744,27 @@ def _buy_decision_card_markdown_lines(report: dict[str, Any]) -> list[str]:
         lines.append(f"- sample-only注意: {card.get('sample_only_note')}")
     lines.append("- このカードは説明用であり、final_actionには影響しません。")
     return lines
+
+
+def _decision_boundary_experiment_markdown_lines(report: dict[str, Any]) -> list[str]:
+    payload = report.get("decision_boundary_experiment") or {}
+    if not payload:
+        return []
+    baseline = payload.get("baseline") or {}
+    experimental = payload.get("experimental") or {}
+    diff = payload.get("diff") or {}
+    return [
+        "## Decision Boundary Experiment / 判断境界の実験比較",
+        f"- enabled: {payload.get('enabled', False)}",
+        f"- baseline final_action: {_jp_action(str(baseline.get('final_action', '-')))}",
+        f"- baseline buy_readiness_score: {baseline.get('buy_readiness_score', '-')}",
+        f"- experimental adjusted_buy_readiness_score: {experimental.get('adjusted_buy_readiness_score', '-')}",
+        f"- supplemental_warning_level: {experimental.get('supplemental_warning_level', '-')}",
+        f"- score_delta: {diff.get('score_delta', 0)}",
+        f"- action_changed: {diff.get('action_changed', False)}",
+        f"- production default への影響: {not bool(payload.get('must_not_affect_production_default', True))}",
+        f"- suggested_adjustment: {experimental.get('suggested_adjustment', '-')}",
+    ]
 
 
 def _buy_window_diagnostics_markdown_lines(report: dict[str, Any]) -> list[str]:
@@ -1110,6 +1149,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         *_first_read_summary_markdown_lines(report),
         "",
         *_buy_decision_card_markdown_lines(report),
+        *_decision_boundary_experiment_markdown_lines(report),
         *_buy_window_diagnostics_markdown_lines(report),
         "",
         "## サマリー",

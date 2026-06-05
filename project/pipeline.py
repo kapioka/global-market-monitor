@@ -14,6 +14,7 @@ from project.credit_monitor import build_credit_monitor
 from project.cycle_analysis import analyze_cycle
 from project.data_fetcher import FetchResult, fetch_market_data
 from project.decision_attribution import build_decision_attribution
+from project.decision_boundary_experiment import build_decision_boundary_experiment
 from project.domestic_danger_context import build_domestic_danger_context
 from project.domestic_market_metrics import build_domestic_market_metrics
 from project.fx_risk_policy import apply_fx_policy_candidate, classify_fx_policy
@@ -371,6 +372,7 @@ def build_report(
         "data_availability": fetch.acquisition_log,
     }
     report["buy_decision_card"] = build_buy_decision_card(report)
+    report["decision_boundary_experiment"] = build_decision_boundary_experiment(report)
     return report
 
 
