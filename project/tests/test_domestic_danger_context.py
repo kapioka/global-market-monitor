@@ -64,6 +64,7 @@ def test_domestic_danger_context_uses_domestic_values_and_limitations() -> None:
     groups = {row["group"] for row in payload["domestic_watch_items"]}
     assert payload["domestic_danger_level"] == "caution"
     assert payload["uses_domestic_values"] is True
+    assert payload["uses_domestic_macro_values"] is True
     assert {"円建て債券", "国内REIT", "国内株式", "為替確認", "国内金利・国内インフレ", "円建て金"}.issubset(groups)
     assert any("JGB利回り" in row["reason"] for row in payload["domestic_watch_items"])
     assert any("CPI" in item and "manual_file_missing" in item for item in payload["domestic_data_limitations"])
@@ -333,7 +334,78 @@ def test_jpy_gold_uses_1540_metrics_separately_from_usd_gold() -> None:
     assert by_symbol["1540.T"]["level"] == "watch"
     assert by_symbol["GLD"]["group"] == "外貨建て金"
     assert by_symbol["GLD"]["level"] == "normal"
-    assert "GLD/GC=Fとは分け" in by_symbol["1540.T"]["reason"]
+    assert "円建て金proxy" in by_symbol["1540.T"]["reason"]
+    assert "外貨建て・USD建て金価格" in by_symbol["GLD"]["reason"]
+
+
+def test_jpy_gold_can_be_built_directly_from_domestic_market_metrics() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {"candidates": []},
+            "japan_risk": {},
+            "japan_resident_context": {},
+            "domestic_market_metrics": {
+                "by_symbol": {
+                    "1540.T": {
+                        "symbol": "1540.T",
+                        "display_name": "純金上場信託",
+                        "asset_group": "gold_jpy",
+                        "source_status": "ok",
+                        "is_available": True,
+                        "risk_signal_allowed": True,
+                        "current_value": 12000.0,
+                        "change_4w": -4.2,
+                        "change_12w": -3.0,
+                        "max_drawdown_12w": -5.0,
+                        "trend_label": "weakening",
+                    }
+                }
+            },
+            "acquisition_log": [{"requested_ticker": "1540.T", "used_ticker": "1540.T", "status": "ok"}],
+        }
+    )
+
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+    assert by_symbol["1540.T"]["source"] == "domestic_market_metrics"
+    assert by_symbol["1540.T"]["group"] == "円建て金"
+    assert by_symbol["1540.T"]["level"] == "watch"
+    assert "price_metrics_missing" not in by_symbol["1540.T"]["limitations"]
+    assert payload["uses_domestic_price_metrics"] is True
+    assert payload["uses_only_fallback_or_limitations"] is False
+
+
+def test_suspicious_price_metrics_are_data_limitations_not_caution() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {"candidates": []},
+            "japan_risk": {},
+            "japan_resident_context": {},
+            "domestic_market_metrics": {
+                "by_symbol": {
+                    "1306.T": {
+                        "symbol": "1306.T",
+                        "display_name": "TOPIX連動ETF",
+                        "asset_group": "jp_equity",
+                        "source_status": "ok",
+                        "is_available": True,
+                        "risk_signal_allowed": False,
+                        "current_value": 415.8,
+                        "change_4w": 2.4,
+                        "change_12w": -89.0,
+                        "max_drawdown_full": -90.0,
+                        "trend_label": "unknown",
+                        "limitations": ["split_or_discontinuity_suspected"],
+                    }
+                }
+            },
+            "acquisition_log": [],
+        }
+    )
+
+    by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
+    assert by_symbol["1306.T"]["level"] == "unavailable"
+    assert "split_or_discontinuity_suspected" in by_symbol["1306.T"]["limitations"]
+    assert payload["domestic_danger_level"] == "unavailable"
 
 
 def test_eurjpy_metric_can_create_fx_caution_without_dxy_substitution() -> None:

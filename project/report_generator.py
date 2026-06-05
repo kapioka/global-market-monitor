@@ -490,6 +490,9 @@ def _domestic_danger_panel_html(payload: dict[str, Any], small_table: Any, esc: 
         '<ul class="compact-list">'
         "<li>補助判定: {level}</li>"
         "<li>uses_domestic_values: {uses_values}</li>"
+        "<li>uses_domestic_price_metrics: {uses_price_metrics}</li>"
+        "<li>uses_domestic_macro_values: {uses_macro_values}</li>"
+        "<li>uses_only_fallback_or_limitations: {uses_fallback_only}</li>"
         "<li>final_action への影響: {final_action}</li>"
         "<li>buy_readiness_score への影響: {readiness}</li>"
         "</ul>"
@@ -502,6 +505,9 @@ def _domestic_danger_panel_html(payload: dict[str, Any], small_table: Any, esc: 
         summary=esc(SECTION_EXPLANATIONS["domestic_danger_context"]),
         level=esc(_domestic_danger_level_label(payload.get("domestic_danger_level"))),
         uses_values=esc(payload.get("uses_domestic_values", False)),
+        uses_price_metrics=esc(payload.get("uses_domestic_price_metrics", False)),
+        uses_macro_values=esc(payload.get("uses_domestic_macro_values", False)),
+        uses_fallback_only=esc(payload.get("uses_only_fallback_or_limitations", False)),
         final_action=esc(not bool(payload.get("must_not_affect_final_action", True))),
         readiness=esc(not bool(payload.get("must_not_affect_buy_readiness_score", True))),
         table=table,

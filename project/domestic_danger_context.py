@@ -26,6 +26,7 @@ def build_domestic_danger_context(report_inputs: dict[str, Any]) -> dict[str, An
     reasons: list[str] = []
 
     _add_domestic_candidate_items(watch_items, candidates)
+    _add_domestic_metric_items(watch_items, market_metrics)
     _add_fx_items(watch_items, reasons, limitations, japan_risk, market_metrics)
     _add_macro_items(watch_items, reasons, limitations, macro_context)
     _add_acquisition_fallback_items(watch_items, acquisition_log)
@@ -38,7 +39,10 @@ def build_domestic_danger_context(report_inputs: dict[str, Any]) -> dict[str, An
         "domestic_watch_items": watch_items,
         "domestic_data_limitations": _dedupe(limitations),
         "domestic_metric_summary": _domestic_metric_summary(watch_items),
-        "uses_domestic_values": bool(watch_items),
+        "uses_domestic_values": any(item.get("metrics_used") for item in watch_items),
+        "uses_domestic_price_metrics": any(item.get("source") == "domestic_market_metrics" and item.get("metrics_used") for item in watch_items),
+        "uses_domestic_macro_values": any(item.get("source") == "official_japan_macro" and item.get("metrics_used") for item in watch_items),
+        "uses_only_fallback_or_limitations": bool(watch_items) and not any(item.get("metrics_used") for item in watch_items),
         "must_not_affect_final_action": True,
         "must_not_affect_buy_readiness_score": True,
         "policy_status": "supplemental_display_only",
@@ -60,7 +64,8 @@ def _add_domestic_candidate_items(watch_items: list[dict[str, Any]], candidates:
         domestic_rate = _number(components.get("domestic_rate"))
         fx = _number(components.get("fx"))
         trend = _number(components.get("trend"))
-        metrics = row.get("metrics") or {}
+        metrics = dict(row.get("metrics") or {})
+        metrics.setdefault("symbol", symbol)
         severity = _severity_from_components(asset_class, domestic_rate, fx, trend, str(row.get("status") or ""), metrics)
         reason = _candidate_reason(asset_class, domestic_rate, fx, trend, metrics)
         metric_limitations = _metric_limitations(metrics)
@@ -80,6 +85,34 @@ def _add_domestic_candidate_items(watch_items: list[dict[str, Any]], candidates:
                 "metrics_used": _metrics_used(metrics),
                 "limitations": metric_limitations,
                 "source": "multi_asset_candidates",
+            }
+        )
+
+
+def _add_domestic_metric_items(watch_items: list[dict[str, Any]], market_metrics: dict[str, dict[str, Any]]) -> None:
+    existing = {str(item.get("symbol")) for item in watch_items}
+    for symbol in ("1306.T", "1321.T", "2510.T", "1343.T", "1540.T"):
+        metrics = market_metrics.get(symbol) or {}
+        if not metrics or symbol in existing:
+            continue
+        asset_class = _metric_asset_class(symbol, metrics)
+        severity = _severity_from_components(asset_class, None, None, None, str(metrics.get("source_status") or ""), metrics)
+        watch_items.append(
+            {
+                "group": _group_label(asset_class, symbol),
+                "asset_group": asset_class,
+                "label": metrics.get("display_name") or symbol,
+                "name": metrics.get("display_name") or symbol,
+                "symbol": symbol,
+                "status": "informational" if metrics.get("is_available") else "unavailable",
+                "source_status": metrics.get("source_status") or "unavailable",
+                "level": severity,
+                "reason": _candidate_reason(asset_class, None, None, None, metrics),
+                "caution": _default_caution(asset_class),
+                "metrics": _metric_summary(metrics),
+                "metrics_used": _metrics_used(metrics),
+                "limitations": _metric_limitations(metrics),
+                "source": "domestic_market_metrics",
             }
         )
 
@@ -286,6 +319,8 @@ def _severity_from_components(
 ) -> str:
     if status in {"unavailable", "not_available", "missing"}:
         return "unavailable"
+    if metrics and metrics.get("risk_signal_allowed") is False:
+        return "unavailable"
     weak_price = _weak_price_metrics(metrics)
     sharp_price = _sharp_price_metrics(metrics)
     if asset_class == "jp_equity":
@@ -328,7 +363,10 @@ def _candidate_reason(asset_class: str, domestic_rate: float | None, fx: float |
     if asset_class == "jp_equity":
         return f"国内株式は外貨建て株式とは分け、日本株確認として補助表示します。指標: {metric_text}"
     if asset_class == "gold":
-        return f"円建て金はGLD/GC=Fとは分け、1540.Tなど円建て金代理指標として補助確認します。指標: {metric_text}"
+        symbol = str(metrics.get("symbol") or "")
+        if symbol == "1540.T":
+            return f"円建て金proxyとして、円ベースの金価格文脈を確認します。指標: {metric_text}"
+        return f"外貨建て・USD建て金価格の参照系列として確認します。円建て金proxyとは別枠です。指標: {metric_text}"
     return f"国内文脈の補助確認です。国内金利={domestic_rate} / 為替={fx} / trend={trend}"
 
 
@@ -360,7 +398,9 @@ def _metric_summary(metrics: dict[str, Any]) -> str:
         ("change_4w", "4週"),
         ("change_12w", "12週"),
         ("trend_label", "傾向"),
-        ("max_drawdown", "最大DD"),
+        ("max_drawdown_12w", "12週DD"),
+        ("max_drawdown_26w", "26週DD"),
+        ("max_drawdown_full", "全期間DD"),
     ):
         value = metrics.get(key)
         if value is not None:
@@ -372,12 +412,24 @@ def _metric_summary(metrics: dict[str, Any]) -> str:
 
 
 def _metrics_used(metrics: dict[str, Any]) -> dict[str, Any]:
-    keys = ("current_value", "change_1w", "change_4w", "change_12w", "momentum_12w", "max_drawdown", "zscore", "trend_label")
+    keys = (
+        "current_value",
+        "change_1w",
+        "change_4w",
+        "change_12w",
+        "momentum_12w",
+        "max_drawdown",
+        "max_drawdown_12w",
+        "max_drawdown_26w",
+        "max_drawdown_full",
+        "zscore",
+        "trend_label",
+    )
     return {key: metrics.get(key) for key in keys if metrics.get(key) is not None}
 
 
 def _metric_limitations(metrics: dict[str, Any]) -> list[str]:
-    if not metrics:
+    if not _metrics_used(metrics):
         return ["price_metrics_missing"]
     limitations = metrics.get("limitations") or []
     if isinstance(limitations, list):
@@ -392,6 +444,9 @@ def _domestic_metric_summary(watch_items: list[dict[str, Any]]) -> dict[str, Any
             level: sum(1 for item in watch_items if item.get("level") == level) for level in ("normal", "watch", "caution", "unavailable")
         },
         "metrics_available_count": sum(1 for item in watch_items if item.get("metrics_used")),
+        "price_metrics_count": sum(1 for item in watch_items if item.get("source") == "domestic_market_metrics" and item.get("metrics_used")),
+        "macro_metrics_count": sum(1 for item in watch_items if item.get("source") == "official_japan_macro" and item.get("metrics_used")),
+        "fallback_or_limitation_count": sum(1 for item in watch_items if not item.get("metrics_used")),
         "limitations_count": sum(1 for item in watch_items if item.get("limitations")),
     }
 
@@ -405,6 +460,19 @@ def _fallback_asset_group(symbol: str) -> str:
         "1540.T": "gold_jpy",
         "EURJPY=X": "fx",
     }.get(symbol, "domestic_context")
+
+
+def _metric_asset_class(symbol: str, metrics: dict[str, Any]) -> str:
+    raw = str(metrics.get("asset_group") or "")
+    if raw == "jpy_bond":
+        return "bond_jpy"
+    if raw == "jp_reit":
+        return "reit_jp"
+    if raw == "gold_jpy":
+        return "gold"
+    if raw:
+        return raw
+    return _fallback_asset_group(symbol)
 
 
 def _group_label(asset_class: str, symbol: str) -> str:

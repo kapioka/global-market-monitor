@@ -64,7 +64,10 @@ def _global_risk_level(risk_lines: dict[str, Any]) -> str:
 
 
 def _fx_risk_level(japan_risk: dict[str, Any], domestic_context: dict[str, Any]) -> str:
-    levels = [_normalize_level(japan_risk.get("level"))]
+    japan_level = _normalize_fx_level(japan_risk)
+    if "中立" in str(japan_risk.get("summary") or "") and japan_level == "normal":
+        return "normal"
+    levels = [japan_level]
     levels.extend(
         _normalize_level(row.get("level")) for row in domestic_context.get("domestic_watch_items", []) if row.get("asset_group") == "fx"
     )
@@ -206,6 +209,22 @@ def _normalize_level(level: Any) -> str:
         return "watch"
     if value in {"normal", "ok", "stable", "none"}:
         return "normal"
+    return "unavailable"
+
+
+def _normalize_fx_level(japan_risk: dict[str, Any]) -> str:
+    summary = str(japan_risk.get("summary") or "")
+    raw = str(japan_risk.get("level") or "unavailable").lower()
+    if "中立" in summary and raw in {"moderate", "medium", "review", "normal", "ok", "stable"}:
+        return "normal"
+    if raw in {"neutral", "low", "normal", "ok", "stable", "none"}:
+        return "normal"
+    if raw in {"moderate", "medium", "review", "watch", "weak"}:
+        return "watch"
+    if raw in {"high", "caution", "danger"}:
+        return "caution"
+    if raw in {"block", "extreme", "extreme_danger"}:
+        return "block"
     return "unavailable"
 
 

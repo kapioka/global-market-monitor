@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.8.53 - RC Logic Polish
+
+### Changed
+
+- Connected JPY gold price metrics from `1540.T` directly into the supplemental domestic danger context when candidate output does not carry that row.
+- Split JPY gold proxy wording from USD-denominated gold reference wording for `1540.T`, `GLD`, and `GC=F`.
+- Added domestic price discontinuity guarding so split-like or suspicious jumps become data limitations instead of risk signals.
+- Split domestic drawdown fields into 12-week, 26-week, and full-period reference values while keeping short lookback drawdown as the active supplemental risk input.
+- Adjusted Japan-resident integrated FX level mapping so a neutral USDJPY summary is not upgraded to caution only by generic moderate/review normalization.
+
+### Scope
+
+- Kept `final_action`, production `buy_readiness_score`, threshold JSON, reliability policy, buy blocker/card logic, risk labels, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.51 - Decision Boundary Experiment
 
 ### Changed

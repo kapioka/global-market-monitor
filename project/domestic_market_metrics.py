@@ -26,6 +26,7 @@ DOMESTIC_METRIC_SYMBOLS: dict[str, str] = {
 
 TARGET_SYMBOLS = ("1306.T", "1321.T", "EWJ", "2510.T", "1343.T", "1540.T", "USDJPY=X", "EURJPY=X")
 REFERENCE_SYMBOLS = ("AGG", "TIP", "LQD", "HYG", "GLD", "GC=F")
+DISCONTINUITY_MOVE_THRESHOLD = 0.50
 
 
 def build_domestic_market_metrics(
@@ -65,17 +66,27 @@ def _metric_row(
         limitations.append("missing_series")
     if len(series) <= 12:
         limitations.append("insufficient_history")
+    suspicious_discontinuity = _has_suspicious_discontinuity(series)
+    if suspicious_discontinuity:
+        limitations.append("split_or_discontinuity_suspected")
 
     current_value = _latest(series)
     change_1w = _change_percent(series, 1, limitations)
     change_4w = _change_percent(series, 4, limitations)
     change_12w = _change_percent(series, 12, limitations)
     momentum_12w = _safe_metric(momentum(series, 12))
-    drawdown = _safe_metric(max_drawdown(series))
+    drawdown_12w = _safe_metric(max_drawdown(series.tail(13)))
+    drawdown_26w = _safe_metric(max_drawdown(series.tail(27)))
+    drawdown_full = _safe_metric(max_drawdown(series))
     zscore = _safe_metric(rolling_zscore(series, zscore_window))
     volatility = _safe_metric(annualized_volatility(series.pct_change(fill_method=None)))
     if zscore is None:
         limitations.append("insufficient_zscore_history")
+    if suspicious_discontinuity:
+        momentum_12w = None
+        drawdown_12w = None
+        drawdown_26w = None
+        zscore = None
 
     is_available = current_value is not None and source_status not in {"missing", "failed", "unavailable"}
     return {
@@ -90,11 +101,15 @@ def _metric_row(
         "change_4w": change_4w,
         "change_12w": change_12w,
         "momentum_12w": _percent(momentum_12w),
-        "max_drawdown": _percent(drawdown),
+        "max_drawdown": _percent(drawdown_12w),
+        "max_drawdown_12w": _percent(drawdown_12w),
+        "max_drawdown_26w": _percent(drawdown_26w),
+        "max_drawdown_full": _percent(drawdown_full),
         "zscore": _rounded(zscore),
-        "trend_label": _trend_label(change_4w, change_12w),
+        "trend_label": "unknown" if suspicious_discontinuity else _trend_label(change_4w, change_12w),
         "volatility_label": _volatility_label(volatility),
         "data_quality": _data_quality(is_available, is_sample, limitations),
+        "risk_signal_allowed": is_available and not suspicious_discontinuity,
         "is_sample": is_sample,
         "is_partial": source_status in {"partial", "sample_fallback"} or bool(limitations),
         "is_available": is_available,
@@ -115,6 +130,13 @@ def _acquisition_map(acquisition_log: list[dict[str, Any]]) -> dict[str, dict[st
 def _clean_series(series: pd.Series) -> pd.Series:
     clean = pd.to_numeric(series, errors="coerce").dropna()
     return clean.astype(float)
+
+
+def _has_suspicious_discontinuity(series: pd.Series) -> bool:
+    if len(series) < 2:
+        return False
+    returns = series.pct_change(fill_method=None).dropna()
+    return bool((returns.abs() > DISCONTINUITY_MOVE_THRESHOLD).any())
 
 
 def _latest(series: pd.Series) -> float | None:

@@ -37,6 +37,9 @@ def test_build_domestic_market_metrics_calculates_target_series() -> None:
     assert by_symbol["1306.T"]["change_4w"] < 0
     assert by_symbol["1306.T"]["change_12w"] is not None
     assert by_symbol["1306.T"]["max_drawdown"] is not None
+    assert by_symbol["1306.T"]["max_drawdown_12w"] is not None
+    assert by_symbol["1306.T"]["max_drawdown_26w"] is not None
+    assert by_symbol["1306.T"]["max_drawdown_full"] is not None
     assert by_symbol["1306.T"]["trend_label"] in {"flat", "weakening", "falling"}
 
 
@@ -73,3 +76,18 @@ def test_fx_metrics_use_usdjpy_and_eurjpy_without_dxy_substitution() -> None:
     assert by_symbol["USDJPY=X"]["asset_group"] == "fx"
     assert by_symbol["EURJPY=X"]["asset_group"] == "fx"
     assert "DX-Y.NYB" not in by_symbol
+
+
+def test_domestic_market_metrics_flags_split_or_discontinuity_as_data_limitation() -> None:
+    index = pd.date_range("2026-01-02", periods=16, freq="W-FRI")
+    prices = pd.DataFrame({"1306.T": [4000.0] * 12 + [4100.0, 4200.0, 4300.0, 415.8]}, index=index)
+
+    row = build_domestic_market_metrics(prices)["by_symbol"]["1306.T"]
+
+    assert row["data_quality"] == "partial"
+    assert row["risk_signal_allowed"] is False
+    assert row["trend_label"] == "unknown"
+    assert "split_or_discontinuity_suspected" in row["limitations"]
+    assert row["max_drawdown_12w"] is None
+    assert row["max_drawdown_26w"] is None
+    assert row["max_drawdown_full"] is not None

@@ -85,6 +85,23 @@ def test_integrated_context_treats_missing_macro_series_as_limitations() -> None
     assert any(row["group"] == "国内インフレ・国内金利データ" for row in payload["watch_items"])
 
 
+def test_integrated_context_does_not_upgrade_neutral_usdjpy_summary_to_caution() -> None:
+    inputs = _inputs()
+    inputs["risk_lines"] = {"stage_key": "normal", "stage_label": "通常"}
+    inputs["domestic_danger_context"] = {
+        "domestic_danger_level": "normal",
+        "domestic_watch_items": [],
+        "domestic_data_limitations": [],
+    }
+    inputs["japan_risk"] = {"level": "moderate", "summary": "USDJPY は 中立 です。"}
+    inputs["japan_resident_context"] = {"macro_sources": {}}
+
+    payload = build_japan_resident_integrated_risk_context(inputs)
+
+    assert payload["fx_risk_level"] == "normal"
+    assert payload["combined_context_level"] == "normal"
+
+
 def test_integrated_context_copy_avoids_advice_phrases() -> None:
     rendered = str(build_japan_resident_integrated_risk_context(_inputs()))
 
