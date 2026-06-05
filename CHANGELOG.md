@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.54 - Diagnostic Bundle Completeness Polish
+
+### Changed
+
+- Added a reproducible ChatGPT diagnostic bundle builder that includes explicit review seed files and transitive `project.*` Python imports.
+- Added threshold JSON, indicators, scoring, asset comparison, and monitor dependencies to the review bundle scope without modifying those files.
+- Added bundle tests for required review dependencies, excluded generated/private paths, and control-character-free `logic_review_questions.md`.
+
+### Scope
+
+- Kept `final_action`, production `buy_readiness_score`, threshold JSON contents, reliability policy, buy blocker/card logic, risk labels, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.53 - RC Logic Polish
 
 ### Changed
