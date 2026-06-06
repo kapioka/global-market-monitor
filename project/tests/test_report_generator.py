@@ -573,6 +573,86 @@ def _integrated_context_payload() -> dict:
     )
 
 
+def _hindenburg_payload(signal: str = "active") -> dict:
+    if signal == "missing":
+        return {
+            "status": "manual_file_missing",
+            "current_signal": "unavailable",
+            "current_signal_level": "unavailable",
+            "is_currently_active": False,
+            "latest_date": None,
+            "latest_trigger_date": None,
+            "active_until": None,
+            "active_window_days": 30,
+            "trigger_dates": [],
+            "active_periods": [],
+            "criteria_latest": {},
+            "criteria_passed": [],
+            "criteria_failed": [],
+            "criteria_unknown": [],
+            "source_kind": "local_manual_file",
+            "source_path": "project/manual_sources/hindenburg_breadth.csv",
+            "limitations": ["手動CSV未設定"],
+            "daily_signals": [],
+            "must_not_affect_final_action": True,
+            "must_not_affect_buy_readiness_score": True,
+        }
+    triggered = signal == "active"
+    return {
+        "status": "ok",
+        "current_signal": "active" if triggered else "not_triggered",
+        "current_signal_level": "active" if triggered else "normal",
+        "is_currently_active": triggered,
+        "latest_date": "2026-01-20",
+        "latest_trigger_date": "2026-01-15" if triggered else None,
+        "active_until": "2026-02-14" if triggered else None,
+        "active_window_days": 30,
+        "trigger_dates": ["2026-01-02", "2026-01-15"] if triggered else [],
+        "active_periods": (
+            [
+                {
+                    "period_start": "2026-01-02",
+                    "period_end": "2026-02-14",
+                    "trigger_day_count": 2,
+                    "latest_trigger_date": "2026-01-15",
+                }
+            ]
+            if triggered
+            else []
+        ),
+        "criteria_latest": {
+            "uptrend": {"state": "passed"},
+            "new_highs_threshold": {"state": "passed"},
+            "new_lows_threshold": {"state": "passed"},
+            "negative_mcclellan": {"state": "passed"},
+            "high_low_balance": {"state": "passed"},
+        },
+        "criteria_passed": ["uptrend", "new_highs_threshold", "new_lows_threshold", "negative_mcclellan", "high_low_balance"],
+        "criteria_failed": [],
+        "criteria_unknown": [],
+        "new_highs_pct": 3.1,
+        "new_lows_pct": 3.0,
+        "threshold_pct": 2.8,
+        "mcclellan_oscillator": -12.0,
+        "index_trend": "index_above_50d",
+        "source_kind": "local_manual_file",
+        "source_path": "project/manual_sources/hindenburg_breadth.csv",
+        "limitations": [],
+        "daily_signals": [
+            {
+                "date": "2026-01-15",
+                "triggered": triggered,
+                "criteria_summary": "passed=5 / failed=0 / unknown=0",
+                "new_highs_pct": 3.1,
+                "new_lows_pct": 3.0,
+                "mcclellan_oscillator": -12.0,
+            }
+        ],
+        "must_not_affect_final_action": True,
+        "must_not_affect_buy_readiness_score": True,
+    }
+
+
 def test_render_markdown_uses_real_newlines():
     text = render_markdown(_report())
     assert "`n" not in text
@@ -956,7 +1036,13 @@ def test_render_markdown_includes_decision_boundary_experiment_without_action_ch
             "supplemental_warning_level": "caution",
             "suggested_adjustment": "experimental_caution_score_discount",
         },
-        "diff": {"score_delta": -8, "raw_score_delta": -8, "clamped_score_delta": -8, "clamp_reason": "not_clamped", "action_changed": False},
+        "diff": {
+            "score_delta": -8,
+            "raw_score_delta": -8,
+            "clamped_score_delta": -8,
+            "clamp_reason": "not_clamped",
+            "action_changed": False,
+        },
         "must_not_affect_production_default": True,
     }
 
@@ -1088,3 +1174,48 @@ def test_render_supplement_dashboard_html_maps_all_source_sections():
     assert "HYG/LQD" in html
     assert "USDJPY=X" in html
     assert "生活コスト上昇警戒" in html
+
+
+def test_render_outputs_include_active_hindenburg_omen_without_decision_impact():
+    report = deepcopy(_report())
+    report["hindenburg_omen_context"] = _hindenburg_payload("active")
+    before_action = report["buy_decision_card"]["final_action"]
+    before_score = report["buy_decision_card"]["buy_readiness_score"]
+
+    markdown = render_markdown(report)
+    html = render_html(report)
+    supplement = render_supplement_dashboard_html(report)
+
+    assert "Hindenburg Omen が点灯中です。" in markdown
+    assert "単独では売買判断に使いません" in markdown
+    assert "active period: 2026-01-02 -> 2026-02-14" in markdown
+    assert "Hindenburg Omen" in html
+    assert "点灯中" in html
+    assert "Hindenburg Omen" in supplement
+    assert report["buy_decision_card"]["final_action"] == before_action
+    assert report["buy_decision_card"]["buy_readiness_score"] == before_score
+
+
+def test_render_outputs_include_inactive_and_missing_hindenburg_states():
+    inactive = deepcopy(_report())
+    inactive["hindenburg_omen_context"] = _hindenburg_payload("inactive")
+    missing = deepcopy(_report())
+    missing["hindenburg_omen_context"] = _hindenburg_payload("missing")
+
+    inactive_markdown = render_markdown(inactive)
+    missing_html = render_html(missing)
+
+    assert "Hindenburg Omen: 点灯なし" in inactive_markdown
+    assert "Hindenburg Omen: 未取得" in missing_html
+    assert "市場幅CSVが未設定のため判定できません" in missing_html
+
+
+def test_hindenburg_report_wording_avoids_panic_and_advice_terms():
+    report = deepcopy(_report())
+    report["hindenburg_omen_context"] = _hindenburg_payload("active")
+
+    rendered = render_markdown(report)
+    hindenburg_section = rendered.split("## Hindenburg Omen / 市場幅の補助確認", 1)[1]
+
+    for forbidden in ["暴落確定", "暴落予測", "売るべき", "買うべき", "今が買い", "推奨銘柄"]:
+        assert forbidden not in hindenburg_section

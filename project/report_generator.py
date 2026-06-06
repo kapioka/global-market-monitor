@@ -68,6 +68,7 @@ SECTION_EXPLANATIONS = {
     "multi_asset_candidates": "資産クラス別の確認候補は、株式・ゴールド・債券・現金待機を同じ買い候補度に混ぜず、役割別に整理する補助層です。",
     "domestic_danger_context": "国内文脈の補助危険確認は、国内株式、円建て債券、国内REIT、円建て金、為替、JGB利回り、CPI/BOJ取得状況を、既存の危険ラインとは分けて見る表示専用の補助層です。",
     "japan_resident_integrated_risk_context": "日本在住者向け統合リスク文脈は、米国・グローバル危険ライン、国内危険文脈、為替、国内金利、国内インフレのデータ制約を一つに並べる表示専用の補助層です。",
+    "hindenburg_omen": "Hindenburg Omen は米国市場幅の分裂を確認する補助指標です。単独では売買判断に使いません。",
     "recovery_candidates": "先回り候補は、今は強くなくても、下落後に改善初期へ入りつつある資産やセクターを拾う補助層です。安いだけでなく、短期の改善と深い調整の両方を見ます。",
     "regime_leading_candidates": "レジーム先回り候補は、次の地合いで効きやすいセクターテーマを拾う補助層です。価格の底打ちだけではなく、現レジームとの相性と直近の改善兆候を合わせて見ます。",
     "alerts": "警告レイヤーは、既存の市場判定を上書きせずに、内部ロジックがどこで警戒を発火しているかを見えるようにする補助層です。市場警告、生活影響警告、補足メモに分けて表示します。",
@@ -404,6 +405,151 @@ def _risk_line_confidence_audit_html(audit: dict[str, Any]) -> str:
     return f"<ul>{items}</ul>"
 
 
+def _hindenburg_signal_label(signal: Any) -> str:
+    return {
+        "triggered_today": "本日点灯",
+        "active": "点灯中",
+        "not_triggered": "点灯なし",
+        "unconfirmed": "未確定",
+        "unavailable": "未取得",
+    }.get(str(signal or ""), "未取得")
+
+
+def _hindenburg_status_label(status: Any) -> str:
+    return {
+        "ok": "取得成功",
+        "partial": "一部未確定",
+        "unavailable": "未取得",
+        "manual_file_missing": "手動CSV未設定",
+        "insufficient_history": "履歴不足",
+        "parse_error": "CSV解析エラー",
+    }.get(str(status or ""), str(status or "-"))
+
+
+def _hindenburg_summary_text(payload: dict[str, Any]) -> str:
+    signal = str(payload.get("current_signal") or "unavailable")
+    if signal in {"triggered_today", "active"}:
+        return (
+            "Hindenburg Omen が点灯中です。これは米国市場幅の分裂を確認する補助指標です。"
+            "単独では売買判断に使いません。他の危険ライン、信用、ボラティリティ指標と併せて確認してください。"
+        )
+    if signal == "not_triggered":
+        return "Hindenburg Omen: 点灯なし"
+    if payload.get("status") == "manual_file_missing":
+        return "Hindenburg Omen: 未取得。市場幅CSVが未設定のため判定できません。"
+    return f"Hindenburg Omen: {_hindenburg_signal_label(signal)}"
+
+
+def _hindenburg_omen_markdown_lines(report: dict[str, Any]) -> list[str]:
+    payload = report.get("hindenburg_omen_context") or {}
+    if not payload:
+        return []
+    lines = [
+        "",
+        "## Hindenburg Omen / 市場幅の補助確認",
+        f"- {SECTION_EXPLANATIONS['hindenburg_omen']}",
+        f"- 状態: {_hindenburg_status_label(payload.get('status'))}",
+        f"- 現在シグナル: {_hindenburg_signal_label(payload.get('current_signal'))}",
+        f"- 通知: {_hindenburg_summary_text(payload)}",
+        f"- 最新日: {payload.get('latest_date') or '-'}",
+        f"- 最新点灯日: {payload.get('latest_trigger_date') or '-'}",
+        f"- active until: {payload.get('active_until') or '-'}",
+        f"- active window days: {payload.get('active_window_days', '-')}",
+        f"- new highs %: {_display_number(payload.get('new_highs_pct'))} / new lows %: {_display_number(payload.get('new_lows_pct'))} / threshold %: {_display_number(payload.get('threshold_pct'))}",
+        f"- McClellan Oscillator: {_display_number(payload.get('mcclellan_oscillator'))}",
+        f"- 条件通過: {', '.join(payload.get('criteria_passed') or []) or '-'}",
+        f"- 条件未達: {', '.join(payload.get('criteria_failed') or []) or '-'}",
+        f"- 条件不明: {', '.join(payload.get('criteria_unknown') or []) or '-'}",
+        f"- final_action への影響: {not payload.get('must_not_affect_final_action', True)}",
+        f"- buy_readiness_score への影響: {not payload.get('must_not_affect_buy_readiness_score', True)}",
+    ]
+    if payload.get("limitations"):
+        lines.append("- データ制約: " + " / ".join(str(item) for item in payload.get("limitations", [])))
+    if payload.get("trigger_dates"):
+        lines.append("- 点灯日: " + ", ".join(str(value) for value in payload.get("trigger_dates", [])))
+    for period in (payload.get("active_periods") or [])[-3:]:
+        lines.append(
+            "- active period: {start} -> {end} / trigger days {count} / latest {latest}".format(
+                start=period.get("period_start", "-"),
+                end=period.get("period_end", "-"),
+                count=period.get("trigger_day_count", "-"),
+                latest=period.get("latest_trigger_date", "-"),
+            )
+        )
+    for row in (payload.get("daily_signals") or [])[-5:]:
+        lines.append(
+            "- signal history: {date} / {triggered} / {summary} / highs {highs} / lows {lows} / McClellan {mcclellan}".format(
+                date=row.get("date", "-"),
+                triggered="点灯" if row.get("triggered") else "点灯なし",
+                summary=row.get("criteria_summary", "-"),
+                highs=_display_number(row.get("new_highs_pct")),
+                lows=_display_number(row.get("new_lows_pct")),
+                mcclellan=_display_number(row.get("mcclellan_oscillator")),
+            )
+        )
+    return lines
+
+
+def _hindenburg_omen_panel_html(payload: dict[str, Any], esc: Any) -> str:
+    if not payload:
+        return ""
+    tone = (
+        "bad"
+        if payload.get("current_signal") in {"triggered_today", "active"}
+        else "warn" if payload.get("current_signal") == "unconfirmed" else ""
+    )
+    period_rows = [
+        [
+            esc(period.get("period_start", "-")),
+            esc(period.get("period_end", "-")),
+            esc(period.get("trigger_day_count", "-")),
+            esc(period.get("latest_trigger_date", "-")),
+        ]
+        for period in (payload.get("active_periods") or [])[-3:]
+    ]
+    history_rows = [
+        [
+            esc(row.get("date", "-")),
+            "点灯" if row.get("triggered") else "点灯なし",
+            esc(row.get("criteria_summary", "-")),
+            esc(_display_number(row.get("new_highs_pct"))),
+            esc(_display_number(row.get("new_lows_pct"))),
+            esc(_display_number(row.get("mcclellan_oscillator"))),
+        ]
+        for row in (payload.get("daily_signals") or [])[-5:]
+    ]
+    limitations = "".join(f"<li>{esc(item)}</li>" for item in payload.get("limitations", [])) or "<li>-</li>"
+    period_table = _hindenburg_table_html(["period start", "period end", "trigger days", "latest trigger"], period_rows, esc)
+    history_table = _hindenburg_table_html(["trigger date", "状態", "criteria", "highs %", "lows %", "McClellan"], history_rows, esc)
+    return f"""
+    <section class="mini-panel hindenburg-panel">
+      <h3>Hindenburg Omen</h3>
+      <div class="mini-content">
+        <div class="metric {tone}">
+          <span>現在</span><strong>{esc(_hindenburg_signal_label(payload.get('current_signal')))}</strong>
+        </div>
+        <p>{esc(_hindenburg_summary_text(payload))}</p>
+        <div class="inline-note">
+          最新日 {esc(payload.get('latest_date') or '-')} / 最新点灯日 {esc(payload.get('latest_trigger_date') or '-')} / active until {esc(payload.get('active_until') or '-')}<br>
+          new highs {esc(_display_number(payload.get('new_highs_pct')))}% / new lows {esc(_display_number(payload.get('new_lows_pct')))}% / McClellan {esc(_display_number(payload.get('mcclellan_oscillator')))}
+        </div>
+        <p>データ制約</p>
+        <ul>{limitations}</ul>
+        {period_table}
+        {history_table}
+      </div>
+    </section>
+    """
+
+
+def _hindenburg_table_html(headers: list[str], rows: list[list[Any]], esc: Any) -> str:
+    if not rows:
+        return ""
+    header_html = "".join(f"<th>{esc(header)}</th>" for header in headers)
+    row_html = "".join("<tr>" + "".join(f"<td>{esc(value)}</td>" for value in row) + "</tr>" for row in rows)
+    return f"<div class='table-wrap'><table><thead><tr>{header_html}</tr></thead><tbody>{row_html}</tbody></table></div>"
+
+
 def _domestic_danger_markdown_lines(report: dict[str, Any]) -> list[str]:
     payload = report.get("domestic_danger_context") or {}
     if not payload:
@@ -699,6 +845,7 @@ def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
     action_layers = spot_signal.get("action_layers") or {}
     diagnostics = report.get("buy_window_diagnostics") or {}
     fx_policy_diagnostics = report.get("fx_policy_diagnostics") or {}
+    hindenburg = report.get("hindenburg_omen_context") or {}
     zero_reasons = diagnostics.get("buy_window_zero_reason_summary") or []
     return [
         ("市場だけ見た判定", _jp_action(str(action_layers.get("market_raw_action", action_decision.get("market_raw_action", "-"))))),
@@ -728,6 +875,7 @@ def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
         ("判断理由", str(reason)),
         ("市場レジーム", _jp_regime(str((report.get("regime") or {}).get("regime_label", "-")))),
         ("危険ライン", str(risk_lines.get("stage_key", "-"))),
+        ("Hindenburg Omen", _hindenburg_signal_label(hindenburg.get("current_signal")) if hindenburg else "未取得"),
         ("実運用閾値", str(threshold_usage.get("final_action_threshold_set", "active"))),
         ("proposed / candidate", proposed_mode),
         ("次に見る項目", "データ品質 / 危険ライン trigger path / セクター内部構造"),
@@ -1325,6 +1473,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append(
             f"- {row.get('ticker_name_ja', row.get('ticker', '-'))} ({row.get('ticker', '-')}): 現在値 {_display_number(row.get('current'))} / 1週 {_display_number(row.get('change_1w'))} / 4週 {_display_number(row.get('change_4w'))} / z {_display_number(row.get('zscore'))} / 判定 {line_badge} / warning {_format_risk_threshold_markdown(row.get('warning_line', '-'))} / danger {_format_risk_threshold_markdown(row.get('danger_line', '-'))} / extreme {_format_risk_threshold_markdown(row.get('extreme_line', '-'))}"
         )
+    lines.extend(_hindenburg_omen_markdown_lines(report))
     lines.extend(_domestic_danger_markdown_lines(report))
     lines.extend(_japan_resident_integrated_context_markdown_lines(report))
 
@@ -1849,6 +1998,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
     regime_leading = report.get("regime_leading_candidates", {})
     domestic_danger = report.get("domestic_danger_context") or {}
     integrated_context = report.get("japan_resident_integrated_risk_context") or {}
+    hindenburg_omen = report.get("hindenburg_omen_context") or {}
     japan_risk = report.get("japan_risk", {})
     diagnostics = report.get("fetch_diagnostics", {})
     runtime_context = report.get("runtime_context", {})
@@ -1913,6 +2063,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
     ]
     risk_line_table = small_table(["指標", "判定", "現在値", "warning", "danger", "extreme", "根拠"], risk_line_rows)
     risk_line_confidence_audit_html = _risk_line_confidence_audit_html(report.get("risk_line_confidence_audit") or {})
+    hindenburg_omen_panel = _hindenburg_omen_panel_html(hindenburg_omen, esc)
     domestic_danger_panel = _domestic_danger_panel_html(domestic_danger, small_table, esc, source_chip)
     integrated_context_panel = _japan_resident_integrated_context_panel_html(integrated_context, small_table, esc, source_chip)
 
@@ -2329,6 +2480,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
               {kv_card('危険 / 非常に危険', f"{risk_lines.get('danger_count', 0)} / {risk_lines.get('extreme_count', 0)}")}
             </div>
             {risk_line_confidence_audit_html}
+            {hindenburg_omen_panel}
             <ul class="compact-list">{risk_reason_items}</ul>
           </section>
         </div>
@@ -2611,6 +2763,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     risk_stage_badge_html = _risk_badge_html(risk_lines.get("stage_label", "-"), _risk_stage_tone(risk_lines.get("stage_key")))
     risk_line_confidence_audit_html = _risk_line_confidence_audit_html(report.get("risk_line_confidence_audit") or {})
     integrated_context = report.get("japan_resident_integrated_risk_context") or {}
+    hindenburg_omen = report.get("hindenburg_omen_context") or {}
 
     def standard_esc(value: Any) -> str:
         return html.escape(str(value if value is not None else "-"))
@@ -2633,6 +2786,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         standard_esc,
         standard_source_chip,
     )
+    hindenburg_omen_panel = _hindenburg_omen_panel_html(hindenburg_omen, standard_esc)
 
     inflation_rows = (
         "".join(
@@ -3231,6 +3385,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         </div>
       </section>
       {integrated_context_panel}
+      {hindenburg_omen_panel}
 
       <section class=\"mini-panel\">
         <h3>候補</h3>
@@ -4393,6 +4548,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
     warning_items = "".join(f"<li>{esc(warning)}</li>" for warning in report.get("warnings", [])) or "<li>重要な警告はありません。</li>"
     domestic_danger_panel = _domestic_danger_panel_html(domestic_danger, table, esc, source)
     integrated_context_panel = _japan_resident_integrated_context_panel_html(integrated_context, table, esc, source)
+    hindenburg_omen_panel = _hindenburg_omen_panel_html(report.get("hindenburg_omen_context") or {}, esc)
 
     def localize_signal_value(value: Any) -> str:
         text = str(value)
@@ -4838,6 +4994,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
             <section class="card"><h3>危険ライン監視 {source('危険ライン監視')}</h3><div class="metrics" style="grid-template-columns:1fr 1fr; margin-bottom:7px;">{metric('総合ストレス指数', compact(risk_lines.get('composite_risk_score')))}{metric('危険ライン超過', f"{esc(risk_lines.get('danger_count', 0))} / {esc(risk_lines.get('extreme_count', 0))}", 'warn')}</div><ul class="compact-list">{risk_reason_items}</ul><div class="risk-detail-block"><h4>危険ライン詳細</h4><div class="table-wrap">{table(['指標','判定','現在値','注意ライン','危険ライン','非常に危険'], risk_line_rows)}</div></div></section>
           </div>
           {integrated_context_panel}
+          {hindenburg_omen_panel}
           {domestic_danger_panel}
           <section class="card candidate-combo"><h3>候補一覧</h3><h4>投資候補</h4><div class="table-wrap">{table(['銘柄','判定','理由'], candidate_rows)}</div><h4>先回り候補</h4><div class="table-wrap">{table(['銘柄','判定','理由'], recovery_rows)}</div><h4>レジーム先回り候補</h4><div class="table-wrap">{table(['銘柄','判定','理由'], regime_leading_rows)}</div></section>
         </div></div>
@@ -4861,6 +5018,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
           <div class="market-grid"><section class="card"><h3>警告レイヤー {source('警告レイヤー')}</h3>{alert_cards}</section><section class="card"><h3>類似局面 {source('類似局面')}</h3><div class="table-wrap">{table(['基準日','類似度','その後12週'], analogue_rows)}</div></section><section class="card"><h3>インフレ監視 {source('インフレ監視')}</h3><div class="table-wrap">{table(['系列','現在値','1週','4週','12週','z','判定'], inflation_rows)}</div></section><section class="card"><h3>信用監視 {source('信用監視')}</h3><div class="table-wrap">{table(['系列','現在値','1週','4週','12週','z','判定'], credit_rows)}</div></section></div>
           <div class="split-even" style="margin-top:9px;"><section class="card"><h3>円建て・為替リスク {source('円建て・為替リスク')}</h3><div class="table-wrap">{table(['為替','現在値','1週','4週','12週','判定'], fx_rows)}</div><div class="table-wrap" style="margin-top:7px;">{table(['資産','銘柄','ドル建て4週','円建て4週','為替寄与','円建て最大下落','判定'], yen_asset_rows)}</div></section><section class="card"><h3>資産クラス比較 {source('資産クラス比較')}</h3><div class="table-wrap">{table(['資産クラス','ティッカー','12週','年率ボラ','最大DD'], asset_rows)}</div></section></div>
           {integrated_context_panel}
+          {hindenburg_omen_panel}
           {domestic_danger_panel}
         </div></div>
       </article>

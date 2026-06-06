@@ -18,6 +18,7 @@ from project.decision_boundary_experiment import build_decision_boundary_experim
 from project.domestic_danger_context import build_domestic_danger_context
 from project.domestic_market_metrics import build_domestic_market_metrics
 from project.fx_risk_policy import apply_fx_policy_candidate, classify_fx_policy
+from project.hindenburg_omen import build_hindenburg_omen_context
 from project.inflation_monitor import build_inflation_monitor
 from project.investment_candidates import build_investment_candidates
 from project.japan_macro_adapters import build_optional_japan_macro_context
@@ -193,6 +194,7 @@ def build_report(
     cycle = analyze_cycle(prices[cycle_ticker])
     risk_lines = evaluate_risk_lines(regime, cycle, usable_credit_monitor, usable_inflation_monitor, usable_risk_monitor)
     risk_line_confidence_audit = build_risk_line_confidence_audit(active_threshold_payload, risk_lines)
+    hindenburg_omen_context = build_hindenburg_omen_context()
     score = score_market(
         regime,
         cycle,
@@ -344,6 +346,7 @@ def build_report(
         "threshold_rule_certification": threshold_rule_certification,
         "risk_lines": risk_lines,
         "risk_line_confidence_audit": risk_line_confidence_audit,
+        "hindenburg_omen_context": hindenburg_omen_context,
         "spot_signal": spot_signal,
         "decision_attribution": decision_attribution,
         "action_validation": action_validation,

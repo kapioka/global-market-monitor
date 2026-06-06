@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.8.57 - Hindenburg Omen Display-Only Signal Monitor
+
+### Added
+
+- Added a display-only Hindenburg Omen monitor backed by an optional manual market breadth CSV.
+- Added conservative criteria evaluation, trigger date history, and active-period summarization.
+- Added report display for active, inactive, and manual-missing states using non-panic supplemental wording.
+
+### Scope
+
+- Kept `final_action`, production `buy_readiness_score`, decision-boundary experiment behavior, threshold JSON contents, reliability policy, buy blocker/card logic, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.55 - RC Semantics Polish
 
 ### Changed
