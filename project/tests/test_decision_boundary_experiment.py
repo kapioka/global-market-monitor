@@ -34,6 +34,9 @@ def test_decision_boundary_experiment_compares_adjusted_score_without_mutating_b
     assert payload["baseline"]["buy_readiness_score"] == 31
     assert payload["experimental"]["adjusted_buy_readiness_score"] == 23
     assert payload["diff"]["score_delta"] == -8
+    assert payload["diff"]["raw_score_delta"] == -8
+    assert payload["diff"]["clamped_score_delta"] == -8
+    assert payload["diff"]["clamp_reason"] == "not_clamped"
     assert payload["experimental"]["supplemental_warning_level"] == "caution"
 
 
@@ -52,3 +55,16 @@ def test_decision_boundary_experiment_normal_context_has_no_adjustment() -> None
     assert payload["diff"]["score_delta"] == 0
     assert payload["experimental"]["adjusted_buy_readiness_score"] == 31
     assert payload["experimental"]["suggested_adjustment"] == "no_experimental_score_adjustment"
+
+
+def test_decision_boundary_experiment_exposes_floor_clamp_reason() -> None:
+    report = _report("caution")
+    report["buy_decision_card"]["buy_readiness_score"] = 0
+
+    payload = build_decision_boundary_experiment(report)
+
+    assert payload["experimental"]["adjusted_buy_readiness_score"] == 0
+    assert payload["diff"]["score_delta"] == 0
+    assert payload["diff"]["raw_score_delta"] == -8
+    assert payload["diff"]["clamped_score_delta"] == 0
+    assert payload["diff"]["clamp_reason"] == "baseline already at floor"

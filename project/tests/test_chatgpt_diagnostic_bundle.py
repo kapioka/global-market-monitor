@@ -27,6 +27,9 @@ def test_chatgpt_diagnostic_bundle_includes_transitive_review_dependencies(tmp_p
             "project/asset_compare.py",
             "project/credit_monitor.py",
             "project/inflation_monitor.py",
+            "project/chatgpt_diagnostic_bundle.py",
+            "project/tests/test_chatgpt_diagnostic_bundle.py",
+            "docs/v0.8.54_diagnostic_bundle_completeness_polish.md",
         ):
             assert required in names
         assert not any(name.startswith("project/cache/") for name in names)

@@ -335,7 +335,7 @@ def _japan_resident_context_markdown(row: dict[str, Any]) -> str:
     category = _multi_asset_reason_category_label(row.get("japan_resident_reason_category"))
     components = row.get("japan_resident_context_components") or {}
     component_text = _japan_resident_component_summary(components)
-    return f"状態: {status} / 分類: {category} / 文脈スコア: {score} / {component_text}"
+    return f"状態: {status} / 分類: {category} / 確認材料スコア: {score} / {component_text}"
 
 
 def _japan_resident_context_html(row: dict[str, Any]) -> str:
@@ -489,6 +489,9 @@ def _domestic_danger_panel_html(payload: dict[str, Any], small_table: Any, esc: 
         "<p>{summary}</p>"
         '<ul class="compact-list">'
         "<li>補助判定: {level}</li>"
+        "<li>国内資産: {asset_level}</li>"
+        "<li>為替: {fx_level}</li>"
+        "<li>国内金利・マクロ: {macro_level}</li>"
         "<li>uses_domestic_values: {uses_values}</li>"
         "<li>uses_domestic_price_metrics: {uses_price_metrics}</li>"
         "<li>uses_domestic_macro_values: {uses_macro_values}</li>"
@@ -504,6 +507,9 @@ def _domestic_danger_panel_html(payload: dict[str, Any], small_table: Any, esc: 
         source=source_chip("国内文脈の補助危険確認"),
         summary=esc(SECTION_EXPLANATIONS["domestic_danger_context"]),
         level=esc(_domestic_danger_level_label(payload.get("domestic_danger_level"))),
+        asset_level=esc(_domestic_danger_level_label(payload.get("domestic_asset_level"))),
+        fx_level=esc(_domestic_danger_level_label(payload.get("domestic_fx_level"))),
+        macro_level=esc(_domestic_danger_level_label(payload.get("domestic_macro_level"))),
         uses_values=esc(payload.get("uses_domestic_values", False)),
         uses_price_metrics=esc(payload.get("uses_domestic_price_metrics", False)),
         uses_macro_values=esc(payload.get("uses_domestic_macro_values", False)),
@@ -652,7 +658,10 @@ def _risk_context_ux_hub_html(report: dict[str, Any]) -> str:
                     "baseline {base} -> experimental {exp} / delta {delta}".format(
                         base=experiment_baseline.get("buy_readiness_score", "-"),
                         exp=experiment_payload.get("adjusted_buy_readiness_score", "-"),
-                        delta=experiment_diff.get("score_delta", 0),
+                        delta=(
+                            f"raw {experiment_diff.get('raw_score_delta', experiment_diff.get('score_delta', 0))}"
+                            f" / clamped {experiment_diff.get('clamped_score_delta', experiment_diff.get('score_delta', 0))}"
+                        ),
                     )
                 ),
                 "production既定値は変更せず、統合文脈を使う場合の境界だけ比較します。",
@@ -767,6 +776,9 @@ def _decision_boundary_experiment_markdown_lines(report: dict[str, Any]) -> list
         f"- experimental adjusted_buy_readiness_score: {experimental.get('adjusted_buy_readiness_score', '-')}",
         f"- supplemental_warning_level: {experimental.get('supplemental_warning_level', '-')}",
         f"- score_delta: {diff.get('score_delta', 0)}",
+        f"- raw_score_delta: {diff.get('raw_score_delta', diff.get('score_delta', 0))}",
+        f"- clamped_score_delta: {diff.get('clamped_score_delta', diff.get('score_delta', 0))}",
+        f"- clamp_reason: {diff.get('clamp_reason', '-')}",
         f"- action_changed: {diff.get('action_changed', False)}",
         f"- production default への影響: {not bool(payload.get('must_not_affect_production_default', True))}",
         f"- suggested_adjustment: {experimental.get('suggested_adjustment', '-')}",

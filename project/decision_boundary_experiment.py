@@ -17,9 +17,11 @@ def build_decision_boundary_experiment(report: dict[str, Any]) -> dict[str, Any]
     baseline_action = str(card.get("final_action") or "-")
     baseline_score = _int_score(card.get("buy_readiness_score"))
     supplemental_level = _normalize_level(integrated.get("combined_context_level"))
-    score_delta = LEVEL_PENALTIES.get(supplemental_level, 0)
-    adjusted_score = _clamp_score(baseline_score + score_delta)
-    suggested_adjustment = _suggested_adjustment(supplemental_level, score_delta)
+    raw_score_delta = LEVEL_PENALTIES.get(supplemental_level, 0)
+    raw_adjusted_score = baseline_score + raw_score_delta
+    adjusted_score = _clamp_score(raw_adjusted_score)
+    clamped_score_delta = adjusted_score - baseline_score
+    suggested_adjustment = _suggested_adjustment(supplemental_level, raw_score_delta)
     return {
         "title": "Decision Boundary Experiment",
         "enabled": False,
@@ -33,9 +35,15 @@ def build_decision_boundary_experiment(report: dict[str, Any]) -> dict[str, Any]
             "adjusted_buy_readiness_score": adjusted_score,
             "supplemental_warning_level": supplemental_level,
             "suggested_adjustment": suggested_adjustment,
+            "raw_score_delta": raw_score_delta,
+            "clamped_score_delta": clamped_score_delta,
+            "clamp_reason": _clamp_reason(baseline_score, raw_adjusted_score),
         },
         "diff": {
-            "score_delta": adjusted_score - baseline_score,
+            "score_delta": clamped_score_delta,
+            "raw_score_delta": raw_score_delta,
+            "clamped_score_delta": clamped_score_delta,
+            "clamp_reason": _clamp_reason(baseline_score, raw_adjusted_score),
             "action_changed": False,
             "baseline_final_action_preserved": True,
         },
@@ -85,3 +93,11 @@ def _suggested_adjustment(level: str, score_delta: int) -> str:
     if level == "watch":
         return "experimental_watch_score_discount"
     return "no_experimental_score_adjustment"
+
+
+def _clamp_reason(baseline_score: int, raw_adjusted_score: int) -> str:
+    if raw_adjusted_score < 0:
+        return "baseline already at floor" if baseline_score == 0 else "adjusted score clamped at floor"
+    if raw_adjusted_score > 100:
+        return "adjusted score clamped at ceiling"
+    return "not_clamped"

@@ -32,9 +32,15 @@ def build_domestic_danger_context(report_inputs: dict[str, Any]) -> dict[str, An
     _add_acquisition_fallback_items(watch_items, acquisition_log)
 
     level = _domestic_level(watch_items, limitations)
+    asset_level = _category_level(watch_items, {"jp_equity", "bond_jpy", "reit_jp", "gold"})
+    fx_level = _category_level(watch_items, {"fx"})
+    macro_level = _category_level(watch_items, {"jgb_yield_curve", "japan_cpi", "boj_domestic_short_rate"})
     payload = {
         "title": "国内文脈の補助危険確認",
         "domestic_danger_level": level,
+        "domestic_asset_level": asset_level,
+        "domestic_fx_level": fx_level,
+        "domestic_macro_level": macro_level,
         "domestic_danger_reasons": _dedupe(reasons) or ["国内文脈は補助確認として表示し、既存の危険ライン判定を上書きしません。"],
         "domestic_watch_items": watch_items,
         "domestic_data_limitations": _dedupe(limitations),
@@ -58,7 +64,7 @@ def _add_domestic_candidate_items(watch_items: list[dict[str, Any]], candidates:
         if asset_class not in {"jp_equity", "bond_jpy", "reit_jp", "gold"}:
             continue
         symbol = str(row.get("symbol") or "-")
-        if asset_class == "gold" and symbol not in {"1540.T", "GLD", "GC=F"}:
+        if asset_class == "gold" and symbol != "1540.T":
             continue
         components = row.get("japan_resident_context_components") or {}
         domestic_rate = _number(components.get("domestic_rate"))
@@ -307,6 +313,17 @@ def _domestic_level(watch_items: list[dict[str, Any]], limitations: list[str]) -
     if limitations:
         return "unavailable"
     return "normal"
+
+
+def _category_level(watch_items: list[dict[str, Any]], asset_groups: set[str]) -> str:
+    levels = [str(item.get("level") or "unavailable") for item in watch_items if str(item.get("asset_group") or "") in asset_groups]
+    return _max_level(levels)
+
+
+def _max_level(levels: list[str]) -> str:
+    order = {"unavailable": 0, "normal": 1, "watch": 2, "caution": 3, "block": 4}
+    normalized = [level if level in order else "unavailable" for level in levels]
+    return max(normalized, key=lambda level: order.get(level, 0), default="unavailable")
 
 
 def _severity_from_components(

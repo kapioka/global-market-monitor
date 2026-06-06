@@ -14,7 +14,7 @@ def build_japan_resident_integrated_risk_context(report_inputs: dict[str, Any]) 
     macro_context = report_inputs.get("japan_resident_context") or {}
 
     global_level = _global_risk_level(risk_lines)
-    domestic_level = _normalize_level(domestic_context.get("domestic_danger_level"))
+    domestic_level = _normalize_level(domestic_context.get("domestic_asset_level", domestic_context.get("domestic_danger_level")))
     fx_level = _fx_risk_level(japan_risk, domestic_context)
     rate_level = _rate_risk_level(domestic_context, macro_context)
     inflation_quality = _inflation_data_quality(macro_context)
@@ -65,9 +65,9 @@ def _global_risk_level(risk_lines: dict[str, Any]) -> str:
 
 def _fx_risk_level(japan_risk: dict[str, Any], domestic_context: dict[str, Any]) -> str:
     japan_level = _normalize_fx_level(japan_risk)
-    if "中立" in str(japan_risk.get("summary") or "") and japan_level == "normal":
-        return "normal"
     levels = [japan_level]
+    if domestic_context.get("domestic_fx_level") is not None:
+        levels.append(_normalize_level(domestic_context.get("domestic_fx_level")))
     levels.extend(
         _normalize_level(row.get("level")) for row in domestic_context.get("domestic_watch_items", []) if row.get("asset_group") == "fx"
     )
@@ -75,6 +75,8 @@ def _fx_risk_level(japan_risk: dict[str, Any], domestic_context: dict[str, Any])
 
 
 def _rate_risk_level(domestic_context: dict[str, Any], macro_context: dict[str, Any]) -> str:
+    if domestic_context.get("domestic_macro_level") is not None:
+        return _normalize_level(domestic_context.get("domestic_macro_level"))
     levels = [
         _normalize_level(row.get("level"))
         for row in domestic_context.get("domestic_watch_items", [])

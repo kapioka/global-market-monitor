@@ -63,6 +63,9 @@ def test_domestic_danger_context_uses_domestic_values_and_limitations() -> None:
 
     groups = {row["group"] for row in payload["domestic_watch_items"]}
     assert payload["domestic_danger_level"] == "caution"
+    assert payload["domestic_asset_level"] == "watch"
+    assert payload["domestic_fx_level"] == "caution"
+    assert payload["domestic_macro_level"] == "watch"
     assert payload["uses_domestic_values"] is True
     assert payload["uses_domestic_macro_values"] is True
     assert {"円建て債券", "国内REIT", "国内株式", "為替確認", "国内金利・国内インフレ", "円建て金"}.issubset(groups)
@@ -332,10 +335,8 @@ def test_jpy_gold_uses_1540_metrics_separately_from_usd_gold() -> None:
     by_symbol = {row["symbol"]: row for row in payload["domestic_watch_items"]}
     assert by_symbol["1540.T"]["group"] == "円建て金"
     assert by_symbol["1540.T"]["level"] == "watch"
-    assert by_symbol["GLD"]["group"] == "外貨建て金"
-    assert by_symbol["GLD"]["level"] == "normal"
+    assert "GLD" not in by_symbol
     assert "円建て金proxy" in by_symbol["1540.T"]["reason"]
-    assert "外貨建て・USD建て金価格" in by_symbol["GLD"]["reason"]
 
 
 def test_jpy_gold_can_be_built_directly_from_domestic_market_metrics() -> None:

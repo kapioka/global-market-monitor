@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.8.55 - RC Semantics Polish
+
+### Changed
+
+- Split supplemental domestic context into domestic asset, FX, and domestic macro levels so integrated report labels do not mix asset risk with currency risk.
+- Updated integrated FX semantics so EURJPY caution is reflected in the FX level while domestic asset level remains separate.
+- Removed unavailable `GLD` rows from the domestic danger context; JPY gold is represented through `1540.T`, while USD gold remains in non-domestic candidate/report sections.
+- Added raw versus clamped score delta fields to the disabled decision-boundary experiment.
+- Renamed Japan-resident candidate display from `文脈スコア` to `確認材料スコア`.
+- Included the diagnostic bundle builder, its test, and bundle docs in subsequent diagnostic zips.
+
+### Scope
+
+- Kept `final_action`, production `buy_readiness_score`, threshold JSON contents, reliability policy, buy blocker/card logic, risk labels, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.54 - Diagnostic Bundle Completeness Polish
 
 ### Changed

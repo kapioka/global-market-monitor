@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT = REPO_ROOT / "project" / "diagnostics" / "chatgpt_logic_review_v0.8.54.zip"
+DEFAULT_OUTPUT = REPO_ROOT / "project" / "diagnostics" / "chatgpt_logic_review_v0.8.55.zip"
 
 SEED_FILES = (
     "CHANGELOG.md",
@@ -53,6 +53,7 @@ SEED_FILES = (
     "project/credit_monitor.py",
     "project/inflation_monitor.py",
     "project/indicators.py",
+    "project/chatgpt_diagnostic_bundle.py",
 )
 
 TEST_FILES = (
@@ -67,6 +68,7 @@ TEST_FILES = (
     "project/tests/test_buy_readiness_score.py",
     "project/tests/test_multi_asset_candidates.py",
     "project/tests/test_main.py",
+    "project/tests/test_chatgpt_diagnostic_bundle.py",
 )
 
 DOC_FILES = (
@@ -76,6 +78,8 @@ DOC_FILES = (
     "docs/v0.8.50_report_ux_rebuild_for_risk_context.md",
     "docs/v0.8.51_decision_boundary_experiment.md",
     "docs/v0.8.53_rc_logic_polish.md",
+    "docs/v0.8.54_diagnostic_bundle_completeness_polish.md",
+    "docs/v0.8.55_rc_semantics_polish.md",
     "docs/actual_data_readiness_regression_v0.8.16.md",
     "docs/buy_readiness_score_recalibration_v0.8.15.md",
     "docs/multi_asset_signal_design_inventory_v0.8.22.md",
@@ -97,7 +101,7 @@ EXCLUDED_PREFIXES = (
     "release/",
 )
 
-QUESTION_TEXT = """# Logic Review Questions v0.8.54
+QUESTION_TEXT = """# Logic Review Questions v0.8.55
 
 Please review the included files for these points:
 
@@ -124,7 +128,7 @@ class BundleResult:
     included_files: tuple[str, ...]
 
 
-def build_chatgpt_diagnostic_bundle(output_path: Path = DEFAULT_OUTPUT, *, version: str = "v0.8.54") -> BundleResult:
+def build_chatgpt_diagnostic_bundle(output_path: Path = DEFAULT_OUTPUT, *, version: str = "v0.8.55") -> BundleResult:
     output_path = output_path.resolve()
     bundle_name = output_path.stem
     staging_root = REPO_ROOT / ".tmp" / f"{bundle_name}_{datetime.now().strftime('%Y%m%d-%H%M%S')}"
@@ -271,7 +275,7 @@ def _sha256(path: Path) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build a ChatGPT logic review diagnostic bundle.")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
-    parser.add_argument("--version", default="v0.8.54")
+    parser.add_argument("--version", default="v0.8.55")
     args = parser.parse_args(argv)
     result = build_chatgpt_diagnostic_bundle(args.output, version=args.version)
     print(

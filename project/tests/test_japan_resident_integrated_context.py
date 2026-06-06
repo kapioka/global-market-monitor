@@ -19,6 +19,9 @@ def _inputs() -> dict:
         },
         "domestic_danger_context": {
             "domestic_danger_level": "watch",
+            "domestic_asset_level": "watch",
+            "domestic_fx_level": "caution",
+            "domestic_macro_level": "watch",
             "domestic_danger_reasons": ["MOF JGB利回りは国内金利の補助危険確認に使われます。"],
             "domestic_watch_items": [
                 {
@@ -100,6 +103,29 @@ def test_integrated_context_does_not_upgrade_neutral_usdjpy_summary_to_caution()
 
     assert payload["fx_risk_level"] == "normal"
     assert payload["combined_context_level"] == "normal"
+
+
+def test_integrated_context_reflects_eurjpy_caution_in_fx_level() -> None:
+    inputs = _inputs()
+    inputs["risk_lines"] = {"stage_key": "normal", "stage_label": "通常"}
+    inputs["domestic_danger_context"] = {
+        "domestic_danger_level": "caution",
+        "domestic_asset_level": "normal",
+        "domestic_fx_level": "caution",
+        "domestic_macro_level": "normal",
+        "domestic_watch_items": [
+            {"group": "為替確認", "asset_group": "fx", "name": "ユーロ円", "level": "caution", "reason": "EURJPY=X の4週変化が大きい"}
+        ],
+        "domestic_data_limitations": [],
+    }
+    inputs["japan_risk"] = {"level": "moderate", "summary": "USDJPY は 中立 です。"}
+    inputs["japan_resident_context"] = {"macro_sources": {}}
+
+    payload = build_japan_resident_integrated_risk_context(inputs)
+
+    assert payload["domestic_risk_level"] == "normal"
+    assert payload["fx_risk_level"] == "caution"
+    assert payload["combined_context_level"] == "caution"
 
 
 def test_integrated_context_copy_avoids_advice_phrases() -> None:

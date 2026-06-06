@@ -926,7 +926,7 @@ def test_render_html_groups_core_supplemental_data_limits_and_acquisition_status
             "supplemental_warning_level": "caution",
             "suggested_adjustment": "experimental_caution_score_discount",
         },
-        "diff": {"score_delta": -8, "action_changed": False},
+        "diff": {"score_delta": -8, "raw_score_delta": -8, "clamped_score_delta": -8, "action_changed": False},
         "must_not_affect_production_default": True,
     }
 
@@ -940,7 +940,7 @@ def test_render_html_groups_core_supplemental_data_limits_and_acquisition_status
     assert "実験比較" in html
     assert "final_action" in html
     assert "買い候補度" in html
-    assert "baseline 72 -&gt; experimental 64" in html
+    assert "baseline 72 -&gt; experimental 64 / delta raw -8 / clamped -8" in html
     assert "manual_file_missing" in html
     assert "proxy_fallback=1" in html
 
@@ -956,7 +956,7 @@ def test_render_markdown_includes_decision_boundary_experiment_without_action_ch
             "supplemental_warning_level": "caution",
             "suggested_adjustment": "experimental_caution_score_discount",
         },
-        "diff": {"score_delta": -8, "action_changed": False},
+        "diff": {"score_delta": -8, "raw_score_delta": -8, "clamped_score_delta": -8, "clamp_reason": "not_clamped", "action_changed": False},
         "must_not_affect_production_default": True,
     }
 
@@ -966,6 +966,9 @@ def test_render_markdown_includes_decision_boundary_experiment_without_action_ch
     assert "enabled: False" in markdown
     assert "baseline final_action: 監視継続" in markdown
     assert "experimental adjusted_buy_readiness_score: 64" in markdown
+    assert "raw_score_delta: -8" in markdown
+    assert "clamped_score_delta: -8" in markdown
+    assert "clamp_reason: not_clamped" in markdown
     assert "action_changed: False" in markdown
     assert "production default への影響: False" in markdown
 
