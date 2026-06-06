@@ -266,7 +266,7 @@ def _high_low_balance_criterion(row: pd.Series, *, enabled: bool) -> dict[str, A
     lows = _number(row.get("new_lows"))
     if highs is None or lows is None or lows <= 0:
         return {"state": "unknown", "detail": "high_low_balance_data_missing"}
-    return {"state": "passed" if highs <= lows * 2 else "failed", "detail": "new_highs_not_more_than_2x_lows"}
+    return {"state": "passed" if highs <= lows * 2 else "failed", "detail": "high_count_not_more_than_2x_low_count"}
 
 
 def _daily_signal_payload(signal: DailySignal) -> dict[str, Any]:
