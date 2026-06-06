@@ -6,10 +6,10 @@ import json
 import shutil
 import subprocess
 import zipfile
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = REPO_ROOT / "project" / "diagnostics" / "chatgpt_logic_review_v0.8.55.zip"
@@ -29,6 +29,7 @@ SEED_FILES = (
     "project/japan_resident_asset_context.py",
     "project/japan_resident_integrated_context.py",
     "project/decision_boundary_experiment.py",
+    "project/hindenburg_omen.py",
     "project/multi_asset_candidates.py",
     "project/buy_readiness_score.py",
     "project/buy_decision_card.py",
@@ -64,6 +65,7 @@ TEST_FILES = (
     "project/tests/test_japan_resident_integrated_context.py",
     "project/tests/test_risk_line_confidence_audit.py",
     "project/tests/test_decision_boundary_experiment.py",
+    "project/tests/test_hindenburg_omen.py",
     "project/tests/test_report_generator.py",
     "project/tests/test_buy_readiness_score.py",
     "project/tests/test_multi_asset_candidates.py",
@@ -80,6 +82,7 @@ DOC_FILES = (
     "docs/v0.8.53_rc_logic_polish.md",
     "docs/v0.8.54_diagnostic_bundle_completeness_polish.md",
     "docs/v0.8.55_rc_semantics_polish.md",
+    "docs/v0.8.57_hindenburg_omen_display_monitor.md",
     "docs/actual_data_readiness_regression_v0.8.16.md",
     "docs/buy_readiness_score_recalibration_v0.8.15.md",
     "docs/multi_asset_signal_design_inventory_v0.8.22.md",
