@@ -580,6 +580,10 @@ def _hindenburg_payload(signal: str = "active") -> dict:
             "current_signal": "unavailable",
             "current_signal_level": "unavailable",
             "is_currently_active": False,
+            "is_active_as_of_latest_data": False,
+            "stale_data": False,
+            "data_latest_date": None,
+            "as_of_date": "2026-01-20",
             "latest_date": None,
             "latest_trigger_date": None,
             "active_until": None,
@@ -603,6 +607,10 @@ def _hindenburg_payload(signal: str = "active") -> dict:
         "current_signal": "active" if triggered else "not_triggered",
         "current_signal_level": "active" if triggered else "normal",
         "is_currently_active": triggered,
+        "is_active_as_of_latest_data": triggered,
+        "stale_data": False,
+        "data_latest_date": "2026-01-20",
+        "as_of_date": "2026-01-20",
         "latest_date": "2026-01-20",
         "latest_trigger_date": "2026-01-15" if triggered else None,
         "active_until": "2026-02-14" if triggered else None,
@@ -1098,6 +1106,17 @@ def test_render_supplement_dashboard_includes_domestic_danger_context():
                 "limitations": [],
                 "caution": "円建て資産と外貨建て資産では、為替の影響が異なります。",
             },
+            {
+                "group": "日本株",
+                "name": "TOPIX ETF",
+                "symbol": "1306.T",
+                "status": "ok",
+                "level": "unavailable",
+                "reason": "国内株式は外貨建て株式とは分け、日本株確認として補助表示します。指標: 4週=3.7 / 12週=-89.0 / 最大DD=-90.0",
+                "metrics": "4週=3.7 / 12週=-89.0 / 最大DD=-90.0",
+                "limitations": ["split_or_discontinuity_suspected", "risk_signal_excluded"],
+                "caution": "異常値疑いがある場合は補助危険判定に使いません。",
+            },
         ],
         "domestic_data_limitations": [
             "CPI は manual_file_missing のため、japan_cpi.csv または安定した公開系列がない限り補助危険値として扱いません。",
@@ -1120,6 +1139,16 @@ def test_render_supplement_dashboard_includes_domestic_danger_context():
     assert "endpoint_not_resolved" in html
     assert "price_metrics_missing" in html
     assert "price_metrics_missing" in markdown
+    assert "split_or_discontinuity_suspected" in html
+    assert "split_or_discontinuity_suspected" in markdown
+    assert "12週変化: 異常値疑いのため非採用" in html
+    assert "12週変化: 異常値疑いのため非採用" in markdown
+    assert "最大DD: 異常値疑いのため参考外" in html
+    assert "最大DD: 異常値疑いのため参考外" in markdown
+    assert "12週=-89.0" not in html
+    assert "12週=-89.0" not in markdown
+    assert "最大DD=-90.0" not in html
+    assert "最大DD=-90.0" not in markdown
 
 
 def test_render_html_handles_legacy_multi_asset_candidate_shape_with_safe_labels():
@@ -1208,6 +1237,33 @@ def test_render_outputs_include_inactive_and_missing_hindenburg_states():
     assert "Hindenburg Omen: 点灯なし" in inactive_markdown
     assert "Hindenburg Omen: 未取得" in missing_html
     assert "市場幅CSVが未設定のため判定できません" in missing_html
+
+
+def test_render_outputs_include_stale_hindenburg_state_without_active_notice():
+    report = deepcopy(_report())
+    payload = _hindenburg_payload("active")
+    payload.update(
+        {
+            "current_signal": "unconfirmed",
+            "current_signal_level": "notice",
+            "is_currently_active": False,
+            "is_active_as_of_latest_data": True,
+            "stale_data": True,
+            "data_latest_date": "2026-01-20",
+            "as_of_date": "2026-02-10",
+            "limitations": ["市場幅CSVの最新日が古いため、現在の点灯状態は判定できません。最新日: 2026-01-20"],
+        }
+    )
+    report["hindenburg_omen_context"] = payload
+
+    markdown = render_markdown(report)
+    html = render_html(report)
+
+    assert "Hindenburg Omen: データが古いため現在点灯は未確定" in markdown
+    assert "市場幅CSVの最新日が古いため、現在の点灯状態は判定できません" in html
+    assert "判定基準日: 2026-02-10" in markdown
+    assert "stale data: True" in markdown
+    assert "Hindenburg Omen が点灯中です。" not in markdown
 
 
 def test_hindenburg_report_wording_avoids_panic_and_advice_terms():

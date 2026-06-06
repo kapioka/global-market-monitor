@@ -13,6 +13,7 @@ MANUAL_SOURCE_PATH = Path("project/manual_sources/hindenburg_breadth.csv")
 REQUIRED_COLUMNS = {"date", "new_highs", "new_lows", "advancers", "decliners"}
 DEFAULT_THRESHOLD_PCT = 2.8
 DEFAULT_ACTIVE_WINDOW_DAYS = 30
+STALE_DATA_DAYS = 7
 
 
 @dataclass(frozen=True)
@@ -61,7 +62,24 @@ def parse_hindenburg_breadth_csv(path: str | Path = MANUAL_SOURCE_PATH) -> dict[
 
     renamed = frame.rename(columns={original: normalized_name for normalized_name, original in normalized.items()})
     renamed["date"] = pd.to_datetime(renamed["date"], errors="coerce")
-    renamed = renamed.dropna(subset=["date"]).sort_values("date")
+    if renamed["date"].isna().any():
+        return {
+            "status": "parse_error",
+            "frame": None,
+            "source_kind": "local_manual_file",
+            "source_path": str(source_path),
+            "limitations": ["date列に解析できない値があります。"],
+        }
+    validation = _validate_breadth_frame(renamed)
+    if validation["fatal"]:
+        return {
+            "status": "parse_error",
+            "frame": None,
+            "source_kind": "local_manual_file",
+            "source_path": str(source_path),
+            "limitations": validation["limitations"],
+        }
+    renamed = renamed.sort_values("date")
     if renamed.empty:
         return {
             "status": "parse_error",
@@ -75,7 +93,7 @@ def parse_hindenburg_breadth_csv(path: str | Path = MANUAL_SOURCE_PATH) -> dict[
         "frame": renamed.reset_index(drop=True),
         "source_kind": "local_manual_file",
         "source_path": str(source_path),
-        "limitations": [],
+        "limitations": validation["limitations"],
     }
 
 
@@ -130,13 +148,19 @@ def build_hindenburg_omen_context(
     manual_csv_path: str | Path = MANUAL_SOURCE_PATH,
     active_window_days: int = DEFAULT_ACTIVE_WINDOW_DAYS,
     threshold_pct: float = DEFAULT_THRESHOLD_PCT,
+    as_of_date: date | str | None = None,
 ) -> dict[str, Any]:
     parsed = parse_hindenburg_breadth_csv(manual_csv_path)
+    effective_as_of_date = _coerce_date(as_of_date) or date.today()
     base = {
         "status": parsed["status"],
         "current_signal": "unavailable",
         "current_signal_level": "unavailable",
         "is_currently_active": False,
+        "is_active_as_of_latest_data": False,
+        "stale_data": False,
+        "data_latest_date": None,
+        "as_of_date": effective_as_of_date.isoformat(),
         "latest_date": None,
         "latest_trigger_date": None,
         "active_until": None,
@@ -175,21 +199,32 @@ def build_hindenburg_omen_context(
     latest_date = _parse_date(latest["date"])
     latest_trigger_date = _parse_date(trigger_dates[-1]) if trigger_dates else None
     active_until = latest_trigger_date + timedelta(days=active_window_days) if latest_trigger_date else None
-    is_active = bool(latest_date and active_until and latest_date <= active_until)
+    is_active_as_of_latest_data = bool(latest_date and active_until and latest_date <= active_until)
+    is_currently_active = bool(active_until and effective_as_of_date <= active_until)
+    stale_data = bool(latest_date and (effective_as_of_date - latest_date).days > STALE_DATA_DAYS)
     unknown = _criteria_names(latest["criteria"], "unknown")
     current_signal = "not_triggered"
-    if latest["triggered"]:
+    if stale_data:
+        current_signal = "unconfirmed"
+    elif latest["triggered"] and latest_date == effective_as_of_date:
         current_signal = "triggered_today"
-    elif is_active:
+    elif is_currently_active:
         current_signal = "active"
     elif unknown:
         current_signal = "unconfirmed"
+    limitations = [*base["limitations"], *_data_limitations(latest)]
+    if stale_data:
+        limitations.append(f"市場幅CSVの最新日が古いため、現在の点灯状態は判定できません。最新日: {latest['date']}")
     return {
         **base,
         "status": _context_status(parsed["status"], daily_signals),
         "current_signal": current_signal,
         "current_signal_level": _signal_level(current_signal),
-        "is_currently_active": is_active,
+        "is_currently_active": bool(not stale_data and is_currently_active),
+        "is_active_as_of_latest_data": is_active_as_of_latest_data,
+        "stale_data": stale_data,
+        "data_latest_date": latest["date"],
+        "as_of_date": effective_as_of_date.isoformat(),
         "latest_date": latest["date"],
         "latest_trigger_date": latest_trigger_date.isoformat() if latest_trigger_date else None,
         "active_until": active_until.isoformat() if active_until else None,
@@ -204,7 +239,7 @@ def build_hindenburg_omen_context(
         "new_lows_pct": latest["new_lows_pct"],
         "mcclellan_oscillator": latest["mcclellan_oscillator"],
         "index_trend": latest["index_trend"],
-        "limitations": [*base["limitations"], *_data_limitations(latest)],
+        "limitations": limitations,
         "daily_signals": daily_signals,
     }
 
@@ -240,6 +275,54 @@ def _compute_daily_signal(
         index_trend=str(uptrend.get("detail", "unknown")),
         source_note=str(row.get("source_note")) if row.get("source_note") is not None and not pd.isna(row.get("source_note")) else None,
     )
+
+
+def _validate_breadth_frame(frame: pd.DataFrame) -> dict[str, Any]:
+    limitations: list[str] = []
+    fatal = False
+    numeric_columns = ["new_highs", "new_lows", "advancers", "decliners"]
+    optional_numeric_columns = ["mcclellan_oscillator", "nyse_index", "total_issues", "index_50d_ago"]
+    for row_number, row in frame.iterrows():
+        values: dict[str, float | None] = {}
+        for column in numeric_columns:
+            value = _number(row.get(column))
+            values[column] = value
+            if value is None:
+                limitations.append(f"{row_number + 1}行目 {column} が数値ではありません。")
+                fatal = True
+            elif value < 0:
+                limitations.append(f"{row_number + 1}行目 {column} が負の値です。")
+                fatal = True
+        for column in optional_numeric_columns:
+            if column not in frame.columns or not _has_value(row.get(column)):
+                continue
+            value = _number(row.get(column))
+            values[column] = value
+            if value is None:
+                limitations.append(f"{row_number + 1}行目 {column} が数値ではありません。")
+                fatal = True
+            elif column in {"nyse_index", "total_issues"} and value <= 0:
+                limitations.append(f"{row_number + 1}行目 {column} が正の値ではありません。")
+                fatal = True
+        advancers = values.get("advancers")
+        decliners = values.get("decliners")
+        total_breadth = None if advancers is None or decliners is None else advancers + decliners
+        if total_breadth is not None and total_breadth <= 0:
+            limitations.append(f"{row_number + 1}行目 advancers+decliners が0以下です。")
+            fatal = True
+        total_issues = values.get("total_issues")
+        if total_issues is not None:
+            highs = values.get("new_highs")
+            lows = values.get("new_lows")
+            if highs is not None and highs > total_issues:
+                limitations.append(f"{row_number + 1}行目 new_highs が total_issues を超えています。")
+                fatal = True
+            if lows is not None and lows > total_issues:
+                limitations.append(f"{row_number + 1}行目 new_lows が total_issues を超えています。")
+                fatal = True
+            if total_breadth is not None and total_breadth > total_issues:
+                limitations.append(f"{row_number + 1}行目 advancers+decliners が total_issues を超えています。")
+    return {"fatal": fatal, "limitations": limitations}
 
 
 def _uptrend_criterion(row: pd.Series, *, frame: pd.DataFrame, row_index: int) -> dict[str, Any]:
@@ -360,6 +443,12 @@ def _number(value: Any) -> float | None:
     return number
 
 
+def _has_value(value: Any) -> bool:
+    if value is None or pd.isna(value):
+        return False
+    return str(value).strip() != ""
+
+
 def _bool_value(value: Any) -> bool | None:
     if value is None or pd.isna(value):
         return None
@@ -380,6 +469,14 @@ def _parse_date(value: str | None) -> date | None:
         return datetime.fromisoformat(value).date()
     except ValueError:
         return None
+
+
+def _coerce_date(value: date | str | None) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, date):
+        return value
+    return _parse_date(str(value))
 
 
 def _normalize_column(column: Any) -> str:

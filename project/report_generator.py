@@ -349,6 +349,12 @@ def _japan_resident_context_html(row: dict[str, Any]) -> str:
 def _market_metric_summary(metrics: dict[str, Any]) -> str:
     if not metrics:
         return "利用可能な表示指標なし"
+    if _has_suspicious_metric_limitation(metrics.get("limitations")):
+        limitations = metrics.get("limitations")
+        parts = ["12週変化: 異常値疑いのため非採用", "最大DD: 異常値疑いのため参考外"]
+        if limitations:
+            parts.append("制約=" + ",".join(str(item) for item in limitations))
+        return " / ".join(parts)
     parts = []
     for key, label in (
         ("current_value", "現在値"),
@@ -364,6 +370,23 @@ def _market_metric_summary(metrics: dict[str, Any]) -> str:
     if limitations:
         parts.append("制約=" + ",".join(str(item) for item in limitations))
     return " / ".join(parts) if parts else "利用可能な表示指標なし"
+
+
+def _has_suspicious_metric_limitation(limitations: Any) -> bool:
+    if limitations is None:
+        return False
+    if isinstance(limitations, str):
+        items = [limitations]
+    elif isinstance(limitations, list | tuple | set):
+        items = [str(item) for item in limitations]
+    else:
+        items = [str(limitations)]
+    suspicious_markers = {
+        "split_or_discontinuity_suspected",
+        "suspicious_price_move",
+        "risk_signal_excluded",
+    }
+    return any(item in suspicious_markers for item in items)
 
 
 def _japan_resident_component_summary(components: dict[str, Any]) -> str:
@@ -428,6 +451,8 @@ def _hindenburg_status_label(status: Any) -> str:
 
 def _hindenburg_summary_text(payload: dict[str, Any]) -> str:
     signal = str(payload.get("current_signal") or "unavailable")
+    if payload.get("stale_data"):
+        return "Hindenburg Omen: データが古いため現在点灯は未確定。市場幅CSVの最新日が古いため、現在の点灯状態は判定できません。"
     if signal in {"triggered_today", "active"}:
         return (
             "Hindenburg Omen が点灯中です。これは米国市場幅の分裂を確認する補助指標です。"
@@ -451,7 +476,9 @@ def _hindenburg_omen_markdown_lines(report: dict[str, Any]) -> list[str]:
         f"- 状態: {_hindenburg_status_label(payload.get('status'))}",
         f"- 現在シグナル: {_hindenburg_signal_label(payload.get('current_signal'))}",
         f"- 通知: {_hindenburg_summary_text(payload)}",
-        f"- 最新日: {payload.get('latest_date') or '-'}",
+        f"- データ最新日: {payload.get('data_latest_date') or payload.get('latest_date') or '-'}",
+        f"- 判定基準日: {payload.get('as_of_date') or '-'}",
+        f"- stale data: {payload.get('stale_data', False)}",
         f"- 最新点灯日: {payload.get('latest_trigger_date') or '-'}",
         f"- active until: {payload.get('active_until') or '-'}",
         f"- active window days: {payload.get('active_window_days', '-')}",
@@ -530,7 +557,8 @@ def _hindenburg_omen_panel_html(payload: dict[str, Any], esc: Any) -> str:
         </div>
         <p>{esc(_hindenburg_summary_text(payload))}</p>
         <div class="inline-note">
-          最新日 {esc(payload.get('latest_date') or '-')} / 最新点灯日 {esc(payload.get('latest_trigger_date') or '-')} / active until {esc(payload.get('active_until') or '-')}<br>
+          データ最新日 {esc(payload.get('data_latest_date') or payload.get('latest_date') or '-')} / 判定基準日 {esc(payload.get('as_of_date') or '-')} / stale {esc(payload.get('stale_data', False))}<br>
+          最新点灯日 {esc(payload.get('latest_trigger_date') or '-')} / active until {esc(payload.get('active_until') or '-')}<br>
           new highs {esc(_display_number(payload.get('new_highs_pct')))}% / new lows {esc(_display_number(payload.get('new_lows_pct')))}% / McClellan {esc(_display_number(payload.get('mcclellan_oscillator')))}
         </div>
         <p>データ制約</p>
@@ -616,6 +644,11 @@ def _domestic_danger_table_html(payload: dict[str, Any], small_table: Any, esc: 
 
 def _domestic_danger_reason_text(row: dict[str, Any]) -> str:
     reason = str(row.get("reason", "-"))
+    if _has_suspicious_metric_limitation(row.get("limitations")):
+        metric_text = "12週変化: 異常値疑いのため非採用 / 最大DD: 異常値疑いのため参考外"
+        if "指標:" in reason:
+            return reason.split("指標:", maxsplit=1)[0].rstrip(" /") + f" / 指標: {metric_text}"
+        return f"{reason} / 指標: {metric_text}"
     if "指標:" in reason:
         return reason
     return f"{reason} / 指標: {row.get('metrics', '-')}"

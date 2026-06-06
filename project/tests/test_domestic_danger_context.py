@@ -148,6 +148,43 @@ def test_domestic_danger_context_uses_real_price_metrics_for_equity_and_fx() -> 
     assert "4週=-9.0" in by_symbol["1306.T"]["metrics"]
 
 
+def test_suspicious_domestic_metric_reason_suppresses_adopted_values() -> None:
+    payload = build_domestic_danger_context(
+        {
+            "multi_asset_candidates": {
+                "candidates": [
+                    {
+                        "asset_class": "jp_equity",
+                        "symbol": "1306.T",
+                        "display_name": "TOPIX連動ETF",
+                        "status": "informational",
+                        "metrics": {
+                            "current_value": 415.8,
+                            "change_4w": 2.4,
+                            "change_12w": -89.0837,
+                            "max_drawdown": -90.6415,
+                            "max_drawdown_12w": -90.6415,
+                            "limitations": ["split_or_discontinuity_suspected", "risk_signal_excluded"],
+                            "risk_signal_allowed": False,
+                        },
+                    }
+                ]
+            },
+            "japan_risk": {},
+            "japan_resident_context": {},
+            "acquisition_log": [],
+        }
+    )
+    row = {item["symbol"]: item for item in payload["domestic_watch_items"]}["1306.T"]
+
+    assert row["level"] == "unavailable"
+    assert "12週変化: 異常値疑いのため非採用" in row["reason"]
+    assert "最大DD: 異常値疑いのため参考外" in row["reason"]
+    assert "split_or_discontinuity_suspected" in row["reason"]
+    assert "12週=-89.0837" not in row["reason"]
+    assert "最大DD=-90.6415" not in row["reason"]
+
+
 def test_neutral_domestic_metrics_stay_normal_observed_context() -> None:
     payload = build_domestic_danger_context(
         {

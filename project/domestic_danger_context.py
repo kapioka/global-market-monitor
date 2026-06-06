@@ -46,8 +46,12 @@ def build_domestic_danger_context(report_inputs: dict[str, Any]) -> dict[str, An
         "domestic_data_limitations": _dedupe(limitations),
         "domestic_metric_summary": _domestic_metric_summary(watch_items),
         "uses_domestic_values": any(item.get("metrics_used") for item in watch_items),
-        "uses_domestic_price_metrics": any(item.get("source") == "domestic_market_metrics" and item.get("metrics_used") for item in watch_items),
-        "uses_domestic_macro_values": any(item.get("source") == "official_japan_macro" and item.get("metrics_used") for item in watch_items),
+        "uses_domestic_price_metrics": any(
+            item.get("source") == "domestic_market_metrics" and item.get("metrics_used") for item in watch_items
+        ),
+        "uses_domestic_macro_values": any(
+            item.get("source") == "official_japan_macro" and item.get("metrics_used") for item in watch_items
+        ),
         "uses_only_fallback_or_limitations": bool(watch_items) and not any(item.get("metrics_used") for item in watch_items),
         "must_not_affect_final_action": True,
         "must_not_affect_buy_readiness_score": True,
@@ -409,6 +413,12 @@ def _sharp_price_metrics(metrics: dict[str, Any]) -> bool:
 def _metric_summary(metrics: dict[str, Any]) -> str:
     if not metrics:
         return "利用可能な表示指標なし"
+    if _has_suspicious_metric_limitation(metrics.get("limitations")):
+        parts = ["12週変化: 異常値疑いのため非採用", "最大DD: 異常値疑いのため参考外"]
+        limitations = metrics.get("limitations")
+        if limitations:
+            parts.append(f"制約={','.join(str(item) for item in limitations)}")
+        return " / ".join(parts)
     parts = []
     for key, label in (
         ("current_value", "現在値"),
@@ -426,6 +436,18 @@ def _metric_summary(metrics: dict[str, Any]) -> str:
     if limitations:
         parts.append(f"制約={','.join(str(item) for item in limitations)}")
     return " / ".join(parts) if parts else "利用可能な表示指標なし"
+
+
+def _has_suspicious_metric_limitation(limitations: Any) -> bool:
+    if limitations is None:
+        return False
+    if isinstance(limitations, str):
+        items = [limitations]
+    elif isinstance(limitations, list | tuple | set):
+        items = [str(item) for item in limitations]
+    else:
+        items = [str(limitations)]
+    return any(item in {"split_or_discontinuity_suspected", "suspicious_price_move", "risk_signal_excluded"} for item in items)
 
 
 def _metrics_used(metrics: dict[str, Any]) -> dict[str, Any]:
@@ -461,7 +483,9 @@ def _domestic_metric_summary(watch_items: list[dict[str, Any]]) -> dict[str, Any
             level: sum(1 for item in watch_items if item.get("level") == level) for level in ("normal", "watch", "caution", "unavailable")
         },
         "metrics_available_count": sum(1 for item in watch_items if item.get("metrics_used")),
-        "price_metrics_count": sum(1 for item in watch_items if item.get("source") == "domestic_market_metrics" and item.get("metrics_used")),
+        "price_metrics_count": sum(
+            1 for item in watch_items if item.get("source") == "domestic_market_metrics" and item.get("metrics_used")
+        ),
         "macro_metrics_count": sum(1 for item in watch_items if item.get("source") == "official_japan_macro" and item.get("metrics_used")),
         "fallback_or_limitation_count": sum(1 for item in watch_items if not item.get("metrics_used")),
         "limitations_count": sum(1 for item in watch_items if item.get("limitations")),

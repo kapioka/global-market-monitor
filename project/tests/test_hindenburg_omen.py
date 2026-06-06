@@ -52,11 +52,16 @@ def test_all_criteria_pass_triggers_and_builds_active_period(tmp_path: Path) -> 
     path = tmp_path / "hindenburg_breadth.csv"
     path.write_text(CSV, encoding="utf-8")
 
-    payload = build_hindenburg_omen_context(manual_csv_path=path)
+    payload = build_hindenburg_omen_context(manual_csv_path=path, as_of_date="2026-03-01")
 
     assert payload["status"] == "ok"
     assert payload["current_signal"] == "triggered_today"
     assert payload["current_signal_level"] == "active"
+    assert payload["data_latest_date"] == "2026-03-01"
+    assert payload["as_of_date"] == "2026-03-01"
+    assert payload["stale_data"] is False
+    assert payload["is_active_as_of_latest_data"] is True
+    assert payload["is_currently_active"] is True
     assert payload["latest_trigger_date"] == "2026-03-01"
     assert payload["active_until"] == "2026-03-31"
     assert payload["trigger_dates"] == ["2026-01-02", "2026-01-15", "2026-03-01"]
@@ -93,7 +98,7 @@ def test_threshold_failures_do_not_trigger(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    payload = build_hindenburg_omen_context(manual_csv_path=path)
+    payload = build_hindenburg_omen_context(manual_csv_path=path, as_of_date="2026-01-02")
 
     assert payload["current_signal"] == "not_triggered"
     assert "new_highs_threshold" in payload["criteria_failed"]
@@ -107,7 +112,7 @@ def test_missing_mcclellan_or_uptrend_prevents_confirmed_signal(tmp_path: Path) 
         encoding="utf-8",
     )
 
-    payload = build_hindenburg_omen_context(manual_csv_path=path)
+    payload = build_hindenburg_omen_context(manual_csv_path=path, as_of_date="2026-01-02")
 
     assert payload["status"] == "partial"
     assert payload["current_signal"] == "unconfirmed"
@@ -124,10 +129,76 @@ def test_high_low_balance_rule_blocks_fake_trigger(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    payload = build_hindenburg_omen_context(manual_csv_path=path)
+    payload = build_hindenburg_omen_context(manual_csv_path=path, as_of_date="2026-01-02")
 
     assert payload["current_signal"] == "not_triggered"
     assert "high_low_balance" in payload["criteria_failed"]
+
+
+def test_stale_csv_does_not_report_confident_current_active_signal(tmp_path: Path) -> None:
+    path = tmp_path / "hindenburg_breadth.csv"
+    path.write_text(CSV, encoding="utf-8")
+
+    payload = build_hindenburg_omen_context(manual_csv_path=path, as_of_date="2026-03-20")
+
+    assert payload["status"] == "ok"
+    assert payload["data_latest_date"] == "2026-03-01"
+    assert payload["as_of_date"] == "2026-03-20"
+    assert payload["latest_trigger_date"] == "2026-03-01"
+    assert payload["active_until"] == "2026-03-31"
+    assert payload["is_active_as_of_latest_data"] is True
+    assert payload["is_currently_active"] is False
+    assert payload["stale_data"] is True
+    assert payload["current_signal"] == "unconfirmed"
+    assert any("市場幅CSVの最新日が古い" in item for item in payload["limitations"])
+
+
+def test_invalid_negative_or_zero_breadth_values_are_parse_errors(tmp_path: Path) -> None:
+    path = tmp_path / "bad.csv"
+    path.write_text(
+        "date,new_highs,new_lows,advancers,decliners,nyse_index,mcclellan_oscillator,index_above_50d\n"
+        "2026-01-02,-1,18,0,0,10000,-5,true\n",
+        encoding="utf-8",
+    )
+
+    payload = build_hindenburg_omen_context(manual_csv_path=path, as_of_date="2026-01-02")
+
+    assert payload["status"] == "parse_error"
+    assert payload["current_signal"] == "unavailable"
+    assert payload["trigger_dates"] == []
+    assert any("new_highs が負の値" in item for item in payload["limitations"])
+    assert any("advancers+decliners が0以下" in item for item in payload["limitations"])
+
+
+def test_invalid_total_issues_or_non_numeric_values_are_parse_errors(tmp_path: Path) -> None:
+    path = tmp_path / "bad.csv"
+    path.write_text(
+        "date,new_highs,new_lows,advancers,decliners,total_issues,nyse_index,mcclellan_oscillator,index_above_50d\n"
+        "2026-01-02,120,18,60,50,100,10000,not-a-number,true\n",
+        encoding="utf-8",
+    )
+
+    parsed = parse_hindenburg_breadth_csv(path)
+
+    assert parsed["status"] == "parse_error"
+    assert parsed["frame"] is None
+    assert any("new_highs が total_issues を超えています" in item for item in parsed["limitations"])
+    assert any("mcclellan_oscillator が数値ではありません" in item for item in parsed["limitations"])
+
+
+def test_invalid_date_is_parse_error(tmp_path: Path) -> None:
+    path = tmp_path / "bad.csv"
+    path.write_text(
+        "date,new_highs,new_lows,advancers,decliners,nyse_index,mcclellan_oscillator,index_above_50d\n"
+        "not-a-date,20,18,1200,1200,10000,-5,true\n",
+        encoding="utf-8",
+    )
+
+    parsed = parse_hindenburg_breadth_csv(path)
+
+    assert parsed["status"] == "parse_error"
+    assert parsed["frame"] is None
+    assert any("date列" in item for item in parsed["limitations"])
 
 
 def test_compute_daily_signals_does_not_infer_from_etf_like_missing_data(tmp_path: Path) -> None:

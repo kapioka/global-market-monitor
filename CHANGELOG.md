@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.8.60 - RC Final Polish
+
+### Changed
+
+- Suppressed suspicious domestic metric values at the domestic danger reason source so split/discontinuity-limited values are shown as non-adopted or reference-excluded instead of ordinary report metrics.
+- Added Hindenburg Omen `as_of_date` and stale CSV handling so old manual breadth data cannot be shown as confidently active for the current date.
+- Added basic Hindenburg manual CSV value validation for negative breadth counts, zero breadth totals, invalid dates, nonnumeric McClellan values, and impossible `total_issues` relationships.
+- Made default diagnostic bundle output filenames follow the requested `--version`.
+
+### Scope
+
+- Kept `final_action`, production `buy_readiness_score`, Hindenburg decision/display-only boundary, decision-boundary experiment behavior, threshold JSON contents, reliability policy, buy blocker/card logic, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
+## v0.8.59 - RC Metadata / Report Polish
+
+### Changed
+
+- Made diagnostic bundle review-question headings use the requested bundle version instead of a fixed older RC label.
+- Adjusted report wording for suspicious domestic metrics so split/discontinuity-limited values are shown as non-adopted or reference-excluded while keeping the raw limitation visible.
+
+### Scope
+
+- Kept `final_action`, production `buy_readiness_score`, decision-boundary experiment behavior, threshold JSON contents, reliability policy, buy blocker/card logic, CI, scripts, dependencies, generated reports, cache, manual source files, tags, GitHub Release, and push out of scope.
+
 ## v0.8.57 - Hindenburg Omen Display-Only Signal Monitor
 
 ### Added

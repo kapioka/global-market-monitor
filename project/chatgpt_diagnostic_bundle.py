@@ -12,8 +12,6 @@ from datetime import datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT = REPO_ROOT / "project" / "diagnostics" / "chatgpt_logic_review_v0.8.55.zip"
-
 SEED_FILES = (
     "CHANGELOG.md",
     "README.md",
@@ -83,6 +81,8 @@ DOC_FILES = (
     "docs/v0.8.54_diagnostic_bundle_completeness_polish.md",
     "docs/v0.8.55_rc_semantics_polish.md",
     "docs/v0.8.57_hindenburg_omen_display_monitor.md",
+    "docs/v0.8.59_rc_metadata_report_polish.md",
+    "docs/v0.8.60_rc_final_polish.md",
     "docs/actual_data_readiness_regression_v0.8.16.md",
     "docs/buy_readiness_score_recalibration_v0.8.15.md",
     "docs/multi_asset_signal_design_inventory_v0.8.22.md",
@@ -104,7 +104,7 @@ EXCLUDED_PREFIXES = (
     "release/",
 )
 
-QUESTION_TEXT = """# Logic Review Questions v0.8.55
+QUESTION_TEXT_TEMPLATE = """# Logic Review Questions {version}
 
 Please review the included files for these points:
 
@@ -131,8 +131,8 @@ class BundleResult:
     included_files: tuple[str, ...]
 
 
-def build_chatgpt_diagnostic_bundle(output_path: Path = DEFAULT_OUTPUT, *, version: str = "v0.8.55") -> BundleResult:
-    output_path = output_path.resolve()
+def build_chatgpt_diagnostic_bundle(output_path: Path | None = None, *, version: str = "v0.8.55") -> BundleResult:
+    output_path = (output_path or _default_output_for_version(version)).resolve()
     bundle_name = output_path.stem
     staging_root = REPO_ROOT / ".tmp" / f"{bundle_name}_{datetime.now().strftime('%Y%m%d-%H%M%S')}"
     bundle_root = staging_root / bundle_name
@@ -151,7 +151,7 @@ def build_chatgpt_diagnostic_bundle(output_path: Path = DEFAULT_OUTPUT, *, versi
         shutil.copy2(source, target)
 
     (bundle_root / "DIAGNOSTIC_MANIFEST.md").write_text(_manifest(version, included), encoding="utf-8")
-    (bundle_root / "logic_review_questions.md").write_text(_sanitize_text(QUESTION_TEXT), encoding="utf-8")
+    (bundle_root / "logic_review_questions.md").write_text(_question_text(version), encoding="utf-8")
 
     with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for path in sorted(bundle_root.rglob("*")):
@@ -171,6 +171,12 @@ def _collect_files() -> set[str]:
     paths = set(SEED_FILES) | set(TEST_FILES) | set(DOC_FILES) | set(REPORT_FILES)
     paths |= _transitive_project_imports(paths)
     return {path for path in paths if _safe_existing_file(path)}
+
+
+def _default_output_for_version(version: str) -> Path:
+    safe_version = str(version).strip() or "local"
+    safe_version = safe_version.replace("/", "_").replace("\\", "_").replace(" ", "_")
+    return REPO_ROOT / "project" / "diagnostics" / f"chatgpt_logic_review_{safe_version}.zip"
 
 
 def _transitive_project_imports(seed_paths: Iterable[str]) -> set[str]:
@@ -250,6 +256,10 @@ Review the local RC logic and report context after v0.8.53 polish. This bundle i
     )
 
 
+def _question_text(version: str) -> str:
+    return _sanitize_text(QUESTION_TEXT_TEMPLATE.format(version=version))
+
+
 def _sanitize_text(text: str) -> str:
     return "".join(ch for ch in text if ch in {"\n", "\r", "\t"} or ord(ch) >= 32)
 
@@ -277,7 +287,7 @@ def _sha256(path: Path) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build a ChatGPT logic review diagnostic bundle.")
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--version", default="v0.8.55")
     args = parser.parse_args(argv)
     result = build_chatgpt_diagnostic_bundle(args.output, version=args.version)
