@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import json
 import math
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -444,13 +445,47 @@ def _hindenburg_status_label(status: Any) -> str:
         "partial": "一部未確定",
         "unavailable": "未取得",
         "manual_file_missing": "手動CSV未設定",
+        "data_unavailable": "取得不可",
+        "auto_fetch_error": "自動取得失敗",
         "insufficient_history": "履歴不足",
         "parse_error": "CSV解析エラー",
     }.get(str(status or ""), str(status or "-"))
 
 
+def _hindenburg_state_label(state: Any) -> str:
+    return {
+        "UNINITIALIZED": "未初期化",
+        "UPDATING": "更新中",
+        "CONFIRMED": "前営業日終値ベース・確定",
+        "NO_UPDATE": "最新確定データ取得済み",
+        "STALE": "データが古いため判定保留",
+        "INSUFFICIENT_HISTORY": "履歴不足のため判定不能",
+        "GAP_BLOCKED": "途中営業日の欠損により更新保留",
+        "INVALID_DATA": "入力データ不正",
+        "UPDATE_FAILED": "更新失敗・前回確定値を表示",
+        "MIGRATION_REQUIRED": "移行が必要",
+    }.get(str(state or ""), str(state or "-"))
+
+
 def _hindenburg_summary_text(payload: dict[str, Any]) -> str:
     signal = str(payload.get("current_signal") or "unavailable")
+    state = str(payload.get("state") or "")
+    if state in {"UNINITIALIZED"}:
+        return "Hindenburg Omen: 未初期化。取得可能な市場幅データがまだありません。"
+    if payload.get("failure_code") == "ALL_PROVIDERS_UNAVAILABLE" and payload.get("is_previous_confirmed_result"):
+        return "Hindenburg Omen: 3候補すべて取得不可・前回確定値を表示"
+    if payload.get("failure_code") == "ALL_PROVIDERS_UNAVAILABLE":
+        return "Hindenburg Omen: 3候補すべて取得不可・判定不能"
+    if state == "UPDATE_FAILED" and payload.get("is_previous_confirmed_result"):
+        return "Hindenburg Omen: 更新取得不可・前回確定値を表示しています。"
+    if state == "INSUFFICIENT_HISTORY":
+        return "Hindenburg Omen: 履歴不足のため判定できません。"
+    if state == "GAP_BLOCKED":
+        return "Hindenburg Omen: 途中営業日の欠損により更新を保留しています。"
+    if state == "INVALID_DATA":
+        return "Hindenburg Omen: 入力データ不正のため判定できません。"
+    if state == "MIGRATION_REQUIRED":
+        return "Hindenburg Omen: SQLite状態の移行が必要です。"
     if payload.get("stale_data"):
         return "Hindenburg Omen: データが古いため現在点灯は未確定。市場幅CSVの最新日が古いため、現在の点灯状態は判定できません。"
     if signal in {"triggered_today", "active"}:
@@ -465,6 +500,22 @@ def _hindenburg_summary_text(payload: dict[str, Any]) -> str:
     return f"Hindenburg Omen: {_hindenburg_signal_label(signal)}"
 
 
+def _hindenburg_source_label(payload: dict[str, Any]) -> str:
+    source_kind = str(payload.get("source_kind") or "")
+    auto = payload.get("automatic_acquisition") or {}
+    if source_kind == "builtin_provider_chain" and auto.get("success_label"):
+        return "自動取得・実験的"
+    if source_kind == "builtin_provider_chain":
+        return "自動取得・実験的（未成立）"
+    if source_kind == "manual_daily_input":
+        return "手入力から更新"
+    if source_kind == "local_manual_file":
+        return "手動CSVから更新"
+    if source_kind == "auto_csv":
+        return "設定CSVから更新"
+    return "取得元未確定"
+
+
 def _hindenburg_omen_markdown_lines(report: dict[str, Any]) -> list[str]:
     payload = report.get("hindenburg_omen_context") or {}
     if not payload:
@@ -474,6 +525,10 @@ def _hindenburg_omen_markdown_lines(report: dict[str, Any]) -> list[str]:
         "## Hindenburg Omen / 市場幅の補助確認",
         f"- {SECTION_EXPLANATIONS['hindenburg_omen']}",
         f"- 状態: {_hindenburg_status_label(payload.get('status'))}",
+        f"- 更新状態: {_hindenburg_state_label(payload.get('state'))}",
+        f"- 取得区分: {_hindenburg_source_label(payload)}",
+        f"- 履歴進捗: {payload.get('history_progress_label') or '-'}",
+        f"- 確定市場日: {payload.get('confirmed_market_date') or '-'}",
         f"- 現在シグナル: {_hindenburg_signal_label(payload.get('current_signal'))}",
         f"- 通知: {_hindenburg_summary_text(payload)}",
         f"- データ最新日: {payload.get('data_latest_date') or payload.get('latest_date') or '-'}",
@@ -490,6 +545,23 @@ def _hindenburg_omen_markdown_lines(report: dict[str, Any]) -> list[str]:
         f"- final_action への影響: {not payload.get('must_not_affect_final_action', True)}",
         f"- buy_readiness_score への影響: {not payload.get('must_not_affect_buy_readiness_score', True)}",
     ]
+    if payload.get("provider_label") or payload.get("providers_attempted_count"):
+        lines.append(
+            f"- 取得元: {payload.get('provider_label') or '-'} / 試行数: {payload.get('providers_attempted_count', 0)} / 前回確定値表示: {payload.get('is_previous_confirmed_result', False)}"
+        )
+    auto = payload.get("automatic_acquisition") or {}
+    if auto:
+        lines.append(
+            f"- 自動取得: {auto.get('label', '自動取得・実験的')} / attempted={auto.get('attempted', False)} / eligible={auto.get('eligible', False)} / accepted={auto.get('success_label', False)} / reason={auto.get('reason', '-')}"
+        )
+    for attempt in (payload.get("provider_attempts") or [])[:3]:
+        lines.append(
+            "- provider attempt: {provider} / {status} / {failure}".format(
+                provider=attempt.get("provider_label") or attempt.get("provider_id") or "-",
+                status=attempt.get("status") or "-",
+                failure=attempt.get("failure_code") or "-",
+            )
+        )
     if payload.get("limitations"):
         lines.append("- データ制約: " + " / ".join(str(item) for item in payload.get("limitations", [])))
     if payload.get("trigger_dates"):
@@ -557,6 +629,9 @@ def _hindenburg_omen_panel_html(payload: dict[str, Any], esc: Any) -> str:
         </div>
         <p>{esc(_hindenburg_summary_text(payload))}</p>
         <div class="inline-note">
+          更新状態 {esc(_hindenburg_state_label(payload.get('state')))} / 確定市場日 {esc(payload.get('confirmed_market_date') or '-')} / 前回確定値表示 {esc(payload.get('is_previous_confirmed_result', False))}<br>
+          取得区分 {esc(_hindenburg_source_label(payload))} / 履歴進捗 {esc(payload.get('history_progress_label') or '-')}<br>
+          取得元 {esc(payload.get('provider_label') or '-')} / provider attempts {esc(payload.get('providers_attempted_count', 0))}<br>
           データ最新日 {esc(payload.get('data_latest_date') or payload.get('latest_date') or '-')} / 判定基準日 {esc(payload.get('as_of_date') or '-')} / stale {esc(payload.get('stale_data', False))}<br>
           最新点灯日 {esc(payload.get('latest_trigger_date') or '-')} / active until {esc(payload.get('active_until') or '-')}<br>
           new highs {esc(_display_number(payload.get('new_highs_pct')))}% / new lows {esc(_display_number(payload.get('new_lows_pct')))}% / McClellan {esc(_display_number(payload.get('mcclellan_oscillator')))}
@@ -792,6 +867,12 @@ def _risk_context_ux_hub_html(report: dict[str, Any]) -> str:
     domestic = report.get("domestic_danger_context") or {}
     availability = report.get("data_availability") or []
     limitations = integrated.get("data_limitations") or domestic.get("domestic_data_limitations") or []
+    market_monitoring = [
+        "株式市場: 米国主要指数、欧州株、日本株、新興国株",
+        "債券・金利: 米10年、独10年、日10年、信用スプレッド",
+        "為替市場: DXY、USD/JPY、EUR/JPY、主要通貨",
+        "その他指標: VIX、クレジット、PMI、景気サプライズ指数",
+    ]
     availability_counts: dict[str, int] = {}
     for row in availability:
         status = str(row.get("status") or "-")
@@ -805,30 +886,34 @@ def _risk_context_ux_hub_html(report: dict[str, Any]) -> str:
             "買い判断カードの結論です。補助文脈はここを上書きしません。",
         ),
         (
-            "補助判断",
-            (
-                "統合: {combined} / 国内: {domestic} / 為替: {fx} / 国内金利: {rate}".format(
-                    combined=_domestic_danger_level_label(integrated.get("combined_context_level")),
-                    domestic=_domestic_danger_level_label(integrated.get("domestic_risk_level")),
-                    fx=_domestic_danger_level_label(integrated.get("fx_risk_level")),
-                    rate=_domestic_danger_level_label(integrated.get("rate_risk_level")),
-                )
-                if integrated
-                else "統合リスク文脈なし"
-            ),
-            "日本在住者向け統合文脈と国内補助文脈をまとめます。",
-        ),
-        (
             "グローバル危険ライン",
             f"{risk_lines.get('stage_label', '-')} / 総合ストレス指数 {_display_number(risk_lines.get('composite_risk_score'))}",
             "米国・グローバル中心の危険監視です。国内文脈とは役割を分けます。",
         ),
+    ]
+    primary_alert = (report.get("alerts") or [{}])[0] or {}
+    if primary_alert:
+        rows.append(
+            (
+                "アラート",
+                str(primary_alert.get("title") or "-"),
+                str(primary_alert.get("message") or "現時点で高重要度の追加警告はありません。"),
+            )
+        )
+    rows.extend(
+        [
         (
             "データ制約・取得状況",
             f"{limitation_text} / {availability_text}",
             "不足系列や取得状態は、観測された危険と分けて読みます。",
         ),
-    ]
+        (
+            "市場監視",
+            " / ".join(market_monitoring[:4]),
+            "主要市場、金利、為替、ストレス指標を横断して補助確認します。",
+        ),
+        ]
+    )
     if experiment:
         rows.append(
             (
@@ -858,11 +943,237 @@ def _risk_context_ux_hub_html(report: dict[str, Any]) -> str:
         "<section class='risk-context-hub'>"
         "<div class='risk-context-head'>"
         "<h2>判断とリスク文脈の読み分け</h2>"
-        "<p>本体判断、補助判断、データ制約、取得状況を分けて確認します。</p>"
+        "<p>本体判断、危険ライン、データ制約、取得状況を分けて確認します。</p>"
         "</div>"
         f"<div class='risk-context-grid'>{cards}</div>"
         "</section>"
     )
+
+
+def _short_list_html(items: Iterable[Any], fallback: str, *, limit: int = 4) -> str:
+    rows = [str(item) for item in list(items)[:limit] if str(item)]
+    rows = rows or [fallback]
+    return "".join(f"<li>{html.escape(row)}</li>" for row in rows)
+
+
+def _availability_summary(report: dict[str, Any]) -> tuple[str, str]:
+    availability = report.get("data_availability") or []
+    counts: dict[str, int] = {}
+    for entry in availability:
+        status = str(entry.get("status") or "-")
+        counts[status] = counts.get(status, 0) + 1
+    if not counts:
+        return "取得状況データなし", "データ制約"
+    ok_count = counts.get("ok", 0)
+    missing_count = sum(value for key, value in counts.items() if key != "ok")
+    if missing_count:
+        return f"一部未取得あり / ok={ok_count} / 未取得・代替={missing_count}", "一部未取得あり"
+    return f"取得成功 ok={ok_count}", "取得成功"
+
+
+def _data_limitation_items(report: dict[str, Any]) -> list[str]:
+    integrated = report.get("japan_resident_integrated_risk_context") or {}
+    domestic = report.get("domestic_danger_context") or {}
+    hindenburg = report.get("hindenburg_omen_context") or {}
+    items: list[str] = []
+    items.extend(str(item) for item in integrated.get("data_limitations", [])[:3])
+    items.extend(str(item) for item in domestic.get("domestic_data_limitations", [])[:3])
+    items.extend(str(item) for item in hindenburg.get("limitations", [])[:2])
+    unique: list[str] = []
+    for item in items:
+        if item and item not in unique:
+            unique.append(item)
+    return unique
+
+
+def _status_tone_class(value: Any) -> str:
+    text = str(value or "").lower()
+    if any(token in text for token in ("danger", "extreme", "block", "警戒", "危険", "注意")):
+        return "notice"
+    if any(token in text for token in ("unavailable", "missing", "manual", "未取得", "データ不足")):
+        return "muted"
+    if any(token in text for token in ("ok", "normal", "pass", "通常", "中立", "取得成功")):
+        return "ok"
+    return "watch"
+
+
+def _supplemental_signal_strip_html(report: dict[str, Any]) -> str:
+    risk_lines = report.get("risk_lines") or {}
+    domestic = report.get("domestic_danger_context") or {}
+    _, availability_chip = _availability_summary(report)
+    signal_items = [
+        ("VIX", risk_lines.get("stage_label", "-"), "補助確認"),
+        ("米10年", "確認中", "補助確認"),
+        ("DXY", "確認中", "補助確認"),
+        ("HYG", "信用環境", "補助確認"),
+        ("金", "参考表示", "表示専用"),
+        ("原油", "確認中", "補助確認"),
+        ("TOPIX", _domestic_danger_level_label(domestic.get("domestic_asset_level")), "国内文脈"),
+        ("未取得", availability_chip, "データ制約"),
+    ]
+    signal_strip = "".join(
+        "<article class='signal-pill {tone}'>"
+        "<div class='signal-icon' aria-hidden='true'>{icon}</div>"
+        f"<span>{html.escape(name)}</span>"
+        f"<strong>{html.escape(str(value))}</strong>"
+        f"<small>{html.escape(kind)}</small>"
+        "</article>".format(
+            tone=_status_tone_class(value),
+            icon=html.escape({"VIX": "⌁", "米10年": "▰", "DXY": "$", "HYG": "▥", "金": "▣", "原油": "◌", "TOPIX": "↗"}.get(name, "☁")),
+        )
+        for name, value, kind in signal_items
+    )
+    return (
+        '<section class="supplemental-signal-strip" aria-label="補助確認">'
+        '<div class="section-title-row"><h2>補助確認</h2><span class="section-chip">表示専用 / 単独判断には不使用</span></div>'
+        f'<div class="signal-strip-grid">{signal_strip}</div>'
+        "</section>"
+    )
+
+
+def _approved_report_dashboard_html(report: dict[str, Any]) -> str:
+    card = report.get("buy_decision_card") or {}
+    spot_signal = report.get("spot_signal", {}) or {}
+    action_decision = spot_signal.get("action_decision", {}) or {}
+    risk_lines = report.get("risk_lines") or {}
+    integrated = report.get("japan_resident_integrated_risk_context") or {}
+    domestic = report.get("domestic_danger_context") or {}
+    hindenburg = report.get("hindenburg_omen_context") or {}
+    candidate = report.get("investment_candidates") or {}
+    recovery = report.get("recovery_candidates") or {}
+    regime_leading = report.get("regime_leading_candidates") or {}
+
+    final_action = _jp_action(str(card.get("final_action", action_decision.get("action", spot_signal.get("action", "-")))))
+    readiness_score = _safe_int(card.get("buy_readiness_score", 0))
+    buy_timing, buy_timing_note = _beginner_buy_timing_copy(str(card.get("final_action", action_decision.get("action", "-"))), card)
+    next_conditions = [
+        str(row.get("condition") or row.get("target_state") or "-") for row in (card.get("unlock_conditions") or [])[:3] if row
+    ]
+    positives: list[str] = []
+    recovery_evidence = spot_signal.get("recovery_evidence") or {}
+    if recovery_evidence.get("summary"):
+        positives.append(str(recovery_evidence.get("summary")))
+    positives.extend(str(reason) for reason in candidate.get("rationale", [])[:2])
+    positives = positives or ["過度な恐怖は未確認", "一部セクターで底堅さ"]
+    negatives = [_beginner_blocker_label(card.get("primary_blocker"))]
+    negatives.extend(_beginner_blocker_label(item) for item in card.get("secondary_blockers", [])[:3])
+    negatives.extend(str(reason) for reason in risk_lines.get("reasons", [])[:2])
+    hindenburg_label = _hindenburg_signal_label(hindenburg.get("current_signal")) if hindenburg else "未取得"
+    hindenburg_summary = _hindenburg_summary_text(hindenburg) if hindenburg else "市場幅CSVが未設定のため判定できません。"
+    hindenburg_lamp_class = "active" if hindenburg.get("is_currently_active") else "unavailable" if not hindenburg else "normal"
+    integrated_summary = (
+        "統合: {combined} / 国内: {domestic} / 為替: {fx} / 国内金利: {rate}".format(
+            combined=_domestic_danger_level_label(integrated.get("combined_context_level")),
+            domestic=_domestic_danger_level_label(integrated.get("domestic_risk_level")),
+            fx=_domestic_danger_level_label(integrated.get("fx_risk_level")),
+            rate=_domestic_danger_level_label(integrated.get("rate_risk_level")),
+        )
+        if integrated
+        else "統合文脈なし"
+    )
+    domestic_summary = (
+        f"国内資産: {_domestic_danger_level_label(domestic.get('domestic_asset_level'))} / "
+        f"為替: {_domestic_danger_level_label(domestic.get('domestic_fx_level'))} / "
+        f"国内金利: {_domestic_danger_level_label(domestic.get('domestic_macro_level'))}"
+        if domestic
+        else "国内文脈なし"
+    )
+
+    main_candidate_chips = "".join(
+        f"<span class='candidate-chip'>{html.escape(str(item.get('ticker', '-')))}</span>"
+        for item in candidate.get("candidate_tickers", [])[:4]
+    ) or "<span class='candidate-chip muted'>候補なし</span>"
+    recovery_candidate_chips = "".join(
+        f"<span class='candidate-chip gold'>{html.escape(str(item.get('ticker', '-')))}</span>"
+        for item in recovery.get("candidate_tickers", [])[:4]
+    ) or "<span class='candidate-chip muted'>候補なし</span>"
+    regime_leading_candidate_chips = "".join(
+        f"<span class='candidate-chip violet'>{html.escape(str(item.get('ticker', '-')))}</span>"
+        for item in regime_leading.get("candidate_tickers", [])[:4]
+    ) or "<span class='candidate-chip muted'>候補なし</span>"
+    return f"""
+      <section class="approved-report-dashboard main-dashboard-shell" aria-label="本体判断と補助確認の要約">
+        <div class="main-report-left">
+          <section class="glance-summary visual-first-read main-decision-section" aria-label="本体判断">
+            <div class="section-title-row"><h2>▥ 本体判断</h2></div>
+            <div class="decision-summary-grid">
+              <article class="decision-hero-card decision-hero">
+                <div class="decision-hero-icon">⌕</div>
+                <div>
+                  <strong>{html.escape(final_action)}</strong>
+                  <div class="decision-hero-label">現在のモニタリング判断</div>
+                  <p>{html.escape(buy_timing_note)}</p>
+                </div>
+              </article>
+              <article class="readiness-summary-card readiness-card">
+                <div class="score-row"><span>買い候補度 <em>?</em></span><strong>{readiness_score}<small>/ 100</small></strong></div>
+                <div class="readiness-bars" style="--score:{readiness_score}" aria-label="買い候補度 {readiness_score} / 100"></div>
+                <div class="readiness-scale"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+                <div class="readiness-state">{html.escape(buy_timing)}</div>
+                <p>これは成功確率ではありません</p>
+              </article>
+            </div>
+            <div class="main-reason-grid">
+              <article class="first-read-card">
+                <h3>☑ 次の確認条件</h3>
+                <ul>{_short_list_html(next_conditions, "VIX、金利、主要指数の落ち着きを確認します", limit=3)}</ul>
+                <small>監視判断であり、売買を指示するものではありません</small>
+              </article>
+              <article class="first-read-card positive">
+                <h3>＋ 主なプラス要因</h3>
+                <ul>{_short_list_html(positives, "プラス要因は限定的です", limit=4)}</ul>
+              </article>
+              <article class="first-read-card negative">
+                <h3>－ 主なマイナス要因</h3>
+                <ul>{_short_list_html(negatives, "大きなマイナス要因は限定的です", limit=4)}</ul>
+              </article>
+            </div>
+          </section>
+          <div class="lower-summary-row">
+            <section class="first-read-card candidate-summary-card">
+              <h3>候補一覧</h3>
+              <div class="candidate-follow-grid">
+                <div class="candidate-mini-block">
+                  <strong>主要候補</strong>
+                  <span>積極判断よりも待機優先です</span>
+                  <div class="candidate-chip-row compact">{main_candidate_chips}</div>
+                </div>
+                <div class="candidate-mini-block">
+                  <strong>先回り候補</strong>
+                  <span>反転初期を拾う候補</span>
+                  <div class="candidate-chip-row compact">{recovery_candidate_chips}</div>
+                </div>
+                <div class="candidate-mini-block">
+                  <strong>レジーム先回り</strong>
+                  <span>次の地合いで効きやすい候補</span>
+                  <div class="candidate-chip-row compact">{regime_leading_candidate_chips}</div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+        <aside class="main-report-context-stack context-stack" aria-label="補助文脈">
+          <section class="context-card global">
+            <h2>🛡 グローバルリスク</h2>
+            <div class="context-row"><strong>{html.escape(str(risk_lines.get("stage_label", "-")))}</strong><span>{html.escape(str(risk_lines.get("summary") or "米国・グローバル中心の危険監視です。"))}</span></div>
+          </section>
+          <section class="context-card resident">
+            <h2>👤 日本在住者向け文脈</h2>
+            <div class="context-row"><strong>為替・物価・金利</strong><span>{html.escape(integrated_summary)}</span></div>
+            <div class="context-row"><strong>国内補助</strong><span>{html.escape(domestic_summary)}</span></div>
+          </section>
+          <section class="context-card hindenburg-lamp hindenburg-lamp-card {hindenburg_lamp_class}">
+            <div class="lamp-row"><span></span><span></span><span></span><strong>{html.escape(hindenburg_label)}</strong></div>
+            <h2>Hindenburg Omen: {html.escape(hindenburg_label)} <small>（表示専用）</small></h2>
+            <p>{html.escape(hindenburg_summary)} 単独では売買判断に使いません。</p>
+          </section>
+          <a class="supplement-link-card" href="supplement_dashboard.html">
+            <strong>▣ 詳細は補足レポートで確認</strong>
+            <span>補助確認・検証用の詳細を開く（別タブ） ↗</span>
+          </a>
+        </aside>
+      </section>
+    """
 
 
 def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
@@ -2099,7 +2410,6 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
     hindenburg_omen_panel = _hindenburg_omen_panel_html(hindenburg_omen, esc)
     domestic_danger_panel = _domestic_danger_panel_html(domestic_danger, small_table, esc, source_chip)
     integrated_context_panel = _japan_resident_integrated_context_panel_html(integrated_context, small_table, esc, source_chip)
-
     sector_rows = [
         [
             esc(row.get("rank")),
@@ -2720,36 +3030,12 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         )
         or "<div class='sector-overview-empty'>セクター概要データなし</div>"
     )
-    alert_stack_items = (
-        "".join(
-            "<div class='alert-stack-card {severity}'>"
-            f"<div class='alert-stack-icon'>{'!' if alert.get('severity') == 'high' else '▲' if alert.get('severity') == 'moderate' else '●'}</div>"
-            f"<div class='alert-stack-body'><div class='alert-stack-title'>{html.escape(alert.get('title', '-'))}</div><div class='alert-stack-copy'>{html.escape(alert.get('message', '-'))}</div></div>"
-            "<div class='alert-stack-arrow'>&rsaquo;</div>"
-            "</div>".format(severity=html.escape(str(alert.get("severity", "low"))))
-            for alert in report.get("alerts", [])[:3]
-        )
-        or "<div class='alert-stack-card low'><div class='alert-stack-icon'>●</div><div class='alert-stack-body'><div class='alert-stack-title'>追加警告なし</div><div class='alert-stack-copy'>現時点で高重要度の追加警告はありません。</div></div></div>"
-    )
     history_payload = _build_history_embed_payload(history_entries or [])
     history_payload_json = json.dumps(history_payload, ensure_ascii=False).replace("</", "<\\/")
-    first_read_summary_html = _first_read_summary_html(report)
-    buy_decision_card_html = _buy_decision_card_html(report)
+    approved_report_dashboard_html = _approved_report_dashboard_html(report)
+    supplemental_signal_strip_html = _supplemental_signal_strip_html(report)
+    _, topbar_update_label = _availability_summary(report)
     risk_context_ux_hub_html = _risk_context_ux_hub_html(report)
-    recovery_candidate_chips = (
-        "".join(
-            f"<span class='candidate-chip gold'>{html.escape(str(item.get('ticker', '-')))}</span>"
-            for item in recovery.get("candidate_tickers", [])[:2]
-        )
-        or "<span class='candidate-chip muted'>候補なし</span>"
-    )
-    regime_leading_candidate_chips = (
-        "".join(
-            f"<span class='candidate-chip violet'>{html.escape(str(item.get('ticker', '-')))}</span>"
-            for item in regime_leading.get("candidate_tickers", [])[:3]
-        )
-        or "<span class='candidate-chip muted'>候補なし</span>"
-    )
 
     warning_items = "".join(f"<li>{html.escape(warning)}</li>" for warning in report["warnings"]) or "<li>重要な警告はありません。</li>"
     sector_rows = (
@@ -2795,31 +3081,6 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     )
     risk_stage_badge_html = _risk_badge_html(risk_lines.get("stage_label", "-"), _risk_stage_tone(risk_lines.get("stage_key")))
     risk_line_confidence_audit_html = _risk_line_confidence_audit_html(report.get("risk_line_confidence_audit") or {})
-    integrated_context = report.get("japan_resident_integrated_risk_context") or {}
-    hindenburg_omen = report.get("hindenburg_omen_context") or {}
-
-    def standard_esc(value: Any) -> str:
-        return html.escape(str(value if value is not None else "-"))
-
-    def standard_source_chip(name: str) -> str:
-        return f"<span class='source-chip'>元: {standard_esc(name)}</span>"
-
-    def standard_small_table(headers: list[str], rows: list[list[Any]]) -> str:
-        head_html = "".join(f"<th>{standard_esc(header)}</th>" for header in headers)
-        body_html = (
-            "".join("<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>" for row in rows)
-            if rows
-            else f"<tr><td colspan='{len(headers)}'>有効データなし</td></tr>"
-        )
-        return f"<table><thead><tr>{head_html}</tr></thead><tbody>{body_html}</tbody></table>"
-
-    integrated_context_panel = _japan_resident_integrated_context_panel_html(
-        integrated_context,
-        standard_small_table,
-        standard_esc,
-        standard_source_chip,
-    )
-    hindenburg_omen_panel = _hindenburg_omen_panel_html(hindenburg_omen, standard_esc)
 
     inflation_rows = (
         "".join(
@@ -2997,8 +3258,8 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       --danger: #c05621;
       --caution: #b7791f;
     }}
-    body {{ font-family: 'Yu Gothic UI', 'Hiragino Sans', sans-serif; margin: 0; background: linear-gradient(180deg, #f7faff 0%, #eaf0f7 100%); color: var(--ink); }}
-    .wrap {{ max-width: 1160px; margin: 0 auto; padding: 28px 20px 56px; }}
+    body {{ font-family: 'Yu Gothic UI', 'Hiragino Sans', sans-serif; margin: 0; background: linear-gradient(180deg, #fbfdff 0%, #eef4fb 100%); color: var(--ink); }}
+    .wrap {{ max-width: 1640px; margin: 0 auto; padding: 16px 16px 30px; }}
     .hero {{ background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 22px 24px; box-shadow: none; }}
     .hero-top {{ display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }}
     .hero-title {{ min-width: 0; flex: 1; }}
@@ -3051,12 +3312,12 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .sector-table {{ width: 100%; }}
     .sector-caption {{ font-size: 13px; color: var(--muted); }}
     .sector-label-badge {{ display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: rgba(16,32,51,0.08); color: #1f2933; }}
-    .topbar {{ display:grid; grid-template-columns:minmax(260px,1fr) auto; grid-template-rows:auto auto; align-items:center; gap:6px 24px; padding: 14px 18px; margin-bottom: 14px; background: rgba(255,255,255,0.88); border: 1px solid var(--line); border-radius: 20px; }}
-    .brand {{ grid-column:1; grid-row:1 / span 2; display:flex; align-items:center; justify-content:center; gap:14px; min-width:0; align-self:center; }}
-    .brand-mark {{ width:46px; height:46px; border-radius:999px; background:#183c76; color:#fff; display:grid; place-items:center; font-size:22px; font-weight:800; }}
+    .topbar {{ display:grid; grid-template-columns:minmax(360px,1fr) auto auto; grid-template-rows:auto auto; align-items:center; gap:6px 28px; padding: 8px 14px 12px; margin-bottom: 10px; background: rgba(255,255,255,0.74); border:0; border-radius:0; }}
+    .brand {{ grid-column:1; grid-row:1 / span 2; display:flex; align-items:center; justify-content:flex-start; gap:16px; min-width:0; align-self:center; }}
+    .brand-mark {{ width:48px; height:48px; border-radius:999px; background:#fff; color:#17366d; display:grid; place-items:center; font-size:35px; font-weight:900; border:0; }}
     .brand-title {{ display:flex; align-items:center; gap:0; min-width:0; }}
-    .brand-title h1 {{ margin:0; font-size:24px; line-height:1.1; color:#17366d; white-space:nowrap; }}
-    .report-chip {{ grid-column:2; grid-row:1; justify-self:end; display:inline-flex; align-items:center; justify-content:center; min-height:34px; padding:0 14px; border:1.25px solid #8fb4c4; border-radius:6px; background:#fff; color:#00666d; font-size:14px; font-weight:900; text-decoration:none; box-shadow:0 2px 8px rgba(10,127,124,.08); white-space:nowrap; }}
+    .brand-title h1 {{ margin:0; font-size:42px; line-height:1.05; color:#0a1530; white-space:nowrap; letter-spacing:0; }}
+    .report-chip {{ grid-column:2; grid-row:1; justify-self:end; display:inline-flex; align-items:center; justify-content:center; min-height:36px; padding:0 16px; border:1.25px solid #d99b5f; border-radius:12px; background:#fff7ed; color:#b45309; font-size:15px; font-weight:900; text-decoration:none; box-shadow:none; white-space:nowrap; }}
     .report-chip:hover {{ background:#e7f5f3; box-shadow:inset 0 -4px 0 #0a7f7c; }}
     .report-chip:focus-visible {{ outline:2px solid #0a7f7c; outline-offset:2px; }}
     .status-strip {{ grid-column:2; grid-row:2; display:flex; gap:18px; flex-wrap:wrap; justify-content:flex-end; }}
@@ -3064,8 +3325,88 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .status-box:first-child {{ border-left:0; padding-left:0; }}
     .status-box .k {{ font-size:12px; color:var(--muted); font-weight:700; }}
     .status-box .v {{ margin-top:4px; font-size:14px; font-weight:800; color:#1f3b67; }}
+    .monitor-note {{ grid-column:3; grid-row:1 / span 2; justify-self:end; color:#1f2933; font-size:13px; line-height:1.55; text-align:right; max-width:360px; font-weight:800; }}
+    .data-update-chip {{ display:inline-flex; align-items:center; min-height:34px; padding:0 12px; border:1px solid #e5b16e; border-radius:999px; background:#fff7ed; color:#b45309; font-weight:900; font-size:13px; white-space:nowrap; }}
     .dashboard-grid {{ display:flex; gap:16px; align-items:stretch; margin-bottom:32px; flex-wrap:wrap; }}
+    .approved-report-dashboard {{ display:grid; grid-template-columns:minmax(0,1.8fr) minmax(420px,.95fr); gap:12px; margin-bottom:12px; align-items:stretch; }}
+    .main-dashboard-shell {{ min-height:760px; }}
+    .main-report-left {{ display:grid; grid-template-rows:auto auto 1fr; gap:10px; min-width:0; }}
+    .main-report-context-stack {{ display:grid; gap:8px; min-width:0; }}
+    .visual-first-read, .supplemental-signal-strip, .first-read-card, .context-card, .supplement-link-card {{ border:1px solid #b7c6d8; border-radius:10px; background:rgba(255,255,255,0.96); box-shadow:0 2px 9px rgba(16,32,51,0.035); }}
+    .visual-first-read {{ padding:12px 18px 14px; }}
+    .section-title-row {{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }}
+    .section-title-row h2 {{ margin:0; color:#17366d; font-size:23px; line-height:1.15; font-weight:900; }}
+    .section-chip {{ display:inline-flex; align-items:center; min-height:26px; padding:0 10px; border-radius:999px; border:1px solid #c7d7eb; background:#f6f9fd; color:#23406f; font-size:12px; font-weight:900; white-space:nowrap; }}
+    .decision-summary-grid {{ display:grid; grid-template-columns:minmax(380px,.9fr) minmax(420px,1.1fr); gap:18px; align-items:stretch; }}
+    .decision-hero-card {{ display:grid; grid-template-columns:118px minmax(0,1fr); gap:22px; align-items:center; min-height:142px; padding:20px 26px; border-radius:10px; background:linear-gradient(135deg,#102a55,#173f7a); color:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.12); }}
+    .decision-hero-icon {{ width:92px; height:92px; border-radius:999px; display:grid; place-items:center; border:4px solid rgba(130,181,240,.72); color:#d6e7ff; font-size:54px; font-weight:900; }}
+    .decision-hero-label {{ margin-top:10px; padding-top:10px; border-top:1px dashed rgba(255,255,255,.7); color:#d8e6fa; font-size:15px; font-weight:900; }}
+    .decision-hero-card strong {{ display:block; margin-top:0; font-size:42px; line-height:1; letter-spacing:0; }}
+    .decision-hero-card p {{ margin:5px 0 0; color:#edf5ff; font-size:14px; line-height:1.35; }}
+    .readiness-summary-card {{ min-height:142px; padding:18px 20px 14px; border:1px solid #b7c6d8; border-radius:10px; background:#fff; }}
+    .score-row {{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; color:#17366d; font-weight:900; }}
+    .score-row span {{ font-size:17px; }}
+    .score-row span em {{ display:inline-grid; place-items:center; width:18px; height:18px; margin-left:4px; border:1px solid #9aa8b6; border-radius:999px; color:#6b7785; font-style:normal; font-size:12px; }}
+    .score-row strong {{ color:#17366d; font-size:46px; line-height:1; }}
+    .score-row small {{ margin-left:4px; color:#111922; font-size:28px; font-weight:800; }}
+    .readiness-state {{ margin-top:6px; color:#17366d; font-size:15px; font-weight:900; }}
+    .readiness-bars {{ position:relative; height:18px; margin:22px 0 4px; border-radius:7px; background:repeating-linear-gradient(90deg,#e6ebf1 0 42px,#fff 42px 44px); overflow:hidden; }}
+    .readiness-bars::before {{ content:''; position:absolute; inset:0 auto 0 0; width:calc(var(--score) * 1%); border-radius:999px; background:repeating-linear-gradient(90deg,#173f7a 0 39px,#2f5f9f 39px 41px); }}
+    .readiness-scale {{ display:grid; grid-template-columns:repeat(5,1fr); color:#0f1c2e; font-size:13px; font-weight:800; }}
+    .readiness-scale span:nth-child(2), .readiness-scale span:nth-child(3), .readiness-scale span:nth-child(4) {{ text-align:center; }}
+    .readiness-scale span:last-child {{ text-align:right; }}
+    .readiness-summary-card p {{ margin:6px 0 0; color:#52606d; font-size:12px; line-height:1.35; }}
+    .main-reason-grid {{ display:grid; grid-template-columns:minmax(0,.92fr) minmax(0,1fr) minmax(0,1fr); gap:12px; margin-top:12px; }}
+    .reason-heading {{ margin:13px 0 0; color:#17366d; font-size:17px; }}
+    .first-read-card {{ padding:12px 14px; min-width:0; }}
+    .first-read-card h3 {{ margin:0 0 10px; color:#17366d; font-size:19px; }}
+    .first-read-card ul {{ margin:0; padding-left:18px; color:#1f2933; line-height:1.62; font-size:15px; }}
+    .first-read-card li + li {{ margin-top:4px; }}
+    .first-read-card small {{ display:block; margin-top:10px; color:#66737f; line-height:1.45; }}
+    .first-read-card.positive h3 {{ color:#16724f; }}
+    .first-read-card.positive li::marker {{ color:#16724f; }}
+    .first-read-card.negative h3 {{ color:#a7342e; }}
+    .first-read-card.negative li::marker {{ color:#b43d35; }}
+    .supplemental-signal-strip {{ padding:12px 16px; }}
+    .signal-strip-grid {{ display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:8px; }}
+    .signal-pill {{ min-height:78px; padding:8px; border:1px solid #d8e2ef; border-radius:10px; background:#fff; display:flex; flex-direction:column; justify-content:center; gap:4px; text-align:center; min-width:0; }}
+    .signal-icon {{ font-size:21px; line-height:1; color:#4b5563; }}
+    .signal-pill span {{ color:#52606d; font-size:12px; font-weight:800; }}
+    .signal-pill strong {{ color:#17366d; font-size:14px; line-height:1.25; overflow-wrap:anywhere; }}
+    .signal-pill small {{ color:#66737f; font-size:10px; font-weight:800; }}
+    .signal-pill.notice {{ border-color:#f1c982; background:#fffaf0; }}
+    .signal-pill.muted {{ border-style:dashed; background:#f8fafc; }}
+    .signal-pill.ok {{ border-color:#b9ddd3; background:#f4fcf9; }}
+    .lower-summary-row {{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }}
+    .summary-choice-grid {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }}
+    .summary-choice {{ min-height:38px; padding:8px 10px; border:1px solid #d9e5f5; border-radius:9px; background:#fbfdff; display:flex; align-items:center; justify-content:space-between; gap:8px; }}
+    .summary-choice span {{ color:#111922; font-weight:800; }}
+    .summary-choice b {{ color:#1d4ed8; font-size:12px; padding:3px 8px; border-radius:999px; background:#ecf4ff; }}
+    .context-card {{ padding:11px 14px; }}
+    .context-card h2 {{ margin:0 0 7px; color:#17366d; font-size:20px; }}
+    .context-card strong {{ display:block; color:#111922; font-size:15px; line-height:1.35; }}
+    .context-card p, .context-card li {{ color:#425466; font-size:13px; line-height:1.45; }}
+    .context-card ul {{ margin:8px 0 0; padding-left:18px; }}
+    .context-row {{ display:grid; grid-template-columns:160px minmax(0,1fr); gap:8px; align-items:center; min-height:30px; border:1px solid #dfe7ef; border-radius:8px; padding:4px 8px; background:#fff; }}
+    .context-row + .context-row {{ margin-top:6px; }}
+    .context-row span {{ color:#1f2933; font-size:13px; line-height:1.35; }}
+    .context-card.global {{ border-left:4px solid #f59e0b; }}
+    .context-card.resident {{ border-left:4px solid #285b99; }}
+    .context-card.data-limit {{ border-left:4px solid #7d8792; }}
+    .hindenburg-lamp {{ border-left:4px solid #8aa0b5; }}
+    .hindenburg-lamp.active {{ border-left-color:#f59e0b; background:#fffaf0; }}
+    .lamp-row {{ display:flex; align-items:center; gap:8px; margin:0 0 8px; }}
+    .lamp-row span {{ width:22px; height:22px; border-radius:999px; background:#d1d9e4; box-shadow:inset 0 1px 4px rgba(16,32,51,.22); }}
+    .hindenburg-lamp.normal .lamp-row span:first-child {{ background:#7fc35a; }}
+    .hindenburg-lamp.active .lamp-row span:nth-child(2) {{ background:#f59e0b; }}
+    .hindenburg-lamp.unavailable .lamp-row span:nth-child(3) {{ background:#9aa8b6; }}
+    .lamp-row strong {{ margin-left:auto; color:#17366d; font-size:14px; }}
+    .supplement-link-card {{ display:flex; flex-direction:column; justify-content:center; gap:8px; min-height:112px; padding:16px 20px; text-decoration:none; color:#17366d; }}
+    .supplement-link-card strong {{ font-size:18px; }}
+    .supplement-link-card span {{ color:#52606d; }}
+    .detail-summary-grid {{ margin-top:18px; }}
     .glance-summary, .buy-decision-flow {{ flex: 0 0 100%; max-width:100%; box-sizing:border-box; background: rgba(255,255,255,0.94); border:1px solid var(--line); border-radius:18px; padding:18px 20px; }}
+    .visual-first-read.glance-summary {{ flex:initial; max-width:none; }}
     .glance-heading, .buy-flow-heading {{ display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:14px; }}
     .glance-heading h2::before {{ content:'●'; display:inline-grid; place-items:center; width:24px; height:24px; margin-right:8px; border-radius:999px; background:#1d4ed8; color:#fff; font-size:10px; vertical-align:2px; }}
     .glance-heading h2, .buy-flow-heading h2 {{ margin:0; font-size:21px; line-height:1.2; color:#17366d; }}
@@ -3149,8 +3490,11 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .decision-reasons li::before {{ content:'●'; color:#c53030; font-size:13px; line-height:1.3; }}
     .candidate-inline {{ margin-top:8px; color:#52606d; font-size:13px; }}
     .candidate-inline strong {{ color:#7c4a00; }}
-    .mini-grid {{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; margin-top:0; align-items:stretch; }}
-    .mini-panel {{ padding:16px 18px; min-height:188px; height:100%; display:flex; flex-direction:column; }}
+    .pre-supplement-grid {{ display:grid; grid-template-columns:minmax(0,.86fr) minmax(0,1fr) minmax(0,1.32fr); gap:16px; margin-top:18px; margin-bottom:18px; align-items:stretch; }}
+    .pre-supplement-grid .mini-panel, .pre-supplement-grid .overview-panel {{ box-sizing:border-box; height:auto; min-height:420px; }}
+    .pre-supplement-grid .sector-overview-row {{ grid-template-columns:44px 112px minmax(0,1fr) 54px; }}
+    .mini-grid {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:18px; align-items:stretch; }}
+    .mini-panel {{ box-sizing:border-box; padding:16px 18px; min-height:188px; height:100%; display:flex; flex-direction:column; }}
     .mini-content {{ margin-top:12px; }}
     .cycle-layout {{ display:grid; grid-template-columns:96px 1fr; gap:14px; align-items:center; }}
     .cycle-wheel {{ width:96px; height:96px; border-radius:999px; background: conic-gradient(#173f7a 0deg 48deg, #5e8fd8 48deg 120deg, #7ea8e5 120deg 192deg, #c7d8f4 192deg 264deg, #edf3fb 264deg 360deg); position:relative; }}
@@ -3222,23 +3566,31 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .risk-context-head {{ display:flex; justify-content:space-between; gap:16px; align-items:flex-start; }}
     .risk-context-head h2 {{ margin:0; font-size:20px; color:#17366d; }}
     .risk-context-head p {{ margin:2px 0 0; color:#52606d; line-height:1.55; }}
-    .risk-context-grid {{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:14px; }}
+    .risk-context-grid {{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-top:14px; }}
     .risk-context-card {{ padding:14px 14px; border:1px solid var(--line); border-radius:16px; background:#fff; min-width:0; }}
     .risk-context-type {{ color:#52606d; font-size:13px; font-weight:800; }}
     .risk-context-card strong {{ display:block; margin-top:7px; color:#17366d; line-height:1.45; word-break:break-word; }}
     .risk-context-card p {{ margin:8px 0 0; color:#52606d; font-size:13px; line-height:1.55; }}
-    .support-panel {{ padding:16px 18px; height:202px; display:flex; flex-direction:column; }}
+    .support-panel {{ box-sizing:border-box; padding:16px 18px; min-height:188px; height:100%; display:flex; flex-direction:column; }}
     .support-body {{ margin-top:12px; }}
     .support-head {{ display:flex; align-items:center; gap:12px; }}
     .support-icon {{ width:44px; height:44px; border-radius:999px; display:grid; place-items:center; font-size:24px; color:#3d5f97; background:rgba(59,130,246,0.08); }}
     .support-title {{ font-size:16px; font-weight:800; color:#17366d; }}
     .candidate-chip-row {{ margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; }}
+    .candidate-chip-row.compact {{ margin-top:8px; gap:8px; }}
     .candidate-chip {{ padding:10px 16px; border:1px solid #e1d5bb; border-radius:14px; background:#fff8ee; color:#a16207; font-size:18px; font-weight:800; }}
+    .candidate-chip-row.compact .candidate-chip {{ padding:7px 12px; font-size:15px; border-radius:10px; }}
     .candidate-chip.muted {{ background:#f8fafc; border-color:#d9e2ec; color:#52606d; }}
     .candidate-chip.gold {{ background:#fff8ee; border-color:#ecd7aa; color:#b7791f; }}
     .candidate-chip.violet {{ background:#f7f2ff; border-color:#d8c7ff; color:#6d4cc7; }}
     .support-meta {{ margin-top:12px; color:#52606d; font-size:13px; line-height:1.55; }}
     .support-meta strong {{ color:#17366d; font-weight:800; word-break:break-word; }}
+    .candidate-summary-card {{ grid-column:1 / -1; }}
+    .candidate-cluster-grid {{ display:grid; grid-template-columns:minmax(0,1.1fr) minmax(220px,.9fr); gap:14px; align-items:stretch; }}
+    .candidate-follow-grid {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:12px; }}
+    .candidate-mini-block {{ padding:14px 16px; border:1px solid var(--line); border-radius:10px; background:#fff; min-width:0; min-height:166px; display:flex; flex-direction:column; }}
+    .candidate-mini-block strong {{ display:block; color:#17366d; font-size:18px; line-height:1.35; }}
+    .candidate-mini-block span {{ display:block; margin-top:6px; color:#52606d; font-size:14px; line-height:1.55; }}
     .history-embed {{ margin-top:18px; }}
     .history-embed-head {{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:16px; align-items:start; }}
     .history-embed-lead h2 {{ margin:0; font-size:20px; line-height:1.2; color:#17366d; }}
@@ -3270,6 +3622,9 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       .topbar {{ flex-direction:column; align-items:flex-start; }}
       .status-strip {{ width:100%; }}
       .status-box {{ border-left:0; padding-left:0; }}
+      .approved-report-dashboard {{ grid-template-columns:1fr; }}
+      .decision-summary-grid, .main-reason-grid, .lower-summary-row, .candidate-cluster-grid, .candidate-follow-grid, .pre-supplement-grid {{ grid-template-columns:1fr; }}
+      .signal-strip-grid {{ grid-template-columns:1fr 1fr; }}
       .dashboard-grid {{ flex-direction:column; }}
       .hero-main {{ grid-template-columns:1fr; }}
       .regime-display {{ white-space:normal; }}
@@ -3298,6 +3653,10 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       .sector-guide {{ margin-top: 0; }}
     }}
     @media (max-width: 1180px) {{
+      .approved-report-dashboard {{ grid-template-columns:1fr; }}
+      .signal-strip-grid {{ grid-template-columns:repeat(4,minmax(0,1fr)); }}
+      .main-report-context-stack {{ grid-template-columns:repeat(2,minmax(0,1fr)); }}
+      .supplement-link-card {{ min-height:0; }}
       .decision-headline {{ align-items:flex-start; }}
       .decision-title {{ font-size: clamp(30px, 4.2vw, 46px); }}
       .decision-banner {{ grid-template-columns:1fr; gap:8px; }}
@@ -3311,6 +3670,8 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       .readiness-panel {{ border-left:0; border-top:1px solid var(--line); padding-left:0; padding-top:14px; }}
     }}
     @media (max-width: 860px) {{
+      .main-report-context-stack {{ grid-template-columns:1fr; }}
+      .decision-hero-card {{ grid-template-columns:1fr; text-align:center; justify-items:center; }}
       .glance-grid {{ grid-template-columns:1fr 1fr; }}
       .buy-steps {{ grid-template-columns:1fr; }}
       .buy-step:not(:last-child)::after {{ display:none; }}
@@ -3326,17 +3687,18 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
           <h1>{html.escape(report['title'])}</h1>
         </div>
       </div>
-      <a class=\"report-chip\" href=\"supplement_dashboard.html\">補足ダッシュボード</a>
+      <span class=\"report-chip data-update-chip\">↻ データ更新: {html.escape(topbar_update_label)}</span>
       <div class=\"status-strip\">
         <div class=\"status-box\"><div class=\"k\">生成日時</div><div class=\"v\">{html.escape(report['generated_at'])} JST</div></div>
         <div class=\"status-box\"><div class=\"k\">データソース</div><div class=\"v\">{html.escape(report['data_source'])}</div></div>
         <div class=\"status-box\"><div class=\"k\">判定信頼性</div><div class=\"v\">{html.escape(_jp_reliability(report.get('data_reliability', {}).get('level', 'high')))}</div></div>
       </div>
+      <div class=\"monitor-note\">本レポートは市場のモニタリングを目的としており、投資助言・推奨を行うものではありません。</div>
     </div>
 
-    <div class=\"dashboard-grid\">
-      {first_read_summary_html}
-      {buy_decision_card_html}
+    {approved_report_dashboard_html}
+
+    <div class=\"dashboard-grid detail-summary-grid\">
       <section class=\"hero-card\">
         <div class=\"hero-label\">市場レジーム</div>
         <div class=\"hero-main\">
@@ -3395,9 +3757,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         <div class=\"candidate-inline\">参考候補: <strong>{html.escape(', '.join(item.get('ticker', '-') for item in candidate.get('candidate_tickers', [])[:2]) or 'なし')}</strong></div>
       </section>
     </div>
-    {risk_context_ux_hub_html}
-
-    <div class=\"mini-grid\">
+    <div class=\"pre-supplement-grid\">
       <section class=\"mini-panel\">
         <h3>サイクル判定</h3>
         <div class=\"mini-content cycle-layout\">
@@ -3409,44 +3769,13 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
           </div>
         </div>
       </section>
-
       <section class=\"mini-panel\">
         <h3>危険ライン</h3>
         <div class=\"mini-content\">
           {risk_highlight_rows}
-          {risk_line_confidence_audit_html}
         </div>
       </section>
-      {integrated_context_panel}
-      {hindenburg_omen_panel}
-
-      <section class=\"mini-panel\">
-        <h3>候補</h3>
-        <div class=\"mini-content\">
-          <div style=\"color:#52606d;font-size:14px;\">主要候補</div>
-          <div class=\"candidate-boxes\">
-            {"".join(f"<div class='candidate-box'><strong>{html.escape(str(item.get('ticker', '-')))}</strong><span>{html.escape(str(item.get('label', '-')))}</span></div>" for item in candidate.get('candidate_tickers', [])[:2]) or "<div class='candidate-box'><strong>-</strong><span>候補なし</span></div>"}
-          </div>
-          <div class=\"inline-note\">現在は参考情報で、積極判断よりも待機優先です。</div>
-        </div>
-      </section>
-
-      <section class=\"mini-panel\">
-        <h3>しきい値レビュー</h3>
-        <div class=\"mini-content\">
-          <div class=\"threshold-status\">ステータス<strong>{html.escape(threshold_status_label)}</strong></div>
-          <div class=\"threshold-strip\">
-            <div class=\"threshold-item\"><div class=\"n\" style=\"color:#1f9d66;\">{drift_summary.get('stable_count', 0)}</div><div class=\"l\">{drift_labels['stable']}</div></div>
-            <div class=\"threshold-item\"><div class=\"n\" style=\"color:#d97706;\">{drift_summary.get('watch_count', 0)}</div><div class=\"l\">{drift_labels['watch']}</div></div>
-            <div class=\"threshold-item\"><div class=\"n\" style=\"color:#ef4444;\">{drift_summary.get('review_count', 0)}</div><div class=\"l\">{drift_labels['review']}</div></div>
-            <div class=\"threshold-item\"><div class=\"n\" style=\"color:#64748b;\">{drift_summary.get('unavailable_count', 0)}</div><div class=\"l\">{drift_labels['unavailable']}</div></div>
-          </div>
-        </div>
-      </section>
-    </div>
-
-    <div class=\"overview-grid\">
-      <section class=\"overview-panel\">
+      <section class=\"overview-panel sector-compact-panel\">
         <div class=\"overview-panel-head\">
           <h3>セクター概要</h3>
           <div class=\"momentum-side\">
@@ -3459,32 +3788,23 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
           </div>
         </div>
       </section>
-
-      <section class=\"overview-panel\">
-        <h3>アラートレイヤー</h3>
-        <div class=\"alert-stack\">
-          {alert_stack_items}
-        </div>
-      </section>
     </div>
+    {supplemental_signal_strip_html}
+    {risk_context_ux_hub_html}
 
-    <div class=\"support-grid\">
-      <section class=\"support-panel\">
-        <h3>先回り候補</h3>
-        <div class=\"support-body\">
-          <div class=\"support-head\"><div class=\"support-icon\">◎</div><div class=\"support-title\">反転初期を拾う候補</div></div>
-          <div class=\"candidate-chip-row\">{recovery_candidate_chips}</div>
+    <div class=\"mini-grid\">
+      <section class=\"mini-panel\">
+        <h3>しきい値レビュー</h3>
+        <div class=\"mini-content\">
+          <div class=\"threshold-status\">ステータス<strong>{html.escape(threshold_status_label)}</strong></div>
+          <div class=\"threshold-strip\">
+            <div class=\"threshold-item\"><div class=\"n\" style=\"color:#1f9d66;\">{drift_summary.get('stable_count', 0)}</div><div class=\"l\">{drift_labels['stable']}</div></div>
+            <div class=\"threshold-item\"><div class=\"n\" style=\"color:#d97706;\">{drift_summary.get('watch_count', 0)}</div><div class=\"l\">{drift_labels['watch']}</div></div>
+            <div class=\"threshold-item\"><div class=\"n\" style=\"color:#ef4444;\">{drift_summary.get('review_count', 0)}</div><div class=\"l\">{drift_labels['review']}</div></div>
+            <div class=\"threshold-item\"><div class=\"n\" style=\"color:#64748b;\">{drift_summary.get('unavailable_count', 0)}</div><div class=\"l\">{drift_labels['unavailable']}</div></div>
+          </div>
         </div>
       </section>
-
-      <section class=\"support-panel\">
-        <h3>レジーム先回り</h3>
-        <div class=\"support-body\">
-          <div class=\"support-head\"><div class=\"support-icon\">◈</div><div class=\"support-title\">次の地合いで効きやすい候補</div></div>
-          <div class=\"candidate-chip-row\">{regime_leading_candidate_chips}</div>
-        </div>
-      </section>
-
       <section class=\"support-panel\">
         <h3>データ取得</h3>
         <div class=\"support-body\">
@@ -3631,8 +3951,6 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         <tbody>{risk_line_rows}</tbody>
       </table>
     </section>
-    {integrated_context_panel}
-
     <section class=\"section\">
       <h2>投資候補</h2>
       <p>{html.escape(SECTION_EXPLANATIONS['candidates'])}</p>
@@ -4309,7 +4627,6 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
     diagnostic_summary = diagnostics.get("summary", {})
     runtime_context = report.get("runtime_context", {})
     history_payload = _build_history_embed_payload(history_entries or [])
-    history_payload_json = json.dumps(history_payload, ensure_ascii=False).replace("</", "<\\/")
 
     def esc(value: Any) -> str:
         return html.escape(str(value if value is not None else "-"))
@@ -4675,6 +4992,24 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
     }
     warning_sectors = sector_payload.get("peakout_sectors") or report.get("peakout_sectors", [])
     warning_sector = warning_sectors[0].get("ticker") if warning_sectors else "-"
+    _legacy_board_values = (
+        sector_structure,
+        recovery_evidence,
+        blocker_assessment,
+        sector_svg,
+        latest_regime,
+        recovery_rows,
+        regime_leading_rows,
+        sector_rows,
+        credit_rows,
+        inflation_rows,
+        yen_asset_rows,
+        fx_rows,
+        alert_cards,
+        decision_rationale,
+        phase_counts,
+        warning_sector,
+    )
 
     style = """
     :root {
@@ -4910,6 +5245,14 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
     .supplement-brand { grid-column:1; grid-row:1 / span 2; display:flex; align-items:center; justify-content:center; gap:14px; min-width:0; align-self:center; }
     .supplement-brand-mark { width:46px; height:46px; border-radius:999px; background:#183c76; color:#fff; display:grid; place-items:center; font-size:22px; font-weight:800; }
     .supplement-brand h1 { margin:0; font-size:24px; line-height:1.1; color:#17366d; white-space:nowrap; }
+    .scope-note { margin:6px 0 0; color:#243b53; font-size:13px; line-height:1.35; font-weight:700; }
+    .supplement-chip-row { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .supplement-chip { display:inline-flex; align-items:center; min-height:32px; padding:0 12px; border-radius:8px; border:1px solid #c7d7eb; background:#f6f9fd; color:#17366d; font-size:13px; font-weight:900; white-space:nowrap; }
+    .supplement-chip.limit { border-color:#f3d28c; background:#fff7e6; color:#b45309; }
+    .supplement-chip.safe { border-color:#d5dee9; background:#f8fafc; color:#243b53; }
+    .section-jump-nav { display:flex; gap:10px; flex-wrap:wrap; margin:0 0 14px; padding:10px 12px; border:1px solid var(--line2); border-radius:14px; background:rgba(255,255,255,.86); }
+    .section-jump-nav a { display:inline-flex; align-items:center; gap:7px; min-height:32px; padding:0 11px; border:1px solid #9eb7d6; border-radius:8px; background:#fff; color:#17366d; font-size:13px; font-weight:900; text-decoration:none; }
+    .section-jump-nav b { display:inline-grid; place-items:center; width:20px; height:20px; border-radius:5px; background:#edf4ff; color:#17366d; font-size:12px; }
     .top-actions { grid-column:2; grid-row:1; justify-self:end; justify-content:flex-end; margin:0; }
     .top-actions .tool-btn { min-height:34px; padding:0 14px; border-width:1.25px; border-radius:6px; font-size:14px; box-shadow:0 2px 8px rgba(10,127,124,.08); }
     .supplement-status-strip { grid-column:2; grid-row:2; display:flex; justify-content:flex-end; gap:18px; flex-wrap:wrap; }
@@ -4944,6 +5287,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
       .supplement-brand, .top-actions, .supplement-status-strip { grid-column:1; grid-row:auto; justify-self:stretch; justify-content:flex-start; }
       .supplement-brand { justify-content:flex-start; }
       .supplement-status-box { min-width:0; }
+      .supplement-chip-row { justify-content:flex-start; }
       h1 { font-size:21px; }
       .subhead { display:block; margin:4px 0 0; font-size:12px; }
       .screen-head { display:grid; grid-template-columns:52px minmax(0,1fr); align-items:center; gap:6px 10px; padding:8px 10px 10px; }
@@ -4971,170 +5315,111 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>補足レポート ダッシュボード再設計 完全構成案</title>
-  <style>{style}</style>
+  <title>補足レポート</title>
+  <style>{style}
+    body {{ background:#f6f9fc; }}
+    .supplement-dashboard-shell {{ max-width:1600px; margin:0 auto; padding:0 22px 22px; }}
+    .supplement-topbar {{ display:grid; grid-template-columns:minmax(360px,1fr) auto; gap:18px; align-items:center; min-height:38px; margin:0 -22px 18px; padding:0 18px; background:linear-gradient(90deg,#06172b,#0f2e4d); color:#fff; }}
+    .supplement-topbar strong {{ font-size:14px; }}
+    .supplement-topbar span {{ color:#c8d7e8; font-size:13px; }}
+    .supplement-hero {{ display:grid; grid-template-columns:minmax(360px,1fr) auto; gap:20px; align-items:center; margin-bottom:14px; }}
+    .supplement-title-block {{ display:flex; gap:16px; align-items:center; }}
+    .supplement-title-icon {{ width:54px; height:54px; border:3px solid #66788e; border-radius:8px; display:grid; place-items:center; color:#66788e; font-size:34px; }}
+    .supplement-title-block h1 {{ margin:0; color:#0b1830; font-size:32px; }}
+    .scope-note {{ margin:5px 0 0; color:#1f3556; font-size:15px; font-weight:900; }}
+    .supplement-chip-row {{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }}
+    .supplement-chip {{ display:inline-flex; align-items:center; min-height:36px; padding:0 16px; border-radius:5px; background:#eef5ff; color:#17366d; font-size:14px; font-weight:900; }}
+    .supplement-chip.limit {{ background:#fff2d8; color:#c05600; }}
+    .supplement-chip.safe {{ background:#eef2f7; color:#1f2933; }}
+    .supplement-nav {{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:0 0 14px; padding:8px 0; border-top:1px solid #cbd8e6; border-bottom:1px solid #cbd8e6; }}
+    .supplement-nav strong {{ margin-right:8px; color:#17366d; font-size:14px; }}
+    .supplement-nav a {{ display:inline-flex; align-items:center; gap:8px; min-height:32px; padding:0 13px; border:1px solid #9eb7d6; border-radius:6px; background:#fff; color:#17366d; font-size:13px; font-weight:900; text-decoration:none; }}
+    .supplement-nav b {{ display:inline-grid; place-items:center; width:20px; height:20px; border-radius:5px; background:#edf4ff; }}
+    .evidence-summary-grid {{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:8px; }}
+    .evidence-summary-card, .evidence-card {{ border:1px solid #d5e0eb; border-radius:6px; background:#fff; box-shadow:0 2px 8px rgba(15,35,70,.04); }}
+    .evidence-summary-card {{ padding:12px 14px; }}
+    .evidence-summary-card h2 {{ margin:0 0 10px; color:#17366d; font-size:16px; }}
+    .evidence-summary-card dl {{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:7px 10px; margin:0; font-size:13px; }}
+    .evidence-summary-card dt {{ color:#425466; font-weight:800; }}
+    .evidence-summary-card dd {{ margin:0; color:#0f1828; font-weight:900; }}
+    .supplement-evidence-grid {{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; align-items:start; }}
+    .evidence-card {{ padding:10px; min-width:0; }}
+    .evidence-card.wide {{ grid-column:span 2; }}
+    .evidence-card h2 {{ margin:0 0 9px; color:#17366d; font-size:16px; }}
+    .evidence-card .table-wrap {{ max-height:260px; }}
+    .evidence-card .table {{ font-size:12px; }}
+    .evidence-card .table th, .evidence-card .table td {{ padding:6px 8px; }}
+    .risk-line-detail-section {{ grid-column:span 1; }}
+    .hindenburg-history-section .mini-panel {{ margin:0; }}
+    .hindenburg-history-section .hindenburg-panel {{ border:0; padding:0; }}
+    .hindenburg-history-section .table-wrap {{ max-height:150px; }}
+    .history-browser-section {{ grid-column:span 1; }}
+    .history-mini-chart {{ height:150px; border:1px solid #dbe6eb; border-radius:6px; background:linear-gradient(180deg,#fff,#f8fbff); display:grid; place-items:center; color:#6b7785; font-weight:900; }}
+    .supplement-footer-note {{ margin-top:12px; padding:10px 14px; border:1px solid #c9def4; border-radius:6px; background:#edf7ff; color:#17366d; font-size:13px; font-weight:800; }}
+    @media (max-width: 1180px) {{
+      .evidence-summary-grid, .supplement-evidence-grid {{ grid-template-columns:1fr 1fr; }}
+      .evidence-card.wide {{ grid-column:span 2; }}
+    }}
+    @media (max-width: 760px) {{
+      .supplement-topbar, .supplement-hero, .evidence-summary-grid, .supplement-evidence-grid {{ grid-template-columns:1fr; }}
+      .evidence-card.wide {{ grid-column:auto; }}
+      .supplement-chip-row {{ justify-content:flex-start; }}
+    }}
+  </style>
 </head>
 <body>
-  <input class="view-radio" id="view-history" name="supplement-view" type="radio" checked>
-  <input class="view-radio" id="view-decision" name="supplement-view" type="radio">
-  <input class="view-radio" id="view-sector" name="supplement-view" type="radio">
-  <input class="view-radio" id="view-market" name="supplement-view" type="radio">
-  <input class="view-radio" id="view-audit" name="supplement-view" type="radio">
-  <main class="wrap">
-    <header class="board-head">
-      <div class="supplement-brand"><div class="supplement-brand-mark">◎</div><h1>補足レポート</h1></div>
-      <nav class="top-actions" aria-label="関連レポート">
-        <a class="tool-btn" href="report.html">最新レポート</a>
-      </nav>
-      <div class="supplement-status-strip">
-        <div class="supplement-status-box"><div class="k">生成日時</div><div class="v">{generated_at}</div></div>
-        <div class="supplement-status-box"><div class="k">データソース</div><div class="v">{source_name}</div></div>
-        <div class="supplement-status-box"><div class="k">データ品質上限</div><div class="v">{quality_limit}<br><small>live {quality_live_ratio} / {quality_cap_note}</small></div></div>
-        <div class="supplement-status-box"><div class="k">凡例</div><div class="v supplement-legend"><span><i style="background:var(--teal)"></i>主要（良好）</span><span><i style="background:var(--orange)"></i>注意</span><span><i style="background:var(--red)"></i>警告</span></div></div>
-      </div>
+  <main class="supplement-dashboard-shell">
+    <header class="supplement-topbar">
+      <strong>Global Market Monitor</strong>
+      <span>最終更新: {generated_at} / {source_name}</span>
     </header>
-
-    <section class="top-row">
-      <article class="screen" id="history">
-        <header class="screen-head"><span class="screen-no">1</span><span class="screen-title">履歴</span>{source('履歴 / 過去履歴ブラウズ')}<div class="screen-tools"><span>{generated_at}</span></div></header>
-        <div class="screen-body">{mini_nav('history')}<div class="content">
-          <div class="metrics">
-            {metric('選択中の履歴時点', esc(str(latest_history.get('generated_at', '-')).replace('T', ' ')[:16]))}
-            {metric('主基準 daily_latest', f"{esc(history_meta.get('daily_latest_count', 0))}件")}
-            {metric('参考 all_history', f"{esc(history_meta.get('history_count', 0))}件")}
-            {metric('最新レジーム', esc(latest_regime.get('label', '-')), 'good')}
-            {metric('最新スコア', esc(latest_history.get('score', '-')))}
-          </div>
-          <section class="card history-chart-card"><h3>過去履歴ブラウズ {source('過去履歴ブラウズ')}</h3><div class="chart-legend"><span><i style="background:#f0a4a6"></i>インフレショック</span><span><i style="background:#eab0b2"></i>リスクオフ</span><span><i style="background:#f2d899"></i>移行局面</span><span><i style="background:#b8dbc7"></i>リスクオン</span></div><div class="chart"><svg id="boardHistoryChart" viewBox="0 0 760 250" role="img" aria-label="履歴スコア推移"></svg></div><div class="range-row"><code id="boardHistoryStart">-</code><input id="boardHistoryRange" type="range" min="0" max="0" value="0"><code id="boardHistoryEnd">-</code></div><output id="boardHistoryCount" class="chart-count">0件</output></section>
-          <div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr)); margin-top:9px;">{metric('generated_at', '<span id="boardHistoryTimestamp">-</span>')}{metric('score', '<span id="boardHistoryScore">-</span>')}{metric('regime_label', '<span id="boardHistoryRegime">-</span>')}</div>
-          <aside class="card history-reading"><h3>履歴の読み方</h3><ul class="note-list"><li>この画面は履歴データの確認・分析が目的です。</li><li><b>daily_latest</b> は同日の最新生成を採用した圧縮履歴です。</li><li><b>all_history</b> は重複を含む全履歴を保持します。</li></ul></aside>
-        </div></div>
-      </article>
-
-      <article class="screen" id="decision">
-        <header class="screen-head"><span class="screen-no">2</span><span class="screen-title">判定</span>{source('判定理由 / 危険ライン監視 / 国内文脈の補助危険確認 / 投資候補 / 先回り候補 / レジーム先回り候補 / 判定の読み方')}<div class="screen-tools"><span>{generated_at}</span></div></header>
-        <div class="screen-body">{mini_nav('decision')}<div class="content">
-          <div class="metrics">
-            {metric('市場レジーム', esc(_jp_regime(report.get('regime', {}).get('regime_label'))))}
-            {metric('サイクル', esc(_jp_cycle(report.get('cycle', {}).get('phase_label'))))}
-            {metric('合成スコア', compact(report.get('score', {}).get('total_score')))}
-            {metric('判定用スコア', compact(spot_signal.get('legacy_adjusted_score', spot_signal.get('adjusted_score', report.get('score', {}).get('total_score')))))}
-            {metric('スポット投資判断', esc(_jp_action(str(action_decision.get('action', spot_signal.get('action', '-'))))), 'warn')}
-            {metric('データ品質上限', quality_limit, 'warn' if action_decision.get('reliability_cap_applied') else '')}
-          </div>
-          <div class="decision-matrix">
-            <section class="card"><h3>判定理由 {source('判定理由')} {source('判定の読み方')}</h3><div class="flow"><div><b>上昇再開の証拠</b><span>{esc(localize_signal_value(recovery_evidence.get('grade', '-')))}</span></div><div><b>騙し上昇の警戒</b><span>{esc(localize_signal_value(blocker_assessment.get('level', '-')))}</span></div><div><b>信用面</b><span>{esc(localize_signal_value(blocker_assessment.get('credit_state', 'neutral')))}</span></div><div><b>危険ライン</b><span>{esc(localize_signal_value(risk_lines.get('stage_label', '-')))}</span></div></div><ul class="compact-list">{decision_rationale}</ul></section>
-            <section class="card"><h3>危険ライン監視 {source('危険ライン監視')}</h3><div class="metrics" style="grid-template-columns:1fr 1fr; margin-bottom:7px;">{metric('総合ストレス指数', compact(risk_lines.get('composite_risk_score')))}{metric('危険ライン超過', f"{esc(risk_lines.get('danger_count', 0))} / {esc(risk_lines.get('extreme_count', 0))}", 'warn')}</div><ul class="compact-list">{risk_reason_items}</ul><div class="risk-detail-block"><h4>危険ライン詳細</h4><div class="table-wrap">{table(['指標','判定','現在値','注意ライン','危険ライン','非常に危険'], risk_line_rows)}</div></div></section>
-          </div>
-          {integrated_context_panel}
-          {hindenburg_omen_panel}
-          {domestic_danger_panel}
-          <section class="card candidate-combo"><h3>候補一覧</h3><h4>投資候補</h4><div class="table-wrap">{table(['銘柄','判定','理由'], candidate_rows)}</div><h4>先回り候補</h4><div class="table-wrap">{table(['銘柄','判定','理由'], recovery_rows)}</div><h4>レジーム先回り候補</h4><div class="table-wrap">{table(['銘柄','判定','理由'], regime_leading_rows)}</div></section>
-        </div></div>
-      </article>
+    <section class="supplement-hero" aria-label="補足レポート概要">
+      <div class="supplement-title-block">
+        <div class="supplement-title-icon">▤</div>
+        <div>
+          <h1>補足レポート</h1>
+          <p class="scope-note">本体判断ではなく、補助確認と検証用の詳細です</p>
+        </div>
+      </div>
+      <div class="supplement-chip-row">
+        <span class="supplement-chip">補助確認</span>
+        <span class="supplement-chip limit">データ制約</span>
+        <span class="supplement-chip safe">本体判断への影響なし</span>
+        <span class="supplement-chip safe">データ品質上限 {quality_limit} / live {quality_live_ratio} / {quality_cap_note}</span>
+        <a class="supplement-chip" href="report.html">本体レポートへ戻る</a>
+      </div>
     </section>
-
-    <section class="bottom-row">
-      <article class="screen" id="sector">
-        <header class="screen-head"><span class="screen-no">3</span><span class="screen-title">セクター</span>{source('セクターローテーション / セクターローテーション内部構造')}</header>
-        <div class="screen-body">{mini_nav('sector')}<div class="content">
-          <div class="metrics sector-kpis"><div class="metric metric-good"><span>先導</span><b>{phase_counts['先導']}{trend_icon('up')}</b></div><div class="metric metric-good"><span>改善</span><b>{phase_counts['改善']}{trend_icon('up')}</b></div><div class="metric metric-warn"><span>鈍化</span><b>{phase_counts['鈍化']}{trend_icon('down')}</b></div><div class="metric metric-bad"><span>出遅れ</span><b>{phase_counts['出遅れ']}{trend_icon('up')}</b></div><div class="metric metric-bad"><span>先導警戒</span><b>{esc(warning_sector)}</b></div><div class="metric"><span>内部構造</span><b>{esc(sector_structure.get('structure_label', '-'))}</b></div></div>
-          <div class="sector-grid"><section class="card"><h3>セクターローテーション</h3><div class="sector-figure">{sector_svg}</div></section><section class="card"><h3>順位表</h3><div class="table-wrap" style="max-height:310px;">{table(['順位','ETF','日本語','12週騰落率','位置'], sector_rows)}</div></section></div>
-          <section class="card"><h3>セクターローテーション内部構造</h3><div class="structure-strip">{metric('ブレッドス', sector_structure.get('breadth_label', '-'))}{metric('リーダーシップ', sector_structure.get('leadership_label', '-'))}{metric('安定性', sector_structure.get('stability_label', '-'))}{metric('セクター分散', sector_structure.get('dispersion_score', '-'))}{metric('監視シェア', sector_structure.get('watch_share', '-'))}{metric('有望シェア', sector_structure.get('promising_share', '-'))}</div><p style="margin-top:8px;">{esc(sector_payload.get('market_structure_comment') or report.get('market_structure_comment', '-'))}</p></section>
-        </div></div>
-      </article>
-
-      <article class="screen" id="market">
-        <header class="screen-head"><span class="screen-no">4</span><span class="screen-title">市場監視</span>{source('資産クラス比較 / 信用監視 / インフレ監視 / 円建て・為替リスク / 国内文脈の補助危険確認 / 警告レイヤー / 類似局面')}</header>
-        <div class="screen-body">{mini_nav('market')}<div class="content">
-          <div class="metrics">{metric('資産比較', f"{len(report.get('asset_compare', []))}件", 'good')}{metric('信用', f"{len(report.get('credit_monitor', []))}系列")}{metric('インフレ', f"{len(report.get('inflation_monitor', []))}系列", 'warn')}{metric('為替リスク', esc(_jp_japan_risk_level(japan_risk.get('level'))), 'warn')}{metric('警告', f"{len(report.get('alerts', []))}件", 'bad' if report.get('alerts') else '')}</div>
-          <div class="market-grid"><section class="card"><h3>警告レイヤー {source('警告レイヤー')}</h3>{alert_cards}</section><section class="card"><h3>類似局面 {source('類似局面')}</h3><div class="table-wrap">{table(['基準日','類似度','その後12週'], analogue_rows)}</div></section><section class="card"><h3>インフレ監視 {source('インフレ監視')}</h3><div class="table-wrap">{table(['系列','現在値','1週','4週','12週','z','判定'], inflation_rows)}</div></section><section class="card"><h3>信用監視 {source('信用監視')}</h3><div class="table-wrap">{table(['系列','現在値','1週','4週','12週','z','判定'], credit_rows)}</div></section></div>
-          <div class="split-even" style="margin-top:9px;"><section class="card"><h3>円建て・為替リスク {source('円建て・為替リスク')}</h3><div class="table-wrap">{table(['為替','現在値','1週','4週','12週','判定'], fx_rows)}</div><div class="table-wrap" style="margin-top:7px;">{table(['資産','銘柄','ドル建て4週','円建て4週','為替寄与','円建て最大下落','判定'], yen_asset_rows)}</div></section><section class="card"><h3>資産クラス比較 {source('資産クラス比較')}</h3><div class="table-wrap">{table(['資産クラス','ティッカー','12週','年率ボラ','最大DD'], asset_rows)}</div></section></div>
-          {integrated_context_panel}
-          {hindenburg_omen_panel}
-          {domestic_danger_panel}
-        </div></div>
-      </article>
-
-      <article class="screen" id="audit">
-        <header class="screen-head"><span class="screen-no">5</span><span class="screen-title">監査</span>{source('threshold metadata / メンテナンス / データ取得状況 / 接続診断 / 最終警告')}</header>
-        <div class="screen-body">{mini_nav('audit')}<div class="content">
-          <div class="metrics">{metric('threshold version', esc(report.get('risk_thresholds', {}).get('version', '-')))}{metric('calibrated_at', esc(report.get('risk_thresholds', {}).get('generated_at', '-')))}{metric('review status', f"{esc(threshold_review.get('status', '-'))} / recommended={esc(threshold_review.get('review_recommended', False))}", 'warn' if threshold_review.get('review_recommended') else '')}{metric('maintenance', f"{esc(threshold_maintenance.get('status', '-'))} / {number(threshold_maintenance.get('elapsed_seconds'))}秒")}{metric('proposal generated', esc(threshold_maintenance.get('proposal_generated_this_run', False)))}</div>
-          <div class="audit-grid"><section class="card"><h3>threshold drift</h3><div class="drift-list"><div><span>stable</span><b>{esc(drift_summary.get('stable_count', 0))}</b></div><div><span>watch</span><b style="color:var(--orange)">{esc(drift_summary.get('watch_count', 0))}</b></div><div><span>review</span><b style="color:var(--red)">{esc(drift_summary.get('review_count', 0))}</b></div><div><span>unavailable</span><b>{esc(drift_summary.get('unavailable_count', 0))}</b></div></div><div class="review-targets">{"".join(f"<span>{esc(item)}</span>" for item in drift_summary.get('review_targets', [])) or "<span>review target なし</span>"}</div></section><section class="card audit-table"><h3>データ取得状況 {source('データ取得状況')}</h3><div class="table-wrap">{table(['要求系列','状態','実使用系列','説明'], availability_rows)}</div></section></div>
-          <div class="split-even" style="margin-top:9px;"><section class="card"><h3>接続診断 {source('接続診断')}</h3><div class="table-wrap">{table(['項目','内容'], [[esc(k), esc(v)] for k, v in diagnostic_rows], False)}</div></section><section class="card"><h3>警告 {source('警告')}</h3><ul class="compact-list">{warning_items}</ul></section></div>
-        </div></div>
-      </article>
+    <nav class="supplement-nav" aria-label="補足レポート セクション">
+      <strong>セクション</strong>
+      <a href="#risk-lines"><b>1</b>危険ライン</a>
+      <a href="#resident-context"><b>2</b>日本在住者文脈</a>
+      <a href="#domestic-context"><b>3</b>国内文脈</a>
+      <a href="#hindenburg-detail"><b>4</b>Hindenburg Omen</a>
+      <a href="#data-acquisition"><b>5</b>データ取得</a>
+      <a href="#threshold-audit"><b>6</b>しきい値</a>
+      <a href="#runtime-diagnostics"><b>7</b>実行環境</a>
+      <a href="#history-browser"><b>8</b>履歴</a>
+    </nav>
+    <section class="evidence-summary-grid" aria-label="補足サマリー">
+      <article class="evidence-summary-card"><h2>1. 危険ライン（主要指標）</h2><dl><dt>総合評価</dt><dd>{esc(risk_lines.get('stage_label', '-'))}</dd><dt>危険/非常に危険</dt><dd>{esc(risk_lines.get('danger_count', 0))} / {esc(risk_lines.get('extreme_count', 0))}</dd><dt>要注意理由</dt><dd>{esc(len(risk_lines.get('reasons', [])))}</dd></dl></article>
+      <article class="evidence-summary-card"><h2>2. 日本在住者文脈（統合）</h2><dl><dt>統合評価</dt><dd>{esc(_domestic_danger_level_label(integrated_context.get('combined_context_level')))}</dd><dt>影響度</dt><dd>{esc(_domestic_danger_level_label(integrated_context.get('fx_risk_level')))}</dd><dt>確認項目</dt><dd>{esc(len(integrated_context.get('watch_items', [])))}</dd></dl></article>
+      <article class="evidence-summary-card"><h2>3. 国内文脈（危険シグナル）</h2><dl><dt>国内資産</dt><dd>{esc(_domestic_danger_level_label(domestic_danger.get('domestic_asset_level')))}</dd><dt>国内為替</dt><dd>{esc(_domestic_danger_level_label(domestic_danger.get('domestic_fx_level')))}</dd><dt>制約</dt><dd>{esc(len(domestic_danger.get('domestic_data_limitations', [])))}</dd></dl></article>
+      <article class="evidence-summary-card"><h2>4. Hindenburg Omen</h2><dl><dt>現在のランプ状態</dt><dd>{esc(_hindenburg_signal_label((report.get('hindenburg_omen_context') or {}).get('current_signal')))}</dd><dt>最新トリガー日</dt><dd>{esc((report.get('hindenburg_omen_context') or {}).get('latest_trigger_date', '-'))}</dd><dt>発動期間中か</dt><dd>{'はい' if (report.get('hindenburg_omen_context') or {}).get('is_currently_active') else 'いいえ'}</dd></dl></article>
+      <article class="evidence-summary-card"><h2>5. 資産クラス / 候補証拠</h2><dl><dt>資産比較</dt><dd>{esc(len(report.get('asset_compare', [])))}</dd><dt>候補数</dt><dd>{esc(len(candidate.get('candidate_tickers', [])))}</dd><dt>証拠</dt><dd>参考表示</dd></dl></article>
     </section>
+    <section class="supplement-evidence-grid" aria-label="補足詳細">
+      <section class="evidence-card risk-line-detail-section" id="risk-lines"><h2>1. 危険ライン詳細と信頼度監査</h2><div class="table-wrap">{table(['指標','判定','現在値','注意ライン','危険ライン','非常に危険'], risk_line_rows)}</div><ul class="compact-list">{risk_reason_items}</ul></section>
+      <section class="evidence-card resident-context-detail-section" id="resident-context"><h2>2. 日本在住者文脈（統合）詳細</h2>{integrated_context_panel}<div class="table-wrap" style="margin-top:8px;">{table(['為替','現在値','1週','4週','12週','判定'], fx_rows)}</div></section>
+      <section class="evidence-card domestic-context-detail-section" id="domestic-context"><h2>3. 国内文脈（危険シグナル）詳細</h2>{domestic_danger_panel}</section>
+      <section class="evidence-card hindenburg-history-section" id="hindenburg-detail"><h2>4. Hindenburg Omen トリガー / 発動履歴</h2>{hindenburg_omen_panel}</section>
+      <section class="evidence-card asset-candidate-evidence-section" id="asset-candidate-evidence"><h2>5. 資産クラス / 候補証拠 詳細</h2><div class="table-wrap">{table(['資産クラス','ティッカー','12週','年率ボラ','最大DD'], asset_rows)}</div><div class="table-wrap" style="margin-top:8px;">{table(['銘柄','判定','理由'], candidate_rows)}</div></section>
+      <section class="evidence-card data-acquisition-section" id="data-acquisition"><h2>6. データ取得状況</h2><div class="table-wrap">{table(['要求系列','状態','実使用系列','説明'], availability_rows)}</div></section>
+      <section class="evidence-card threshold-audit-section" id="threshold-audit"><h2>7. しきい値の使用状況と認証</h2><div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));">{metric('review status', f"{esc(threshold_review.get('status', '-'))} / recommended={esc(threshold_review.get('review_recommended', False))}", 'warn' if threshold_review.get('review_recommended') else '')}{metric('maintenance', f"{esc(threshold_maintenance.get('status', '-'))} / {number(threshold_maintenance.get('elapsed_seconds'))}秒")}{metric('proposal generated', esc(threshold_maintenance.get('proposal_generated_this_run', False)))}</div><div class="drift-list"><div><span>stable</span><b>{esc(drift_summary.get('stable_count', 0))}</b></div><div><span>watch</span><b style="color:var(--orange)">{esc(drift_summary.get('watch_count', 0))}</b></div><div><span>review</span><b style="color:var(--red)">{esc(drift_summary.get('review_count', 0))}</b></div><div><span>unavailable</span><b>{esc(drift_summary.get('unavailable_count', 0))}</b></div></div>{_threshold_usage_html(report)}{_threshold_rule_certification_html(report)}</section>
+      <section class="evidence-card runtime-diagnostics-section" id="runtime-diagnostics"><h2>8. 実行環境 / 接続診断</h2><div class="table-wrap">{table(['項目','内容'], [[esc(k), esc(v)] for k, v in diagnostic_rows], False)}</div><div style="margin-top:8px;">{alert_cards}</div><ul class="compact-list" style="margin-top:8px;">{warning_items}</ul></section>
+      <section class="evidence-card history-browser-section" id="history-browser"><h2>9. 履歴ブラウザ</h2><div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));">{metric('主基準 daily_latest', f"{esc(history_meta.get('daily_latest_count', 0))}件")}{metric('参考 all_history', f"{esc(history_meta.get('history_count', 0))}件")}{metric('最新スコア', esc(latest_history.get('score', '-')))}</div><div class="history-mini-chart">履歴確認用の参考表示</div></section>
+    </section>
+    <footer class="supplement-footer-note">本画面および生成されたレポート / キャッシュ / 診断アーティファクトは、本体判断の入力には利用されません。補助確認・監査・トラブルシュートのための情報です。</footer>
   </main>
-  <script id="supplementHistoryPayload" type="application/json">{history_payload_json}</script>
-  <script>
-  (() => {{
-    const map = {{ '#history': 'view-history', '#decision': 'view-decision', '#sector': 'view-sector', '#market': 'view-market', '#audit': 'view-audit' }};
-    const reverse = Object.fromEntries(Object.entries(map).map(([hash, id]) => [id, hash]));
-    function activateFromHash() {{
-      const input = document.getElementById(map[window.location.hash] || 'view-history');
-      if (input) input.checked = true;
-      const resetScroll = () => window.scrollTo({{ top: 0, left: 0, behavior: 'instant' }});
-      requestAnimationFrame(resetScroll);
-      setTimeout(resetScroll, 60);
-      setTimeout(resetScroll, 180);
-    }}
-    activateFromHash();
-    window.addEventListener('hashchange', activateFromHash);
-    document.querySelectorAll('label[for^="view-"]').forEach(label => {{
-      label.addEventListener('click', () => {{
-        const hash = reverse[label.getAttribute('for') || ''];
-        if (hash && window.location.hash !== hash) history.replaceState(null, '', hash);
-      }});
-    }});
-  }})();
-  (() => {{
-    const payload = JSON.parse(document.getElementById('supplementHistoryPayload').textContent || '{{}}');
-    const entries = payload.history || [];
-    const meta = payload.meta || {{}};
-    const svg = document.getElementById('boardHistoryChart');
-    const range = document.getElementById('boardHistoryRange');
-    const out = document.getElementById('boardHistoryCount');
-    const startLabel = document.getElementById('boardHistoryStart');
-    const endLabel = document.getElementById('boardHistoryEnd');
-    const ts = document.getElementById('boardHistoryTimestamp');
-    const score = document.getElementById('boardHistoryScore');
-    const regime = document.getElementById('boardHistoryRegime');
-    const regimeColor = {{ risk_on:'#0c7a7d', transition:'#f2a328', risk_off:'#d94b52', credit_stress:'#a63a3f', early_recovery:'#269077', inflation_shock:'#e07c16', data_unavailable:'#8a99a6' }};
-    const fmt = value => String(value || '-').replace('T',' ').slice(0,16);
-    if (!entries.length) {{
-      svg.innerHTML = '<text x="380" y="125" text-anchor="middle" fill="#66737f" font-size="16">履歴データなし</text>';
-      return;
-    }}
-    range.max = String(entries.length - 1);
-    function draw(index) {{
-      const w = 760, h = 250, l = 42, r = 14, t = 20, b = 34;
-      const scores = entries.map(e => Number(e.score)).filter(Number.isFinite);
-      const min = Math.min(0.45, ...scores), max = Math.max(0.72, ...scores), span = Math.max(max - min, 0.001);
-      const pw = w - l - r, ph = h - t - b;
-      const x = i => l + (entries.length === 1 ? pw : (i / (entries.length - 1)) * pw);
-      const y = v => t + (1 - ((Number(v) - min) / span)) * ph;
-      const bands = entries.map((e, i) => `<rect x="${{x(i).toFixed(1)}}" y="${{t}}" width="${{Math.max(pw / entries.length, 3).toFixed(1)}}" height="${{ph}}" fill="${{regimeColor[e.regime?.key] || '#8a99a6'}}" opacity=".12"></rect>`).join('');
-      const grid = [0,.25,.5,.75,1].map(p => `<line x1="${{l}}" x2="${{w-r}}" y1="${{(t+p*ph).toFixed(1)}}" y2="${{(t+p*ph).toFixed(1)}}" stroke="#e1e8ed"></line>`).join('');
-      const line = entries.map((e, i) => `${{x(i).toFixed(1)}},${{y(e.score).toFixed(1)}}`).join(' ');
-      const dots = entries.map((e, i) => `<circle cx="${{x(i).toFixed(1)}}" cy="${{y(e.score).toFixed(1)}}" r="${{i === index ? 5 : 2.7}}" fill="${{regimeColor[e.regime?.key] || '#0c7a7d'}}" stroke="#fff"></circle>`).join('');
-      const selected = entries[index] || entries[entries.length - 1];
-      ts.innerHTML = fmt(selected.generated_at);
-      score.innerHTML = selected.score ?? '-';
-      regime.innerHTML = selected.regime?.label || '-';
-      out.value = `${{entries.length}}件 / daily_latest ${{meta.daily_latest_count || entries.length}}件`;
-      if (startLabel) startLabel.textContent = fmt(entries[0].generated_at).slice(0, 10);
-      if (endLabel) endLabel.textContent = fmt(entries[entries.length - 1].generated_at).slice(0, 10);
-      const sx = x(index), sy = y(selected.score);
-      const badgeX = Math.min(Math.max(sx - 22, l + 4), w - r - 70);
-      const badgeY = Math.max(sy - 54, t + 6);
-      svg.innerHTML = `${{bands}}${{grid}}<text x="8" y="${{t + 8}}" fill="#66737f" font-size="10">${{max.toFixed(2)}}</text><text x="8" y="${{t + ph}}" fill="#66737f" font-size="10">${{min.toFixed(2)}}</text><polyline points="${{line}}" fill="none" stroke="#0c7a7d" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"></polyline>${{dots}}<rect x="${{badgeX}}" y="${{badgeY}}" width="66" height="35" rx="6" fill="#fff" stroke="#9eb7c2"></rect><text x="${{badgeX + 33}}" y="${{badgeY + 14}}" text-anchor="middle" fill="#0a6f73" font-size="9" font-weight="700">最新</text><text x="${{badgeX + 33}}" y="${{badgeY + 27}}" text-anchor="middle" fill="#0a6f73" font-size="10" font-weight="900">${{selected.score ?? '-'}}</text><text x="${{l}}" y="${{h-10}}" fill="#66737f" font-size="9">${{fmt(entries[0].generated_at).slice(0,10)}}</text><text x="${{w-r}}" y="${{h-10}}" text-anchor="end" fill="#66737f" font-size="9">${{fmt(entries[entries.length-1].generated_at).slice(0,10)}}</text>`;
-    }}
-    range.addEventListener('input', () => draw(Number(range.value)));
-    range.value = String(entries.length - 1);
-    draw(entries.length - 1);
-  }})();
-  </script>
 </body>
 </html>
 """

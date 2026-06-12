@@ -23,6 +23,17 @@ Global Market Monitor は、相場の流れを毎週まとめて確認するた�
 - 過去価格の backfill / replay で diagnostic-only の FX soft-cap 候補を検証する
 - Buy Decision Card で final / raw / risk-adjusted の違い、買い候補度、主な阻害要因、次に見る条件を確認する
 
+## v0.9.0 の主な追加点
+
+v0.9.0 は、Hindenburg Omen を補助表示として実用しやすくする版です。売買判断を強める版ではありません。
+
+- Hindenburg Omen を市場幅の補助確認として表示します
+- 自動取得は実験的です。取得できない日があっても、アプリ全体の故障ではありません
+- 自動取得できない場合は、手動CSV、CSV整形 converter、1日分の手入力CLIを使えます
+- ローカルSQLiteで前回の確定値を保持し、取得失敗時に状態を分けて表示します
+- データ未取得や履歴不足を `点灯なし` として扱わないようにしました
+- Hindenburg Omen は `final_action`、買い候補度、メインリスク判定には影響しません
+
 ## v0.7.2 Buy Decision Clarity
 
 v0.7.2 は、買い判断を緩める版ではありません。正式判断は引き続き `final_action` です。
@@ -202,6 +213,38 @@ python project/main.py
 
 `buy_window` は購入指示ではありません。市場状態を見直す候補日という意味であり、データ品質ガードで `watch` や `wait` に降格されることがあります。
 
+### Hindenburg Omenについて
+
+Hindenburg Omen は、市場全体の幅が弱くなっていないかを見るための補助シグナルです。
+
+このアプリでは、Hindenburg Omen を表示専用として扱います。単独で売買判断には使わず、`final_action`、買い候補度、メインリスク判定も変更しません。
+
+必要な市場幅データを取得できない場合は、未取得または履歴不足として表示します。これは `点灯なし` とは別です。
+
+### Hindenburg Omenのデータを手動で入れる場合
+
+自動取得できない場合は、手動CSVを使えます。
+
+空のCSVを作る:
+
+```powershell
+python -m project.hindenburg_manual create-template --output project/manual_sources/hindenburg_breadth.csv
+```
+
+手元で作ったCSVをアプリ用の形式に整える:
+
+```powershell
+python -m project.hindenburg_manual normalize-csv --input path/to/source.csv --output project/manual_sources/hindenburg_breadth.csv
+```
+
+1日分だけ手入力する:
+
+```powershell
+python -m project.hindenburg_manual daily-input --date 2026-01-02 --new-highs 80 --new-lows 75 --advancers 1200 --decliners 1200 --total-issues 2600 --nyse-index 10000 --index-50d-ago 9800 --source-note manual-confirmed
+```
+
+詳しい手順は `docs/hindenburg_omen_data_acquisition.md` と `docs/hindenburg_omen_manual_input.md` を見てください。
+
 ### Buy Decision Card
 
 Buy Decision Card は、買い判断を強めるための仕組みではなく、判断の内訳を読みやすくするための表示です。
@@ -284,6 +327,10 @@ Playwright CLI が使える環境では、補足ダッシュボードの5画面�
 - `buy_candidate` は買い場候補であり、買い指示ではありません
 - `buy_readiness_score` は成功確率ではありません
 - sample-only の結果は実データによる判断ではありません
+- Hindenburg Omen は投資助言ではなく、単独で売買判断に使うものではありません
+- Hindenburg Omen の自動取得は、公開ページの構造やアクセス制限により失敗することがあります
+- Hindenburg Omen の未取得や履歴不足は、点灯なしという意味ではありません
+- Hindenburg Omen の手動データは、同じ日付の値を複数サイトから混ぜないでください
 - generated files、cache、runtime logs、配布作業フォルダはコミットしません
 
 ## よくある誤解
@@ -294,6 +341,8 @@ Playwright CLI が使える環境では、補足ダッシュボードの5画面�
 - sample-only の結果は、実運用判断の根拠にはなりません。
 - `fx_soft_cap` / regime-aware FX candidates は検証用で、正式判断には採用していません。
 - `buy_readiness_score` は成功確率・期待リターン・投資成功率ではありません。買い判断に近い条件の揃い具合を示す説明用スコアです
+- Hindenburg Omen が未取得のときは、点灯なしではなく判定不能または履歴不足として読んでください
+- Hindenburg Omen は表示専用で、正式判断を上書きしません
 - unlock_conditions は「次に確認する条件」であり、自動買い条件ではありません
 - raw / risk-adjusted / final action を分けて、強い判定がどこで弱まったかを確認できます
 - `fx_soft_cap` は診断専用です。final action には影響せず、為替リスクありの買い候補を検証するために使います。

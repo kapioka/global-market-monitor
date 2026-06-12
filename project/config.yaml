@@ -190,3 +190,16 @@ sector_vector_analysis:
       - XLY
       - XLB
 
+hindenburg_omen:
+  auto_fetch: true
+  builtin_auto_fetch_experimental: true
+  automatic_attempt_once_per_completed_us_session: true
+  manual_retry_cooldown_minutes: 30
+  csv_template_path: project/manual_sources/hindenburg_breadth_template.csv
+  minimum_history_records: 39
+  auto_csv_url:
+  provider_priority:
+    - barchart_market_momentum
+    - marketwatch_us_market_data
+    - wsj_market_diary
+

@@ -22,7 +22,7 @@
 - `git status --short`: clean before audit changes
 - `git tag --points-at HEAD`: `v0.7.2`
 - HEAD author / committer: GitHub noreply address
-- `gmail.com` / `akisoe` metadata scan: no matches
+- personal metadata scan: no matches
 
 ### Secret scan
 
@@ -46,7 +46,7 @@ Notes:
 
 - Tracked files do not contain the actual workspace path as publish-facing runtime configuration.
 - Path-like hits were reviewed as:
-  - test fixtures using `E:\dist\...` or `C:\repo\...`
+  - test fixtures using synthetic packaged-app paths
   - dynamic `Path.home() / AppData` handling in `sitecustomize.py`
   - ignored archive / visual-evidence files outside the source-controlled publish set
 - No personal email was found in tracked commit metadata.

@@ -194,7 +194,13 @@ def build_report(
     cycle = analyze_cycle(prices[cycle_ticker])
     risk_lines = evaluate_risk_lines(regime, cycle, usable_credit_monitor, usable_inflation_monitor, usable_risk_monitor)
     risk_line_confidence_audit = build_risk_line_confidence_audit(active_threshold_payload, risk_lines)
-    hindenburg_omen_context = build_hindenburg_omen_context()
+    hindenburg_omen_config = config.get("hindenburg_omen", {})
+    hindenburg_omen_context = build_hindenburg_omen_context(
+        auto_csv_url=hindenburg_omen_config.get("auto_csv_url"),
+        auto_fetch=bool(hindenburg_omen_config.get("auto_fetch", True)),
+        experimental_builtin_auto_fetch=bool(hindenburg_omen_config.get("builtin_auto_fetch_experimental", True)),
+        provider_priority=list(hindenburg_omen_config.get("provider_priority", [])) or None,
+    )
     score = score_market(
         regime,
         cycle,

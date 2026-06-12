@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+from datetime import date, timedelta
 from pathlib import Path
+
+import pytest
 
 from project.hindenburg_omen import (
     build_hindenburg_omen_context,
     compute_hindenburg_daily_signals,
+    import_hindenburg_manual_record,
+    parse_hindenburg_breadth_auto_csv,
     parse_hindenburg_breadth_csv,
     summarize_hindenburg_periods,
 )
+from project.hindenburg_provider import ProviderAttempt, ProviderResult
 
 CSV = """date,new_highs,new_lows,advancers,decliners,nyse_index,mcclellan_oscillator,index_above_50d,source_note
 2026-01-02,80,75,1200,1200,10000,-5,true,fixture
@@ -16,10 +22,44 @@ CSV = """date,new_highs,new_lows,advancers,decliners,nyse_index,mcclellan_oscill
 """
 
 
+@pytest.fixture(autouse=True)
+def isolated_hindenburg_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("HINDENBURG_OMEN_DB_PATH", str(tmp_path / "hindenburg.sqlite3"))
+    monkeypatch.setenv("HINDENBURG_OMEN_DATA_DIR", str(tmp_path / "hindenburg_data"))
+
+    def no_live_builtin_chain(**_kwargs: object) -> ProviderResult:
+        attempts = (
+            ProviderAttempt("barchart_market_momentum", "Barchart Market Momentum", "failed", "MANDATORY_FIELD_MISSING"),
+            ProviderAttempt("marketwatch_us_market_data", "MarketWatch U.S. Market Data", "failed", "ACCESS_DENIED"),
+            ProviderAttempt("wsj_market_diary", "WSJ Markets Diary", "failed", "MANDATORY_FIELD_MISSING"),
+        )
+        return ProviderResult(
+            status="failed",
+            provider_id="builtin_provider_chain",
+            provider_label="Built-in provider chain",
+            failure_code="ALL_PROVIDERS_UNAVAILABLE",
+            attempts=attempts,
+            limitations=("3候補すべて取得不可",),
+        )
+
+    monkeypatch.setattr("project.hindenburg_omen.acquire_builtin_provider_chain", no_live_builtin_chain)
+
+
+def _derived_mcclellan_csv() -> str:
+    lines = ["date,new_highs,new_lows,advancers,decliners,nyse_index,index_above_50d"]
+    start = date(2026, 1, 1)
+    for offset in range(39):
+        current = start + timedelta(days=offset)
+        lines.append(f"{current.isoformat()},10,8,1400,1000,{10000 + offset},true")
+    lines.append("2026-02-09,80,75,900,1500,10100,true")
+    return "\n".join(lines) + "\n"
+
+
 def test_missing_manual_csv_returns_safe_unavailable(tmp_path: Path) -> None:
     payload = build_hindenburg_omen_context(manual_csv_path=tmp_path / "missing.csv")
 
-    assert payload["status"] == "manual_file_missing"
+    assert payload["status"] == "data_unavailable"
+    assert payload["state"] == "UNINITIALIZED"
     assert payload["current_signal"] == "unavailable"
     assert payload["is_currently_active"] is False
     assert payload["trigger_dates"] == []
@@ -38,6 +78,85 @@ def test_parser_accepts_valid_manual_csv(tmp_path: Path) -> None:
     assert len(parsed["frame"]) == 3
 
 
+def test_auto_csv_source_is_used_when_manual_csv_is_missing(tmp_path: Path) -> None:
+    auto_path = tmp_path / "auto_breadth.csv"
+    auto_path.write_text(CSV, encoding="utf-8")
+
+    payload = build_hindenburg_omen_context(
+        manual_csv_path=tmp_path / "missing.csv",
+        auto_csv_url=auto_path,
+        as_of_date="2026-03-01",
+    )
+
+    assert payload["status"] == "ok"
+    assert payload["source_kind"] == "auto_csv"
+    assert payload["source_path"] == str(auto_path)
+    assert payload["current_signal"] == "triggered_today"
+    assert payload["must_not_affect_final_action"] is True
+    assert payload["must_not_affect_buy_readiness_score"] is True
+
+
+def test_manual_csv_takes_precedence_over_auto_csv(tmp_path: Path) -> None:
+    manual_path = tmp_path / "manual.csv"
+    auto_path = tmp_path / "auto.csv"
+    manual_path.write_text(CSV, encoding="utf-8")
+    auto_path.write_text("date,new_highs,new_lows\n2026-01-02,1,1\n", encoding="utf-8")
+
+    payload = build_hindenburg_omen_context(
+        manual_csv_path=manual_path,
+        auto_csv_url=auto_path,
+        as_of_date="2026-03-01",
+    )
+
+    assert payload["status"] == "ok"
+    assert payload["source_kind"] == "local_manual_file"
+    assert payload["source_path"] == str(manual_path)
+
+
+def test_manual_parse_error_does_not_fall_back_to_auto_csv(tmp_path: Path) -> None:
+    manual_path = tmp_path / "manual_bad.csv"
+    auto_path = tmp_path / "auto.csv"
+    manual_path.write_text("date,new_highs,new_lows\n2026-01-02,1,1\n", encoding="utf-8")
+    auto_path.write_text(CSV, encoding="utf-8")
+
+    payload = build_hindenburg_omen_context(
+        manual_csv_path=manual_path,
+        auto_csv_url=auto_path,
+        as_of_date="2026-03-01",
+    )
+
+    assert payload["status"] == "parse_error"
+    assert payload["source_kind"] == "local_manual_file"
+    assert payload["current_signal"] == "unavailable"
+
+
+def test_auto_csv_parser_reports_fetch_errors() -> None:
+    parsed = parse_hindenburg_breadth_auto_csv("Z:/missing/hindenburg_breadth.csv")
+
+    assert parsed["status"] == "auto_fetch_error"
+    assert parsed["frame"] is None
+    assert parsed["source_kind"] == "auto_csv"
+
+
+def test_auto_csv_can_derive_mcclellan_from_advance_decline_history(tmp_path: Path) -> None:
+    auto_path = tmp_path / "auto_breadth.csv"
+    auto_path.write_text(_derived_mcclellan_csv(), encoding="utf-8")
+
+    payload = build_hindenburg_omen_context(
+        manual_csv_path=tmp_path / "missing.csv",
+        auto_csv_url=auto_path,
+        as_of_date="2026-02-09",
+    )
+
+    assert payload["status"] == "ok"
+    assert payload["source_kind"] == "auto_csv"
+    assert payload["current_signal"] == "triggered_today"
+    assert payload["mcclellan_oscillator"] is not None
+    assert payload["mcclellan_oscillator"] < 0
+    assert "negative_mcclellan" in payload["criteria_passed"]
+    assert any("内部算出" in item for item in payload["limitations"])
+
+
 def test_parser_reports_missing_required_columns(tmp_path: Path) -> None:
     path = tmp_path / "bad.csv"
     path.write_text("date,new_highs,new_lows\n2026-01-02,10,10\n", encoding="utf-8")
@@ -46,6 +165,92 @@ def test_parser_reports_missing_required_columns(tmp_path: Path) -> None:
 
     assert parsed["status"] == "parse_error"
     assert "必須列不足" in parsed["limitations"][0]
+
+
+def test_template_sample_rows_are_not_imported() -> None:
+    parsed = parse_hindenburg_breadth_csv("project/manual_sources/hindenburg_breadth_template.csv")
+
+    assert parsed["status"] == "parse_error"
+    assert parsed["failure_code"] == "TEMPLATE_SAMPLE_ROW"
+
+
+def test_manual_daily_input_validates_and_records_manual_source(tmp_path: Path) -> None:
+    db_path = tmp_path / "hindenburg.sqlite3"
+
+    payload = import_hindenburg_manual_record(
+        market_date="2026-01-02",
+        new_highs=20,
+        new_lows=18,
+        advancers=1200,
+        decliners=1100,
+        total_issues=2500,
+        nyse_index=10000,
+        index_50d_ago=9900,
+        db_path=db_path,
+    )
+
+    assert payload["source_kind"] == "manual_daily_input"
+    assert payload["state"] == "INSUFFICIENT_HISTORY"
+    assert payload["history_progress_label"] == "蓄積履歴: 1 / 39営業日"
+    assert payload["current_signal"] == "unconfirmed"
+    assert payload["current_signal"] != "not_triggered"
+
+
+def test_manual_daily_input_rejects_negative_value(tmp_path: Path) -> None:
+    payload = import_hindenburg_manual_record(
+        market_date="2026-01-02",
+        new_highs=-1,
+        new_lows=18,
+        advancers=1200,
+        decliners=1100,
+        db_path=tmp_path / "hindenburg.sqlite3",
+    )
+
+    assert payload["state"] == "INVALID_DATA"
+    assert payload["current_signal"] == "unavailable"
+
+
+def test_manual_daily_input_idempotent_and_conflict_detection(tmp_path: Path) -> None:
+    db_path = tmp_path / "hindenburg.sqlite3"
+    kwargs = {
+        "market_date": "2026-01-02",
+        "new_highs": 20,
+        "new_lows": 18,
+        "advancers": 1200,
+        "decliners": 1100,
+        "db_path": db_path,
+    }
+    first = import_hindenburg_manual_record(**kwargs)
+    second = import_hindenburg_manual_record(**kwargs)
+    conflict = import_hindenburg_manual_record(**{**kwargs, "new_highs": 21})
+
+    assert first["history_progress_label"] == "蓄積履歴: 1 / 39営業日"
+    assert second["history_progress_label"] == "蓄積履歴: 1 / 39営業日"
+    assert conflict["state"] == "INVALID_DATA"
+    assert conflict["is_previous_confirmed_result"] is True
+
+
+def test_manual_daily_input_reaches_minimum_history(tmp_path: Path) -> None:
+    db_path = tmp_path / "hindenburg.sqlite3"
+    start = date(2026, 1, 1)
+    payload = {}
+    for offset in range(39):
+        current = start + timedelta(days=offset)
+        payload = import_hindenburg_manual_record(
+            market_date=current.isoformat(),
+            new_highs=10,
+            new_lows=8,
+            advancers=1400,
+            decliners=1000,
+            nyse_index=10000 + offset,
+            index_50d_ago=9900,
+            db_path=db_path,
+        )
+
+    assert payload["stored_valid_record_count"] == 39
+    assert payload["minimum_required_record_count"] == 39
+    assert payload["state"] == "CONFIRMED"
+    assert payload["history_complete"] is True
 
 
 def test_all_criteria_pass_triggers_and_builds_active_period(tmp_path: Path) -> None:

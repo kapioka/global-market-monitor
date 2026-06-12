@@ -253,9 +253,9 @@ def test_default_config_path_for_source_layout():
 
 def test_default_config_path_for_frozen_layout(monkeypatch):
     monkeypatch.setattr(sys, "frozen", True, raising=False)
-    monkeypatch.setattr(sys, "executable", r"E:\dist\GlobalMarketMonitor\GlobalMarketMonitor.exe", raising=False)
+    monkeypatch.setattr(sys, "executable", r"Z:\portable\GlobalMarketMonitor\GlobalMarketMonitor.exe", raising=False)
 
-    assert default_config_path() == Path(r"E:\dist\GlobalMarketMonitor\project\config.yaml")
+    assert default_config_path() == Path(r"Z:\portable\GlobalMarketMonitor\project\config.yaml")
 
 
 def test_default_config_path_prefers_internal_bundle_when_root_copy_is_missing(monkeypatch):

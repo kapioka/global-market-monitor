@@ -1,5 +1,52 @@
 # Changelog
 
+## v0.9.0 - Hindenburg Omen Manual Data Workflow
+
+### Added
+
+- Added the completed display-only Hindenburg Omen workflow with experimental built-in provider acquisition, safe unavailable-state handling, and previous confirmed result preservation.
+- Added manual CSV, manual daily-input, blank/template CSV, and a CSV formatter/converter for Japanese and English market-breadth column names.
+- Added beginner-friendly README guidance and Japanese release notes for using Hindenburg Omen when automatic acquisition is unavailable.
+
+### Scope
+
+- Kept Hindenburg Omen display-only and isolated from `final_action`, production `buy_readiness_score`, main risk logic, threshold JSON contents, report output paths, generated reports, cache, tags, and GitHub Release creation.
+
+## v0.8.64 - Full Visual Rebuild from Approved Mockups
+
+### Changed
+
+- Rebuilt the generated main report display as a mock-aligned first-read dashboard with a large decision card, readiness bar, compact confirmation/reason cards, right-side risk/context/data/Hindenburg stack, supplemental signal strip, and lower summary cards.
+- Rebuilt the generated supplement dashboard display as a dense evidence/audit board with header scope chips, section navigation, top evidence summaries, detailed risk/resident/domestic/Hindenburg/data/threshold/runtime/history sections, and a distinct role from the main report.
+- Updated report generator tests to assert the stable semantic structure for the two-page visual split.
+
+### Scope
+
+- Kept `final_action`, production `buy_readiness_score`, buy blocker/card logic, decision-boundary behavior, Hindenburg detection, domestic/global risk logic, data fetching, threshold JSON contents, reliability policy, CI, scripts, dependencies, generated reports, cache, diagnostic zips, release zips, tags, GitHub Release, and push out of scope.
+
+## v0.8.63 - Report and Supplement Dashboard Visual Rebuild
+
+### Changed
+
+- Rebuilt the generated main report as a summary-first dashboard based on the approved v0.8.62 mock direction.
+- Reorganized the supplement dashboard header and navigation so it reads as the canonical detailed evidence and audit page.
+- Added display-layer tests and documentation for the dual-page role split.
+
+### Scope
+
+- Kept `final_action`, production `buy_readiness_score`, buy blocker/card logic, decision-boundary behavior, Hindenburg detection, domestic/global risk logic, data fetching, threshold JSON contents, reliability policy, CI, scripts, dependencies, generated reports, cache, diagnostic zips, release zips, tags, GitHub Release, and push out of scope.
+
+## v0.8.62 - Report Design Review and UI Rebuild Plan
+
+### Added
+
+- Added a planning-only design review for separating `report.html` and `supplement_dashboard.html` into first-read summary and detailed evidence roles.
+- Added ChatGPT image2 mock prompts for future main report and supplement dashboard design exploration.
+
+### Scope
+
+- Kept HTML/CSS/JS implementation, image generation, `final_action`, production `buy_readiness_score`, decision-boundary behavior, Hindenburg detection, threshold JSON contents, reliability policy, buy blocker/card logic, CI, scripts, dependencies, generated reports, cache, diagnostic zips, release zips, tags, GitHub Release, and push out of scope.
+
 ## v0.8.60 - RC Final Polish
 
 ### Changed

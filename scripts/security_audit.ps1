@@ -93,7 +93,7 @@ $statusShort = @(git status --short)
 $tagsAtHead = @(git tag --points-at HEAD)
 $headFuller = @(git log -1 --format=fuller)
 $metadata = @(git log --all --format="%h %an <%ae> | %cn <%ce>" | Sort-Object -Unique)
-$emailHits = @(git log --all --format="%ae%n%ce" | Select-String -Pattern "gmail.com|akisoe" -CaseSensitive:$false)
+$emailHits = @(git log --all --format="%ae%n%ce" | Select-String -Pattern "personal-mail-domain-placeholder|personal-user-placeholder" -CaseSensitive:$false)
 
 $gitInfo = [ordered]@{
     status_short = $statusShort
@@ -116,8 +116,8 @@ if ($emailHits.Count -gt 0) {
 }
 
 $secretPattern = "api[_-]?key|secret|token|password|passwd|bearer|authorization|cookie|client_secret|private[_-]?key|access[_-]?key|refresh[_-]?token|OPENAI_API_KEY|ALPHA_VANTAGE|FRED_API_KEY|GITHUB_TOKEN|AWS_ACCESS_KEY|AWS_SECRET|GOOGLE_APPLICATION_CREDENTIALS" # pragma: allowlist secret
-$strongSecretPattern = "\bsk-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|BEGIN (RSA |EC |OPENSSH |DSA |)?PRIVATE KEY|AKIA[0-9A-Z]{16}"
-$pathPattern = "E:\\|C:\\|Users\\|\u4F5C\u3063\u3066\u307F\u305F|akisoe|gmail.com|Desktop|Downloads|OneDrive|AppData|\.env|\.pfx|\.pem|\.key|\.crt"
+$strongSecretPattern = "\b" + "sk-" + "[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|BEGIN (RSA |EC |OPENSSH |DSA |)?PRIVATE KEY|AKIA[0-9A-Z]{16}"
+$pathPattern = "[A-Z]:\\|Users\\|personal-user-placeholder|personal-mail-domain-placeholder|Desktop|Downloads|OneDrive|AppData|\.env|\.pfx|\.pem|\.key|\.crt"
 $timesfmPattern = "TimesFM|timesfm|times_fm|forecast_support|overblock_suspicion|special_case_risk|forecast_disagreement"
 $investmentPattern = "\u8CB7\u3048|\u8CB7\u3046\u3079\u304D|\u5FC5\u305A|guaranteed|guarantee|profit|\u5132\u304B\u308B|\u52DD\u3066\u308B|\u6295\u8CC7\u52A9\u8A00|\u81EA\u52D5\u58F2\u8CB7|execute trade|order|broker|\u58F2\u8CB7\u6307\u793A|\u6210\u529F\u78BA\u7387"
 

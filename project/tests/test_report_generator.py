@@ -15,8 +15,8 @@ def _report() -> dict:
         "data_source": "sample",
         "runtime_context": {
             "is_frozen": True,
-            "python_executable": r"E:\dist\GlobalMarketMonitor\GlobalMarketMonitor.exe",
-            "working_directory": r"E:\dist\GlobalMarketMonitor",
+            "python_executable": r"Z:\portable\GlobalMarketMonitor\GlobalMarketMonitor.exe",
+            "working_directory": r"Z:\portable\GlobalMarketMonitor",
         },
         "fetch_diagnostics": {
             "summary": {
@@ -698,10 +698,22 @@ def test_render_html_includes_first_read_summary():
     text = render_markdown(_report())
     html = render_html(_report())
 
+    assert "approved-report-dashboard" in html
+    assert "main-dashboard-shell" in html
+    assert "decision-hero" in html
+    assert "readiness-card" in html
+    assert "context-stack" in html
+    assert "hindenburg-lamp-card" in html
     assert "glance-summary" in html
-    assert "まず見るポイント" in html
+    assert "本体判断" in html
+    assert "補助確認" in html
+    assert "グローバルリスク" in html
+    assert "日本在住者向け文脈" in html
+    assert "データ制約" in html
+    assert "Hindenburg Omen" in html
+    assert "詳細は補足レポートで確認" in html
+    assert "本レポートは市場のモニタリングを目的としており" in html
     assert "買い判断カード" in html
-    assert "初心者向けひとこと" in html
     assert "これは成功確率ではありません" in html
     assert "SPY" in html
     assert "XLK" in html
@@ -730,8 +742,6 @@ def test_render_html_includes_first_read_summary():
     assert "金ETF" in text
     assert "危険ライン監視" in text
     assert "米国・グローバル中心の危険監視" in html
-    assert "米ドル指数は米国・グローバルのドル高ストレス確認に使います。" in html
-    assert "USDJPY/EURJPY は日本円で見た外貨建て資産の円換算影響確認に使います。" in html
     assert "信用波及初期" in text
     assert "VIX指数" in text
     assert "警告レイヤー" in text
@@ -751,26 +761,32 @@ def test_render_html_includes_first_read_summary():
 
 def test_render_html_beginner_top_sections_hide_internal_terms():
     html = render_html(_report())
-    start = html.index('<section class="glance-summary"')
-    end = html.index('<section class="hero-card"', start)
+    start = html.index('<section class="approved-report-dashboard main-dashboard-shell"')
+    end = html.index('<div class="mini-grid">', start)
     top_html = html[start:end]
+    regime_index = top_html.index("市場レジーム")
+    supplemental_index = top_html.index('<section class="supplemental-signal-strip"')
+    context_index = top_html.index("判断とリスク文脈の読み分け")
+    beginner_html = top_html[:context_index]
 
-    assert "まず見るポイント" in top_html
-    assert "買い判断カード" in top_html
-    assert "今の判断" in top_html
-    assert "買い場か？" in top_html
-    assert "市場の状態" in top_html
-    assert "主な理由" in top_html
-    assert "次に見るもの" in top_html
-    assert "初心者向けひとこと" in top_html
-    assert "現在の判断" in top_html
-    assert "理由" in top_html
-    assert "危険度" in top_html
+    assert "本体判断" in top_html
+    assert "買い候補度" in top_html
+    assert "補助確認" in top_html
+    assert "グローバルリスク" in top_html
+    assert "日本在住者向け文脈" in top_html
+    assert "データ制約" in top_html
+    assert "Hindenburg Omen" in top_html
+    assert "次の確認条件" in top_html
     assert "買い候補" in top_html
-    assert "今すること" in top_html
     assert "これは成功確率ではありません" in top_html
+    assert "単独では売買判断に使いません" in top_html
+    assert "詳細は補足レポートで確認" in top_html
     assert "SPY" in top_html
     assert "XLK" in top_html
+    assert regime_index < supplemental_index < context_index
+    assert "summary-choice-grid" not in top_html
+    assert "<table" not in beginner_html
+    assert "危険ライン詳細" not in beginner_html
 
     forbidden_terms = [
         "raw/final buy_window",
@@ -784,7 +800,7 @@ def test_render_html_beginner_top_sections_hide_internal_terms():
         "buy_readiness_score",
     ]
     for term in forbidden_terms:
-        assert term not in top_html
+        assert term not in beginner_html
 
     advice_terms = ["買うべき", "今が買い", "利益が出る", "安全に買える"]
     for term in advice_terms:
@@ -796,15 +812,14 @@ def test_render_html_readiness_gauge_renders_score_from_left_origin(score, rende
     report = deepcopy(_report())
     report["buy_decision_card"]["buy_readiness_score"] = score
     html = render_html(report)
-    start = html.index('<section class="buy-decision-flow"')
-    end = html.index('<section class="hero-card"', start)
+    start = html.index('<section class="approved-report-dashboard main-dashboard-shell"')
+    end = html.index('<div class="dashboard-grid detail-summary-grid">', start)
     top_html = html[start:end]
 
     assert f'style="--score:{rendered_score}"' in top_html
     assert f'aria-label="買い候補度 {rendered_score} / 100"' in top_html
     assert "これは成功確率ではありません" in top_html
-    assert "from 270deg" in html
-    assert "calc(var(--score) * 1.8deg)" in html
+    assert "width:calc(var(--score) * 1%)" in html
 
 
 @pytest.mark.parametrize(
@@ -857,12 +872,12 @@ def test_render_html_beginner_top_sections_support_synthetic_scenarios(scenario,
     report = deepcopy(_report())
     mutate(report)
     html = render_html(report)
-    start = html.index('<section class="glance-summary"')
-    end = html.index('<section class="hero-card"', start)
+    start = html.index('<section class="approved-report-dashboard main-dashboard-shell"')
+    end = html.index('<div class="dashboard-grid detail-summary-grid">', start)
     top_html = html[start:end]
 
     assert scenario
-    for text in ["まず見るポイント", "買い判断カード", "初心者向けひとこと", "これは成功確率ではありません"]:
+    for text in ["本体判断", "補助確認", "買い候補度", "これは成功確率ではありません"]:
         assert text in top_html
     for text in required_text:
         assert text in top_html
@@ -887,10 +902,10 @@ def test_render_html_beginner_top_sections_support_synthetic_scenarios(scenario,
 def test_render_html_contains_japanese_explanations():
     html = render_html(_report())
     assert "市場レジーム" in html
-    assert "補足ダッシュボード" in html
+    assert "データ更新" in html
     assert "スポット投資判断" in html
     assert "セクター概要" in html
-    assert "アラートレイヤー" in html
+    assert "アラート" in html
     assert "データ健全性" in html
     assert "データ品質上限" in html
     assert "proxy=1 / sample=1 / unavailable=0" in html
@@ -991,7 +1006,7 @@ def test_render_outputs_include_japan_resident_integrated_risk_context():
     html = render_html(report)
     supplement = render_supplement_dashboard_html(report)
 
-    for rendered in (markdown, html, supplement):
+    for rendered in (markdown, supplement):
         assert "日本在住者向け統合リスク文脈" in rendered
         assert "米国・グローバル" in rendered
         assert "USDJPY/EURJPY" in rendered
@@ -1000,6 +1015,9 @@ def test_render_outputs_include_japan_resident_integrated_risk_context():
         assert "buy_readiness_score への影響" in rendered
         assert "False" in rendered
         assert "manual_file_missing" in rendered
+    assert "日本在住者向け統合リスク文脈" not in html
+    assert "日本在住者向け文脈" in html
+    assert "manual_file_missing" in html
 
 
 def test_render_html_groups_core_supplemental_data_limits_and_acquisition_status():
@@ -1022,7 +1040,8 @@ def test_render_html_groups_core_supplemental_data_limits_and_acquisition_status
 
     assert "判断とリスク文脈の読み分け" in html
     assert "本体判断" in html
-    assert "補助判断" in html
+    assert "補助判断" not in html
+    assert "アラート" in html
     assert "グローバル危険ライン" in html
     assert "データ制約・取得状況" in html
     assert "実験比較" in html
@@ -1168,39 +1187,44 @@ def test_render_html_handles_legacy_multi_asset_candidate_shape_with_safe_labels
 
 def test_render_supplement_dashboard_html_maps_all_source_sections():
     html = render_supplement_dashboard_html(_report())
-    assert "補足レポート ダッシュボード" in html
+    assert "supplement-dashboard-shell" in html
+    assert "evidence-summary-grid" in html
+    assert "supplement-evidence-grid" in html
+    assert "補足レポート" in html
+    assert "本体判断ではなく、補助確認と検証用の詳細です" in html
+    assert "本体判断への影響なし" in html
     assert "report.html" in html
     assert "履歴" in html
-    assert "判定" in html
-    assert "セクター" in html
-    assert "市場監視" in html
-    assert "監査" in html
+    for nav_label in ["危険ライン", "日本在住者文脈", "国内文脈", "Hindenburg Omen", "データ取得", "しきい値", "実行環境", "履歴"]:
+        assert nav_label in html
+    for class_name in [
+        "risk-line-detail-section",
+        "resident-context-detail-section",
+        "domestic-context-detail-section",
+        "hindenburg-history-section",
+        "data-acquisition-section",
+        "threshold-audit-section",
+        "runtime-diagnostics-section",
+        "history-browser-section",
+    ]:
+        assert class_name in html
     assert "データ品質上限" in html
     assert "live 75%" in html
     assert "元:" not in html
     for section in [
-        "過去履歴ブラウズ",
-        "セクターローテーション",
-        "判定理由",
-        "危険ライン監視",
-        "投資候補",
-        "先回り候補",
-        "レジーム先回り候補",
-        "セクターローテーション内部構造",
-        "資産クラス比較",
-        "信用監視",
-        "インフレ監視",
-        "円建て・為替リスク",
-        "警告レイヤー",
-        "類似局面",
+        "危険ライン詳細と信頼度監査",
+        "日本在住者文脈（統合）詳細",
+        "国内文脈（危険シグナル）詳細",
+        "Hindenburg Omen トリガー / 発動履歴",
+        "資産クラス / 候補証拠",
         "データ取得状況",
-        "接続診断",
-        "警告",
+        "しきい値の使用状況と認証",
+        "実行環境 / 接続診断",
+        "履歴ブラウザ",
     ]:
         assert section in html
-    assert "supplementHistoryPayload" in html
+    assert "decision-hero" not in html
     assert "SPY" in html
-    assert "HYG/LQD" in html
     assert "USDJPY=X" in html
     assert "生活コスト上昇警戒" in html
 
@@ -1237,6 +1261,45 @@ def test_render_outputs_include_inactive_and_missing_hindenburg_states():
     assert "Hindenburg Omen: 点灯なし" in inactive_markdown
     assert "Hindenburg Omen: 未取得" in missing_html
     assert "市場幅CSVが未設定のため判定できません" in missing_html
+
+
+def test_hindenburg_report_includes_history_and_experimental_labels():
+    report = deepcopy(_report())
+    payload = _hindenburg_payload("missing")
+    payload.update(
+        {
+            "status": "data_unavailable",
+            "state": "UNINITIALIZED",
+            "source_kind": "builtin_provider_chain",
+            "failure_code": "ALL_PROVIDERS_UNAVAILABLE",
+            "history_progress_label": "蓄積履歴: 0 / 39営業日",
+            "automatic_acquisition": {
+                "label": "自動取得・実験的",
+                "attempted": True,
+                "eligible": True,
+                "success_label": False,
+                "reason": "ELIGIBLE",
+            },
+            "provider_attempts": [
+                {
+                    "provider_id": "barchart_market_momentum",
+                    "provider_label": "Barchart Market Momentum",
+                    "status": "failed",
+                    "failure_code": "ISSUE_COUNTS_NOT_AVAILABLE",
+                }
+            ],
+            "providers_attempted_count": 1,
+        }
+    )
+    report["hindenburg_omen_context"] = payload
+
+    markdown = render_markdown(report)
+    html = render_supplement_dashboard_html(report)
+
+    assert "自動取得・実験的（未成立）" in markdown
+    assert "蓄積履歴: 0 / 39営業日" in markdown
+    assert "accepted=False" in markdown
+    assert "自動取得・実験的" in html
 
 
 def test_render_outputs_include_stale_hindenburg_state_without_active_notice():

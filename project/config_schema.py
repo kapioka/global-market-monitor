@@ -18,6 +18,7 @@ KNOWN_TOP_LEVEL_KEYS = {
     "risk_line_recalibration",
     "japan_risk",
     "sector_vector_analysis",
+    "hindenburg_omen",
 }
 CRITICAL_TICKERS = {"ACWI", "SPY", "^VIX", "HYG", "LQD", "USDJPY=X"}
 
