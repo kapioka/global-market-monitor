@@ -13,7 +13,7 @@ def test_buy_unlock_conditions_for_fx_risk() -> None:
     )
 
     assert payload["affects_final_action"] is False
-    assert payload["unlock_conditions"][0]["condition"] == "foreign_asset_fx_headwind resolves"
+    assert payload["unlock_conditions"][0]["condition"] == "外貨建て資産の為替逆風が解消する"
     assert payload["unlock_conditions"][1]["current_value"] == 0.04
 
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.9.1 - Japanese Report Wording and Risk-Line Display Polish
+
+### Changed
+
+- レポート本文、補足レポート、上段ダッシュボードに残っていた英語表記・内部コード表記を、日本在住者が読みやすい日本語表記へ整理しました。
+- `transition`、`late_cycle`、`recovery evidence weak`、`score shortfall`、`manual_file_missing`、`endpoint_not_resolved`、`False` などの表示漏れを、表示直前の変換層で日本語化しました。
+- ヒンデンブルグオーメンの表示カード内に、手動取得方法を開くリンクを追加しました。
+- 中央の危険ライン表示を、現在値、危険度、注意ライン、危険ライン、非常に危険ラインの距離感が分かる棒グラフへ調整しました。
+
+### Scope
+
+- 表示文言、レポートHTML/Markdown生成、説明用グラフ表現、テスト期待値の更新に限定しました。
+- `final_action`、本番の買い候補度、危険ライン判定ロジック、Hindenburg Omen 判定、threshold JSON、データ取得処理、生成済みレポート、cache、release archive、GitHub Release 作成は変更していません。
+
 ## v0.9.0 - Hindenburg Omen Manual Data Workflow
 
 ### Added

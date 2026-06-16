@@ -20,7 +20,7 @@ def test_rule_certification_summary_appears_in_markdown_and_html():
     markdown = render_markdown(report)
     html = render_html(report)
 
-    assert "Threshold Rule Certification" in markdown
-    assert "certified rules: 0" in markdown
-    assert "Threshold Rule Certification" in html
-    assert "fallback_review" in html
+    assert "しきい値ルール認証" in markdown
+    assert "認証済みルール: 0" in markdown
+    assert "しきい値ルール認証" in html
+    assert "暫定レビュー" in html

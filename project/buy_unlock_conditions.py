@@ -19,73 +19,73 @@ def build_buy_unlock_conditions(blocker_breakdown: dict[str, Any], report: dict[
 def _conditions_for(primary: str, report: dict[str, Any]) -> list[dict[str, Any]]:
     if primary == "fx_risk":
         return [
-            _condition("foreign_asset_fx_headwind resolves", "foreign_asset_fx_headwind", "absent", "FX headwind is the main buy blocker."),
+            _condition("外貨建て資産の為替逆風が解消する", "foreign_asset_fx_headwind", "逆風なし", "為替逆風が主な買い判断の阻害要因です。"),
             _condition(
-                "USDJPY 4w change stabilizes", _usdjpy_change(report), "within caution band", "Separate asset strength from yen move."
+                "USDJPYの4週変化が落ち着く", _usdjpy_change(report), "警戒帯の内側", "資産自体の強さと円安・円高の影響を分けて確認します。"
             ),
             _condition(
-                "risk_stage remains normal/caution",
+                "市場ストレス段階が通常または警戒内に収まる",
                 _risk_stage(report),
-                "normal or caution",
-                "Do not soften FX while broader risk is stressed.",
+                "通常または警戒",
+                "市場全体のストレスが強い間は、為替だけを理由に判断を緩めません。",
             ),
         ]
     if primary == "risk_line":
         return [
             _condition(
-                "risk_stage improves",
+                "市場ストレス段階が改善する",
                 _risk_stage(report),
-                "normal or caution",
-                "Danger-line conditions should clear before stronger buy labels.",
+                "通常または警戒",
+                "危険ラインの条件が解消してから、より強い買い候補表示を確認します。",
             ),
             _condition(
-                "VIX / credit / rates triggers clear", _risk_reasons(report), "no active danger trigger", "Risk-line blocker is active."
+                "VIX・信用・金利の危険トリガーが解消する", _risk_reasons(report), "有効な危険トリガーなし", "危険ラインが買い判断の阻害要因です。"
             ),
         ]
     if primary == "credit_stress":
-        return [_condition("credit proxy improves", "credit_stress", "neutral or improving", "Credit stress blocks buy candidates.")]
+        return [_condition("信用市場の代理指標が改善する", "credit_stress", "中立または改善", "信用ストレスが買い候補化を妨げています。")]
     if primary == "rate_shock":
-        return [_condition("rates shock fades", "rate_shock", "not active", "Rate-shock regimes were weak in long-range replay.")]
+        return [_condition("金利ショックが弱まる", "rate_shock", "発生していない", "長期検証では金利ショック局面の買い候補は弱めでした。")]
     if primary == "data_quality":
         return [
             _condition(
-                "data reliability improves",
+                "データ信頼性が改善する",
                 _reliability(report),
-                "medium/high with decision_allowed",
-                "Final action is capped by data quality.",
+                "中または高、かつ判断許可あり",
+                "データ品質により最終判断に上限がかかっています。",
             )
         ]
     if primary == "sample_only":
         return [
             _condition(
-                "live data replaces sample fallback",
+                "実データがサンプル代替を置き換える",
                 _reliability(report),
-                "no sample fallback cap",
-                "Sample-only output must not become a buy signal.",
+                "サンプル代替による上限なし",
+                "サンプルのみの出力を買いシグナルとして扱いません。",
             )
         ]
     if primary == "recovery_evidence_weak":
         return [
             _condition(
-                "recovery evidence reaches building",
+                "回復証拠が形成中以上になる",
                 _recovery_grade(report),
-                "building or confirmed",
-                "Recovery evidence is not strong enough.",
+                "形成中または確認済み",
+                "回復証拠がまだ十分ではありません。",
             )
         ]
     if primary == "score_shortfall":
         return [
             _condition(
-                "market score approaches candidate/buy threshold",
+                "市場スコアが買い候補の目安に近づく",
                 _score(report),
-                "near candidate threshold",
-                "Market score is below buy threshold.",
+                "候補化の目安付近",
+                "市場スコアが買い判断の目安を下回っています。",
             )
         ]
     if primary == "drawdown_guard":
-        return [_condition("drawdown context improves", "drawdown_guard", "guard not triggered", "DD guard remains diagnostic-only.")]
+        return [_condition("ドローダウン文脈が改善する", "drawdown_guard", "ガード非発動", "ドローダウンガードは診断専用です。")]
     return [
-        _condition("confirm market score, risk stage, FX, and data quality", "-", "all clear", "No single classified blocker dominates.")
+        _condition("市場スコア・ストレス段階・為替・データ品質を確認する", "-", "すべて問題なし", "単独で支配的な阻害要因は分類されていません。")
     ]
 
 
@@ -95,7 +95,7 @@ def _condition(condition: str, current: Any, target: str, reason: str) -> dict[s
         "current_value": current,
         "target_state": target,
         "reason": reason,
-        "caveat": "This is an explanatory condition, not an automatic buy instruction.",
+        "caveat": "これは説明用の確認条件であり、自動的な買い指示ではありません。",
     }
 
 
@@ -109,7 +109,7 @@ def _risk_reasons(report: dict[str, Any]) -> list[str]:
 
 def _reliability(report: dict[str, Any]) -> str:
     reliability = report.get("data_reliability") or {}
-    return f"{reliability.get('level', '-')}, decision_allowed={reliability.get('decision_allowed', '-')}"
+    return f"{_reliability_label(reliability.get('level', '-'))}, 判断許可={reliability.get('decision_allowed', '-')}"
 
 
 def _recovery_grade(report: dict[str, Any]) -> str:
@@ -122,3 +122,7 @@ def _score(report: dict[str, Any]) -> Any:
 
 def _usdjpy_change(report: dict[str, Any]) -> Any:
     return ((report.get("japan_risk") or {}).get("usd_jpy") or {}).get("change_4w", "-")
+
+
+def _reliability_label(value: Any) -> str:
+    return {"high": "高", "medium": "中", "low": "低", "diagnostic": "診断用"}.get(str(value), str(value))

@@ -47,14 +47,14 @@ def test_threshold_usage_section_appears_in_markdown_and_html():
     markdown = render_markdown(report)
     html = render_html(report)
 
-    assert "Threshold Usage" in markdown
-    assert "実運用閾値: active" in markdown
-    assert "proposed threshold: hold" in markdown
-    assert "candidate_v2: diagnostic_only" in markdown
-    assert "final action source: active threshold + reliability policy" in markdown
-    assert "proposed / candidate_v2 affects final action: False" in markdown
-    assert "Threshold Usage" in html
-    assert "active threshold + reliability policy" in html
+    assert "しきい値利用方針" in markdown
+    assert "実運用しきい値: 実運用" in markdown
+    assert "提案中しきい値: 保留" in markdown
+    assert "候補版v2: 診断専用" in markdown
+    assert "最終判断の根拠: 実運用しきい値 + データ信頼性方針" in markdown
+    assert "提案中しきい値 / 候補版v2 の最終判断への影響: いいえ" in markdown
+    assert "しきい値利用方針" in html
+    assert "実運用しきい値 + データ信頼性方針" in html
 
 
 def test_threshold_usage_section_handles_missing_payload():
@@ -65,6 +65,6 @@ def test_threshold_usage_section_handles_missing_payload():
     markdown = render_markdown(report)
     html = render_html(report)
 
-    assert "Threshold Usage" in markdown
-    assert "実運用閾値: -" in markdown
-    assert "Threshold Usage" in html
+    assert "しきい値利用方針" in markdown
+    assert "実運用しきい値: -" in markdown
+    assert "しきい値利用方針" in html

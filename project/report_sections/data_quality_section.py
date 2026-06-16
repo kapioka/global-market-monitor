@@ -9,9 +9,9 @@ def data_quality_markdown_lines(report: dict[str, Any]) -> list[str]:
     reliability = report.get("data_reliability", {})
     action_decision = report.get("spot_signal", {}).get("action_decision", {})
     return [
-        f"- live 取得率: {_display_percent(reliability.get('live_ratio'))}",
-        f"- データ品質上限: {action_label_ja(str(reliability.get('max_action', 'buy_window')))} / confidence 上限 {_display_compact_number(reliability.get('confidence_cap'), digits=2)}",
-        f"- 代替取得内訳: proxy={reliability.get('proxy_fallback_count', 0)} / sample={reliability.get('sample_fallback_count', 0)} / unavailable={reliability.get('unavailable_count', 0)}",
+        f"- 実データ取得率: {_display_percent(reliability.get('live_ratio'))}",
+        f"- データ品質上限: {action_label_ja(str(reliability.get('max_action', 'buy_window')))} / 信頼度上限 {_display_compact_number(reliability.get('confidence_cap'), digits=2)}",
+        f"- 代替取得内訳: 代替ティッカー={reliability.get('proxy_fallback_count', 0)} / サンプル代替={reliability.get('sample_fallback_count', 0)} / 未取得={reliability.get('unavailable_count', 0)}",
         f"- 重要系列不足: {', '.join(reliability.get('critical_failures', [])) or 'なし'}",
         f"- データ品質による降格: {'あり' if action_decision.get('reliability_cap_applied') else 'なし'} / 理由 {', '.join(action_decision.get('cap_reason', [])) or reliability.get('reason_code', '-')}",
     ]
@@ -22,14 +22,14 @@ def data_quality_html_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
     action_decision = report.get("spot_signal", {}).get("action_decision", {})
     return [
         ("判定信頼性", _jp_reliability(str(reliability.get("level", "high")))),
-        ("live 取得率", _display_percent(reliability.get("live_ratio"))),
+        ("実データ取得率", _display_percent(reliability.get("live_ratio"))),
         (
             "データ品質上限",
-            f"{action_label_ja(str(reliability.get('max_action', 'buy_window')))} / confidence {_display_compact_number(reliability.get('confidence_cap'), digits=2)}",
+            f"{action_label_ja(str(reliability.get('max_action', 'buy_window')))} / 信頼度 {_display_compact_number(reliability.get('confidence_cap'), digits=2)}",
         ),
         (
             "代替取得内訳",
-            f"proxy={reliability.get('proxy_fallback_count', 0)} / sample={reliability.get('sample_fallback_count', 0)} / unavailable={reliability.get('unavailable_count', 0)}",
+            f"代替ティッカー={reliability.get('proxy_fallback_count', 0)} / サンプル代替={reliability.get('sample_fallback_count', 0)} / 未取得={reliability.get('unavailable_count', 0)}",
         ),
         ("重要系列不足", ", ".join(reliability.get("critical_failures", [])) or "なし"),
         (

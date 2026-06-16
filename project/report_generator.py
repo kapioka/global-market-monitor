@@ -50,6 +50,61 @@ CYCLE_LABELS = {
     "insufficient_data": "データ不足",
 }
 
+DISPLAY_TOKEN_LABELS = {
+    "transition": "移行局面",
+    "late_cycle": "終盤局面",
+    "upswing": "上昇局面",
+    "downswing": "下降局面",
+    "recovery": "回復局面",
+    "risk_on": "リスクオン",
+    "risk_off": "リスクオフ",
+    "credit_stress": "信用ストレス",
+    "early_recovery": "初期回復",
+    "inflation_shock": "インフレショック",
+    "stagflation_warning": "スタグフレーション警戒",
+    "wait": "待機",
+    "watch": "監視継続",
+    "hold": "保留",
+    "confirmed": "確認済み",
+    "caution": "注意",
+    "weak": "弱い",
+    "active": "実運用",
+    "diagnostic_only": "診断専用",
+    "not_evaluable": "評価不能",
+    "unavailable": "未取得",
+    "informational": "参考表示",
+    "flat": "横ばい",
+    "rising": "上昇",
+    "weakening": "弱含み",
+    "manual_file_missing": "手動CSV未設定",
+    "endpoint_not_resolved": "取得先未確定",
+    "price_metrics_missing": "価格指標未接続",
+    "split_or_discontinuity_suspected": "分割・データ断絶の疑い",
+    "risk_signal_excluded": "危険シグナルから除外",
+    "buy_window_count_is_zero": "買い検討ゾーンの件数不足",
+    "insufficient_forward_return_evidence": "将来リターン検証の証拠不足",
+    "no_trigger_evidence": "トリガー証拠なし",
+    "confidence_fallback_review": "信頼度が暫定レビュー",
+    "score_shortfall": "スコア不足",
+    "recovery_evidence_weak": "回復証拠が弱い",
+    "evidence_building_with_caution": "証拠形成中・注意",
+    "sample_fallback_present": "サンプル代替あり",
+    "fallback_review": "暫定レビュー",
+    "low_precision": "精度不足",
+    "pass": "通過",
+    "failed": "失敗",
+    "ISSUE_COUNTS_NOT_AVAILABLE": "市場幅件数を取得できません",
+    "ACCESS_DENIED": "アクセス拒否",
+    "MANDATORY_FIELD_MISSING": "必須項目不足",
+}
+
+DISPLAY_PHRASE_LABELS = {
+    "recovery evidence weak": "回復証拠が弱い",
+    "score shortfall": "スコア不足",
+    "False": "いいえ",
+    "True": "はい",
+}
+
 SECTION_EXPLANATIONS = {
     "regime": "市場レジームは、モメンタム、トレンド強度、最大ドローダウン、ボラティリティ圧縮をまとめて地合いを分類したものです。",
     "cycle": "サイクル判定は週次データの位相から、相場が上昇・終盤・回復・下降のどこに近いかを見る補助指標です。",
@@ -63,13 +118,13 @@ SECTION_EXPLANATIONS = {
     "risk_lines": "危険ライン監視は、VIX、MOVE、米10年、原油、ドル、SPY、HYG、LQD、HYG/LQD をまとめて、通常・警戒・危険ライン・非常に危険ラインのどこにあるかを示す判定層です。",
     "analogues": "類似局面は、直近 12 週の値動きに近い過去パターンを探し、その後 12 週の結果を参考情報として表示します。",
     "availability": "データ取得状況では、各系列が主系列で取れたか、代替ティッカーへ切り替わったか、サンプル代替か、完全未取得かを示します。",
-    "diagnostics": "接続診断では、今回の実行が live 取得だったか、配布 exe 実行か、失敗時にどのホストや例外が出たかを後から追えるようにまとめます。",
+    "diagnostics": "接続診断では、今回の実行が実データ取得だったか、配布版実行か、失敗時にどのホストや例外が出たかを後から追えるようにまとめます。",
     "decision_reasons": "判定理由は、地合い、サイクル、合成スコア、信用市場の補助情報を文章でつないだ要約です。数値一覧だけで見落としやすい悪化要因を先に読むために使います。",
     "candidates": "投資候補は、既存の地合い判定を前提に、相対強度の高い資産クラスや先導セクターを候補として整理する補助層です。強い推奨ではなく、優先候補・観察候補・候補なしの三段で示します。",
     "multi_asset_candidates": "資産クラス別の確認候補は、株式・ゴールド・債券・現金待機を同じ買い候補度に混ぜず、役割別に整理する補助層です。",
     "domestic_danger_context": "国内文脈の補助危険確認は、国内株式、円建て債券、国内REIT、円建て金、為替、JGB利回り、CPI/BOJ取得状況を、既存の危険ラインとは分けて見る表示専用の補助層です。",
     "japan_resident_integrated_risk_context": "日本在住者向け統合リスク文脈は、米国・グローバル危険ライン、国内危険文脈、為替、国内金利、国内インフレのデータ制約を一つに並べる表示専用の補助層です。",
-    "hindenburg_omen": "Hindenburg Omen は米国市場幅の分裂を確認する補助指標です。単独では売買判断に使いません。",
+    "hindenburg_omen": "ヒンデンブルグオーメンは米国市場幅の分裂を確認する補助指標です。単独では売買判断に使いません。",
     "recovery_candidates": "先回り候補は、今は強くなくても、下落後に改善初期へ入りつつある資産やセクターを拾う補助層です。安いだけでなく、短期の改善と深い調整の両方を見ます。",
     "regime_leading_candidates": "レジーム先回り候補は、次の地合いで効きやすいセクターテーマを拾う補助層です。価格の底打ちだけではなく、現レジームとの相性と直近の改善兆候を合わせて見ます。",
     "alerts": "警告レイヤーは、既存の市場判定を上書きせずに、内部ロジックがどこで警戒を発火しているかを見えるようにする補助層です。市場警告、生活影響警告、補足メモに分けて表示します。",
@@ -194,19 +249,36 @@ def _format_risk_threshold_beginner_html(value: Any) -> str:
     return "<br>".join(html.escape(part) for part in parts)
 
 
+def _display_bool(value: Any) -> str:
+    return "はい" if bool(value) else "いいえ"
+
+
+def _localize_display_text(value: Any) -> str:
+    if isinstance(value, bool):
+        return _display_bool(value)
+    text = str(value)
+    for src, dst in sorted(DISPLAY_PHRASE_LABELS.items(), key=lambda item: len(item[0]), reverse=True):
+        text = text.replace(src, dst)
+    for src, dst in sorted(DISPLAY_TOKEN_LABELS.items(), key=lambda item: len(item[0]), reverse=True):
+        text = text.replace(src, dst)
+    text = text.replace("legacy 判定", "旧判定")
+    text = text.replace("rule単位", "ルール単位")
+    return text
+
+
 def _threshold_rule_certification_markdown_lines(report: dict[str, Any]) -> list[str]:
     payload = report.get("threshold_rule_certification") or {}
     summary = payload.get("summary") or {}
     blocking = payload.get("top_blocking_reasons") or []
-    reasons = ", ".join(str(row.get("reason")) for row in blocking[:4] if row.get("reason")) or "-"
+    reasons = ", ".join(_localize_display_text(row.get("reason")) for row in blocking[:4] if row.get("reason")) or "-"
     return [
-        "## Threshold Rule Certification",
-        f"- certified rules: {summary.get('certified_count', 0)}",
-        f"- conditional rules: {summary.get('conditional_count', 0)}",
-        f"- diagnostic only: {summary.get('diagnostic_only_count', 0)}",
-        f"- hold / not evaluable: {summary.get('hold_count', 0)} / {summary.get('not_evaluable_count', 0)}",
-        f"- final action impact: {payload.get('currently_affects_final_action', False)}",
-        f"- main blocking reasons: {reasons}",
+        "## しきい値ルール認証",
+        f"- 認証済みルール: {summary.get('certified_count', 0)}",
+        f"- 条件付きルール: {summary.get('conditional_count', 0)}",
+        f"- 診断専用: {summary.get('diagnostic_only_count', 0)}",
+        f"- 保留 / 評価不能: {summary.get('hold_count', 0)} / {summary.get('not_evaluable_count', 0)}",
+        f"- 最終判断への影響: {_display_bool(payload.get('currently_affects_final_action', False))}",
+        f"- 主な阻害理由: {reasons}",
     ]
 
 
@@ -215,21 +287,22 @@ def _threshold_rule_certification_html(report: dict[str, Any]) -> str:
     summary = payload.get("summary") or {}
     blocking = payload.get("top_blocking_reasons") or []
     reasons = "".join(
-        f"<li>{html.escape(str(row.get('reason', '-')))}: {html.escape(str(row.get('count', 0)))}</li>" for row in blocking[:4]
+        f"<li>{html.escape(_localize_display_text(row.get('reason', '-')))}: {html.escape(str(row.get('count', 0)))}</li>"
+        for row in blocking[:4]
     )
     if not reasons:
         reasons = "<li>-</li>"
     return f"""
     <section class="card">
-      <h2>Threshold Rule Certification</h2>
+      <h2>しきい値ルール認証</h2>
       <ul>
-        <li>certified rules: {html.escape(str(summary.get('certified_count', 0)))}</li>
-        <li>conditional rules: {html.escape(str(summary.get('conditional_count', 0)))}</li>
-        <li>diagnostic only: {html.escape(str(summary.get('diagnostic_only_count', 0)))}</li>
-        <li>hold / not evaluable: {html.escape(str(summary.get('hold_count', 0)))} / {html.escape(str(summary.get('not_evaluable_count', 0)))}</li>
-        <li>final action impact: {html.escape(str(payload.get('currently_affects_final_action', False)))}</li>
+        <li>認証済みルール: {html.escape(str(summary.get('certified_count', 0)))}</li>
+        <li>条件付きルール: {html.escape(str(summary.get('conditional_count', 0)))}</li>
+        <li>診断専用: {html.escape(str(summary.get('diagnostic_only_count', 0)))}</li>
+        <li>保留 / 評価不能: {html.escape(str(summary.get('hold_count', 0)))} / {html.escape(str(summary.get('not_evaluable_count', 0)))}</li>
+        <li>最終判断への影響: {html.escape(_display_bool(payload.get('currently_affects_final_action', False)))}</li>
       </ul>
-      <p>main blocking reasons</p>
+      <p>主な阻害理由</p>
       <ul>{reasons}</ul>
     </section>
     """
@@ -242,8 +315,8 @@ def _multi_asset_candidate_markdown_lines(report: dict[str, Any]) -> list[str]:
     lines = ["", "## 資産クラス別の確認候補", f"- {SECTION_EXPLANATIONS['multi_asset_candidates']}"]
     lines.append(f"- 要約: {payload.get('summary', '-')}")
     lines.append(f"- 注意: {payload.get('disclaimer', '-')}")
-    lines.append(f"- final_action への影響: {payload.get('affects_final_action', False)}")
-    lines.append(f"- buy_readiness_score への影響: {payload.get('affects_buy_readiness_score', False)}")
+    lines.append(f"- 最終判断への影響: {_display_bool(payload.get('affects_final_action', False))}")
+    lines.append(f"- 買い候補度への影響: {_display_bool(payload.get('affects_buy_readiness_score', False))}")
     for row in payload.get("candidates", []):
         metrics = row.get("metrics") or {}
         metric_text = _market_metric_summary(metrics)
@@ -259,8 +332,8 @@ def _multi_asset_candidate_markdown_lines(report: dict[str, Any]) -> list[str]:
                 metrics=metric_text,
             )
         )
-        lines.append(f"  - 理由: {row.get('reason', '-')}")
-        lines.append(f"  - 注意: {row.get('caution', '-')}")
+        lines.append(f"  - 理由: {_localize_display_text(row.get('reason', '-'))}")
+        lines.append(f"  - 注意: {_localize_display_text(row.get('caution', '-'))}")
         context_line = _japan_resident_context_markdown(row)
         if context_line:
             lines.append(f"  - 日本居住者向け確認: {context_line}")
@@ -278,7 +351,7 @@ def _multi_asset_candidate_html(report: dict[str, Any]) -> str:
         f"<td>{html.escape(str(row.get('role_label', '-')))}</td>"
         f"<td>{html.escape(_multi_asset_status_label(row.get('status')))}</td>"
         f"<td>{'あり' if row.get('source_data_available') else 'なし'}</td>"
-        f"<td>{html.escape(str(row.get('reason', '-')))}<br><span style='color:#52606d'>分類: {html.escape(_multi_asset_reason_category_label(row.get('reason_category')))} / 指標: {html.escape(_market_metric_summary(row.get('metrics') or {}))} / 注意: {html.escape(str(row.get('caution', '-')))}</span>{_japan_resident_context_html(row)}</td>"
+        f"<td>{html.escape(_localize_display_text(row.get('reason', '-')))}<br><span style='color:#52606d'>分類: {html.escape(_multi_asset_reason_category_label(row.get('reason_category')))} / 指標: {html.escape(_market_metric_summary(row.get('metrics') or {}))} / 注意: {html.escape(_localize_display_text(row.get('caution', '-')))}</span>{_japan_resident_context_html(row)}</td>"
         "</tr>"
         for row in payload.get("candidates", [])
     )
@@ -291,8 +364,8 @@ def _multi_asset_candidate_html(report: dict[str, Any]) -> str:
       <p>{html.escape(str(payload.get('summary', '-')))}</p>
       <p><strong>注意:</strong> {html.escape(str(payload.get('disclaimer', '-')))}</p>
       <ul>
-        <li>final_action への影響: {html.escape(str(payload.get('affects_final_action', False)))}</li>
-        <li>buy_readiness_score への影響: {html.escape(str(payload.get('affects_buy_readiness_score', False)))}</li>
+        <li>最終判断への影響: {html.escape(_display_bool(payload.get('affects_final_action', False)))}</li>
+        <li>買い候補度への影響: {html.escape(_display_bool(payload.get('affects_buy_readiness_score', False)))}</li>
       </ul>
       <table>
         <thead><tr><th>資産クラス</th><th>候補</th><th>役割</th><th>状態</th><th>データ</th><th>理由と注意</th></tr></thead>
@@ -354,7 +427,7 @@ def _market_metric_summary(metrics: dict[str, Any]) -> str:
         limitations = metrics.get("limitations")
         parts = ["12週変化: 異常値疑いのため非採用", "最大DD: 異常値疑いのため参考外"]
         if limitations:
-            parts.append("制約=" + ",".join(str(item) for item in limitations))
+            parts.append("制約=" + ",".join(_localize_display_text(item) for item in limitations))
         return " / ".join(parts)
     parts = []
     for key, label in (
@@ -366,10 +439,10 @@ def _market_metric_summary(metrics: dict[str, Any]) -> str:
     ):
         value = metrics.get(key)
         if value is not None:
-            parts.append(f"{label}={_display_number(value)}")
+            parts.append(f"{label}={_localize_display_text(_display_number(value))}")
     limitations = metrics.get("limitations")
     if limitations:
-        parts.append("制約=" + ",".join(str(item) for item in limitations))
+        parts.append("制約=" + ",".join(_localize_display_text(item) for item in limitations))
     return " / ".join(parts) if parts else "利用可能な表示指標なし"
 
 
@@ -411,12 +484,12 @@ def _risk_line_confidence_audit_markdown_lines(audit: dict[str, Any]) -> list[st
         f"- 信頼度監査: {audit.get('monitoring_scope_label', '-')}",
         (
             "- 閾値由来: "
-            f"fallback_review={audit.get('fallback_review_rules', 0)} / "
-            f"low_precision={audit.get('low_precision_rules', 0)} / "
-            f"pass={audit.get('pass_rules', 0)}"
+            f"暫定レビュー={audit.get('fallback_review_rules', 0)} / "
+            f"精度不足={audit.get('low_precision_rules', 0)} / "
+            f"通過={audit.get('pass_rules', 0)}"
         ),
         f"- DXY と円建てFX: {dxy_label} / {jpy_fx_label}",
-        f"- 総合ストレス指数と trigger path: {audit.get('composite_trigger_relationship', '-')}",
+        f"- 総合ストレス指数と危険ラインの発火経路: {_localize_display_text(audit.get('composite_trigger_relationship', '-')).replace('trigger path', '危険ラインの発火経路').replace('overlay', '補助判定')}",
     ]
 
 
@@ -471,33 +544,33 @@ def _hindenburg_summary_text(payload: dict[str, Any]) -> str:
     signal = str(payload.get("current_signal") or "unavailable")
     state = str(payload.get("state") or "")
     if state in {"UNINITIALIZED"}:
-        return "Hindenburg Omen: 未初期化。取得可能な市場幅データがまだありません。"
+        return "ヒンデンブルグオーメン: 未初期化。取得可能な市場幅データがまだありません。"
     if payload.get("failure_code") == "ALL_PROVIDERS_UNAVAILABLE" and payload.get("is_previous_confirmed_result"):
-        return "Hindenburg Omen: 3候補すべて取得不可・前回確定値を表示"
+        return "ヒンデンブルグオーメン: 3候補すべて取得不可・前回確定値を表示"
     if payload.get("failure_code") == "ALL_PROVIDERS_UNAVAILABLE":
-        return "Hindenburg Omen: 3候補すべて取得不可・判定不能"
+        return "ヒンデンブルグオーメン: 3候補すべて取得不可・判定不能"
     if state == "UPDATE_FAILED" and payload.get("is_previous_confirmed_result"):
-        return "Hindenburg Omen: 更新取得不可・前回確定値を表示しています。"
+        return "ヒンデンブルグオーメン: 更新取得不可・前回確定値を表示しています。"
     if state == "INSUFFICIENT_HISTORY":
-        return "Hindenburg Omen: 履歴不足のため判定できません。"
+        return "ヒンデンブルグオーメン: 履歴不足のため判定できません。"
     if state == "GAP_BLOCKED":
-        return "Hindenburg Omen: 途中営業日の欠損により更新を保留しています。"
+        return "ヒンデンブルグオーメン: 途中営業日の欠損により更新を保留しています。"
     if state == "INVALID_DATA":
-        return "Hindenburg Omen: 入力データ不正のため判定できません。"
+        return "ヒンデンブルグオーメン: 入力データ不正のため判定できません。"
     if state == "MIGRATION_REQUIRED":
-        return "Hindenburg Omen: SQLite状態の移行が必要です。"
+        return "ヒンデンブルグオーメン: SQLite状態の移行が必要です。"
     if payload.get("stale_data"):
-        return "Hindenburg Omen: データが古いため現在点灯は未確定。市場幅CSVの最新日が古いため、現在の点灯状態は判定できません。"
+        return "ヒンデンブルグオーメン: データが古いため現在点灯は未確定。市場幅CSVの最新日が古いため、現在の点灯状態は判定できません。"
     if signal in {"triggered_today", "active"}:
         return (
-            "Hindenburg Omen が点灯中です。これは米国市場幅の分裂を確認する補助指標です。"
+            "ヒンデンブルグオーメンが点灯中です。これは米国市場幅の分裂を確認する補助指標です。"
             "単独では売買判断に使いません。他の危険ライン、信用、ボラティリティ指標と併せて確認してください。"
         )
     if signal == "not_triggered":
-        return "Hindenburg Omen: 点灯なし"
+        return "ヒンデンブルグオーメン: 点灯なし"
     if payload.get("status") == "manual_file_missing":
-        return "Hindenburg Omen: 未取得。市場幅CSVが未設定のため判定できません。"
-    return f"Hindenburg Omen: {_hindenburg_signal_label(signal)}"
+        return "ヒンデンブルグオーメン: 未取得。市場幅CSVが未設定のため判定できません。"
+    return f"ヒンデンブルグオーメン: {_hindenburg_signal_label(signal)}"
 
 
 def _hindenburg_source_label(payload: dict[str, Any]) -> str:
@@ -516,13 +589,51 @@ def _hindenburg_source_label(payload: dict[str, Any]) -> str:
     return "取得元未確定"
 
 
+def _yes_no(value: Any) -> str:
+    return "はい" if bool(value) else "いいえ"
+
+
+def _hindenburg_criteria_label(value: Any) -> str:
+    labels = {
+        "uptrend": "上昇トレンド",
+        "new_highs_threshold": "新高値数の条件",
+        "new_lows_threshold": "新安値数の条件",
+        "negative_mcclellan": "マクレラン指標がマイナス",
+        "high_low_balance": "新高値と新安値の比率",
+    }
+    return labels.get(str(value), str(value))
+
+
+def _hindenburg_criteria_list(values: Any) -> str:
+    return ", ".join(_hindenburg_criteria_label(value) for value in (values or [])) or "-"
+
+
+def _hindenburg_criteria_summary(value: Any) -> str:
+    text = str(value or "-")
+    replacements = {
+        "passed=": "通過=",
+        "failed=": "未達=",
+        "unknown=": "不明=",
+    }
+    for source, target in replacements.items():
+        text = text.replace(source, target)
+    return text
+
+
+def _hindenburg_manual_link_html() -> str:
+    return (
+        '<a class="manual-link" href="../../docs/hindenburg_omen_data_acquisition.md" '
+        'target="_blank" rel="noopener noreferrer">手動取得方法を開く</a>'
+    )
+
+
 def _hindenburg_omen_markdown_lines(report: dict[str, Any]) -> list[str]:
     payload = report.get("hindenburg_omen_context") or {}
     if not payload:
         return []
     lines = [
         "",
-        "## Hindenburg Omen / 市場幅の補助確認",
+        "## ヒンデンブルグオーメン / 市場幅の補助確認",
         f"- {SECTION_EXPLANATIONS['hindenburg_omen']}",
         f"- 状態: {_hindenburg_status_label(payload.get('status'))}",
         f"- 更新状態: {_hindenburg_state_label(payload.get('state'))}",
@@ -533,42 +644,42 @@ def _hindenburg_omen_markdown_lines(report: dict[str, Any]) -> list[str]:
         f"- 通知: {_hindenburg_summary_text(payload)}",
         f"- データ最新日: {payload.get('data_latest_date') or payload.get('latest_date') or '-'}",
         f"- 判定基準日: {payload.get('as_of_date') or '-'}",
-        f"- stale data: {payload.get('stale_data', False)}",
+        f"- データ鮮度不足: {_yes_no(payload.get('stale_data', False))}",
         f"- 最新点灯日: {payload.get('latest_trigger_date') or '-'}",
-        f"- active until: {payload.get('active_until') or '-'}",
-        f"- active window days: {payload.get('active_window_days', '-')}",
-        f"- new highs %: {_display_number(payload.get('new_highs_pct'))} / new lows %: {_display_number(payload.get('new_lows_pct'))} / threshold %: {_display_number(payload.get('threshold_pct'))}",
-        f"- McClellan Oscillator: {_display_number(payload.get('mcclellan_oscillator'))}",
-        f"- 条件通過: {', '.join(payload.get('criteria_passed') or []) or '-'}",
-        f"- 条件未達: {', '.join(payload.get('criteria_failed') or []) or '-'}",
-        f"- 条件不明: {', '.join(payload.get('criteria_unknown') or []) or '-'}",
-        f"- final_action への影響: {not payload.get('must_not_affect_final_action', True)}",
-        f"- buy_readiness_score への影響: {not payload.get('must_not_affect_buy_readiness_score', True)}",
+        f"- 発動終了日: {payload.get('active_until') or '-'}",
+        f"- 発動期間（日数）: {payload.get('active_window_days', '-')}",
+        f"- 新高値比率: {_display_number(payload.get('new_highs_pct'))}% / 新安値比率: {_display_number(payload.get('new_lows_pct'))}% / 判定しきい値: {_display_number(payload.get('threshold_pct'))}%",
+        f"- マクレラン指標: {_display_number(payload.get('mcclellan_oscillator'))}",
+        f"- 条件通過: {_hindenburg_criteria_list(payload.get('criteria_passed'))}",
+        f"- 条件未達: {_hindenburg_criteria_list(payload.get('criteria_failed'))}",
+        f"- 条件不明: {_hindenburg_criteria_list(payload.get('criteria_unknown'))}",
+        f"- 最終判断への影響: {_display_bool(not payload.get('must_not_affect_final_action', True))}",
+        f"- 買い候補度への影響: {_display_bool(not payload.get('must_not_affect_buy_readiness_score', True))}",
     ]
     if payload.get("provider_label") or payload.get("providers_attempted_count"):
         lines.append(
-            f"- 取得元: {payload.get('provider_label') or '-'} / 試行数: {payload.get('providers_attempted_count', 0)} / 前回確定値表示: {payload.get('is_previous_confirmed_result', False)}"
+            f"- 取得元: {payload.get('provider_label') or '-'} / 試行数: {payload.get('providers_attempted_count', 0)} / 前回確定値表示: {_display_bool(payload.get('is_previous_confirmed_result', False))}"
         )
     auto = payload.get("automatic_acquisition") or {}
     if auto:
         lines.append(
-            f"- 自動取得: {auto.get('label', '自動取得・実験的')} / attempted={auto.get('attempted', False)} / eligible={auto.get('eligible', False)} / accepted={auto.get('success_label', False)} / reason={auto.get('reason', '-')}"
+            f"- 自動取得: {auto.get('label', '自動取得・実験的')} / 試行済み={_yes_no(auto.get('attempted', False))} / 試行対象={_yes_no(auto.get('eligible', False))} / 取得成功={_yes_no(auto.get('success_label', False))} / 理由={_localize_display_text(auto.get('reason', '-'))}"
         )
     for attempt in (payload.get("provider_attempts") or [])[:3]:
         lines.append(
-            "- provider attempt: {provider} / {status} / {failure}".format(
+            "- 取得試行: {provider} / 状態 {status} / 失敗理由 {failure}".format(
                 provider=attempt.get("provider_label") or attempt.get("provider_id") or "-",
-                status=attempt.get("status") or "-",
-                failure=attempt.get("failure_code") or "-",
+                status=_localize_display_text(attempt.get("status") or "-"),
+                failure=_localize_display_text(attempt.get("failure_code") or "-"),
             )
         )
     if payload.get("limitations"):
-        lines.append("- データ制約: " + " / ".join(str(item) for item in payload.get("limitations", [])))
+        lines.append("- データ制約: " + " / ".join(_localize_display_text(item) for item in payload.get("limitations", [])))
     if payload.get("trigger_dates"):
         lines.append("- 点灯日: " + ", ".join(str(value) for value in payload.get("trigger_dates", [])))
     for period in (payload.get("active_periods") or [])[-3:]:
         lines.append(
-            "- active period: {start} -> {end} / trigger days {count} / latest {latest}".format(
+            "- 発動期間: {start} から {end} / 点灯日数 {count} / 最新点灯日 {latest}".format(
                 start=period.get("period_start", "-"),
                 end=period.get("period_end", "-"),
                 count=period.get("trigger_day_count", "-"),
@@ -577,10 +688,10 @@ def _hindenburg_omen_markdown_lines(report: dict[str, Any]) -> list[str]:
         )
     for row in (payload.get("daily_signals") or [])[-5:]:
         lines.append(
-            "- signal history: {date} / {triggered} / {summary} / highs {highs} / lows {lows} / McClellan {mcclellan}".format(
+            "- シグナル履歴: {date} / {triggered} / {summary} / 新高値 {highs}% / 新安値 {lows}% / マクレラン {mcclellan}".format(
                 date=row.get("date", "-"),
                 triggered="点灯" if row.get("triggered") else "点灯なし",
-                summary=row.get("criteria_summary", "-"),
+                summary=_hindenburg_criteria_summary(row.get("criteria_summary", "-")),
                 highs=_display_number(row.get("new_highs_pct")),
                 lows=_display_number(row.get("new_lows_pct")),
                 mcclellan=_display_number(row.get("mcclellan_oscillator")),
@@ -610,7 +721,7 @@ def _hindenburg_omen_panel_html(payload: dict[str, Any], esc: Any) -> str:
         [
             esc(row.get("date", "-")),
             "点灯" if row.get("triggered") else "点灯なし",
-            esc(row.get("criteria_summary", "-")),
+            esc(_hindenburg_criteria_summary(row.get("criteria_summary", "-"))),
             esc(_display_number(row.get("new_highs_pct"))),
             esc(_display_number(row.get("new_lows_pct"))),
             esc(_display_number(row.get("mcclellan_oscillator"))),
@@ -618,23 +729,23 @@ def _hindenburg_omen_panel_html(payload: dict[str, Any], esc: Any) -> str:
         for row in (payload.get("daily_signals") or [])[-5:]
     ]
     limitations = "".join(f"<li>{esc(item)}</li>" for item in payload.get("limitations", [])) or "<li>-</li>"
-    period_table = _hindenburg_table_html(["period start", "period end", "trigger days", "latest trigger"], period_rows, esc)
-    history_table = _hindenburg_table_html(["trigger date", "状態", "criteria", "highs %", "lows %", "McClellan"], history_rows, esc)
+    period_table = _hindenburg_table_html(["開始日", "終了日", "点灯日数", "最新点灯日"], period_rows, esc)
+    history_table = _hindenburg_table_html(["日付", "状態", "条件", "新高値比率", "新安値比率", "マクレラン"], history_rows, esc)
     return f"""
     <section class="mini-panel hindenburg-panel">
-      <h3>Hindenburg Omen</h3>
+      <h3>ヒンデンブルグオーメン <span class="manual-link-wrap">{_hindenburg_manual_link_html()}</span></h3>
       <div class="mini-content">
         <div class="metric {tone}">
           <span>現在</span><strong>{esc(_hindenburg_signal_label(payload.get('current_signal')))}</strong>
         </div>
         <p>{esc(_hindenburg_summary_text(payload))}</p>
         <div class="inline-note">
-          更新状態 {esc(_hindenburg_state_label(payload.get('state')))} / 確定市場日 {esc(payload.get('confirmed_market_date') or '-')} / 前回確定値表示 {esc(payload.get('is_previous_confirmed_result', False))}<br>
+          更新状態 {esc(_hindenburg_state_label(payload.get('state')))} / 確定市場日 {esc(payload.get('confirmed_market_date') or '-')} / 前回確定値表示 {esc(_display_bool(payload.get('is_previous_confirmed_result', False)))}<br>
           取得区分 {esc(_hindenburg_source_label(payload))} / 履歴進捗 {esc(payload.get('history_progress_label') or '-')}<br>
-          取得元 {esc(payload.get('provider_label') or '-')} / provider attempts {esc(payload.get('providers_attempted_count', 0))}<br>
-          データ最新日 {esc(payload.get('data_latest_date') or payload.get('latest_date') or '-')} / 判定基準日 {esc(payload.get('as_of_date') or '-')} / stale {esc(payload.get('stale_data', False))}<br>
-          最新点灯日 {esc(payload.get('latest_trigger_date') or '-')} / active until {esc(payload.get('active_until') or '-')}<br>
-          new highs {esc(_display_number(payload.get('new_highs_pct')))}% / new lows {esc(_display_number(payload.get('new_lows_pct')))}% / McClellan {esc(_display_number(payload.get('mcclellan_oscillator')))}
+          取得元 {esc(payload.get('provider_label') or '-')} / 取得試行数 {esc(payload.get('providers_attempted_count', 0))}<br>
+          データ最新日 {esc(payload.get('data_latest_date') or payload.get('latest_date') or '-')} / 判定基準日 {esc(payload.get('as_of_date') or '-')} / データ鮮度不足 {esc(_yes_no(payload.get('stale_data', False)))}<br>
+          最新点灯日 {esc(payload.get('latest_trigger_date') or '-')} / 発動終了日 {esc(payload.get('active_until') or '-')}<br>
+          新高値比率 {esc(_display_number(payload.get('new_highs_pct')))}% / 新安値比率 {esc(_display_number(payload.get('new_lows_pct')))}% / マクレラン {esc(_display_number(payload.get('mcclellan_oscillator')))}
         </div>
         <p>データ制約</p>
         <ul>{limitations}</ul>
@@ -662,28 +773,28 @@ def _domestic_danger_markdown_lines(report: dict[str, Any]) -> list[str]:
         "### 国内文脈の補助危険確認",
         f"- {SECTION_EXPLANATIONS['domestic_danger_context']}",
         f"- 判定: {_domestic_danger_level_label(payload.get('domestic_danger_level'))}",
-        f"- final_action への影響: {not bool(payload.get('must_not_affect_final_action', True))}",
-        f"- buy_readiness_score への影響: {not bool(payload.get('must_not_affect_buy_readiness_score', True))}",
+        f"- 最終判断への影響: {_display_bool(not bool(payload.get('must_not_affect_final_action', True)))}",
+        f"- 買い候補度への影響: {_display_bool(not bool(payload.get('must_not_affect_buy_readiness_score', True)))}",
     ]
     for reason in payload.get("domestic_danger_reasons", []):
-        lines.append(f"- 理由: {reason}")
+        lines.append(f"- 理由: {_localize_display_text(reason)}")
     for row in payload.get("domestic_watch_items", []):
         reason = _domestic_danger_reason_text(row)
         row_limitations = row.get("limitations") or []
-        limitation_text = f" / 制約: {', '.join(str(item) for item in row_limitations)}" if row_limitations else ""
+        limitation_text = f" / 制約: {', '.join(_localize_display_text(item) for item in row_limitations)}" if row_limitations else ""
         lines.append(
             "- {group}: {name} ({symbol}) / 状態: {status} / 補助判定: {level} / 理由: {reason}".format(
                 group=row.get("group", "-"),
                 name=row.get("name", "-"),
                 symbol=row.get("symbol", "-"),
-                status=row.get("status", "-"),
+                status=_localize_display_text(row.get("status", "-")),
                 level=_domestic_danger_level_label(row.get("level")),
                 reason=f"{reason}{limitation_text}",
             )
         )
-        lines.append(f"  - 注意: {row.get('caution', '-')}")
+        lines.append(f"  - 注意: {_localize_display_text(row.get('caution', '-'))}")
     for limitation in payload.get("domestic_data_limitations", []):
-        lines.append(f"- データ制約: {limitation}")
+        lines.append(f"- データ制約: {_localize_display_text(limitation)}")
     return lines
 
 
@@ -700,8 +811,8 @@ def _domestic_danger_level_label(level: Any) -> str:
 def _domestic_danger_table_html(payload: dict[str, Any], small_table: Any, esc: Any) -> str:
     def reason_with_metrics(row: dict[str, Any]) -> str:
         limitations = row.get("limitations") or []
-        limitation_text = f" / 制約: {', '.join(str(item) for item in limitations)}" if limitations else ""
-        return f"{_domestic_danger_reason_text(row)}{limitation_text}"
+        limitation_text = f" / 制約: {', '.join(_localize_display_text(item) for item in limitations)}" if limitations else ""
+        return f"{_localize_display_text(_domestic_danger_reason_text(row))}{limitation_text}"
 
     rows = [
         [
@@ -710,7 +821,7 @@ def _domestic_danger_table_html(payload: dict[str, Any], small_table: Any, esc: 
             esc(row.get("name", "-")),
             esc(_domestic_danger_level_label(row.get("level"))),
             esc(reason_with_metrics(row)),
-            esc(row.get("caution", "-")),
+            esc(_localize_display_text(row.get("caution", "-"))),
         ]
         for row in payload.get("domestic_watch_items", [])
     ]
@@ -732,9 +843,9 @@ def _domestic_danger_reason_text(row: dict[str, Any]) -> str:
 def _domestic_danger_panel_html(payload: dict[str, Any], small_table: Any, esc: Any, source_chip: Any) -> str:
     if not payload:
         return ""
-    reason_items = "".join(f"<li>{esc(reason)}</li>" for reason in payload.get("domestic_danger_reasons", [])) or "<li>-</li>"
+    reason_items = "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in payload.get("domestic_danger_reasons", [])) or "<li>-</li>"
     limitation_items = (
-        "".join(f"<li>{esc(item)}</li>" for item in payload.get("domestic_data_limitations", []))
+        "".join(f"<li>{esc(_localize_display_text(item))}</li>" for item in payload.get("domestic_data_limitations", []))
         or "<li>追加のデータ制約はありません。</li>"
     )
     table = _domestic_danger_table_html(payload, small_table, esc)
@@ -746,12 +857,12 @@ def _domestic_danger_panel_html(payload: dict[str, Any], small_table: Any, esc: 
         "<li>国内資産: {asset_level}</li>"
         "<li>為替: {fx_level}</li>"
         "<li>国内金利・マクロ: {macro_level}</li>"
-        "<li>uses_domestic_values: {uses_values}</li>"
-        "<li>uses_domestic_price_metrics: {uses_price_metrics}</li>"
-        "<li>uses_domestic_macro_values: {uses_macro_values}</li>"
-        "<li>uses_only_fallback_or_limitations: {uses_fallback_only}</li>"
-        "<li>final_action への影響: {final_action}</li>"
-        "<li>buy_readiness_score への影響: {readiness}</li>"
+        "<li>国内値を使用: {uses_values}</li>"
+        "<li>国内価格指標を使用: {uses_price_metrics}</li>"
+        "<li>国内マクロ値を使用: {uses_macro_values}</li>"
+        "<li>制約・代替データのみ: {uses_fallback_only}</li>"
+        "<li>最終判断への影響: {final_action}</li>"
+        "<li>買い候補度への影響: {readiness}</li>"
         "</ul>"
         '<div class="table-wrap mt">{table}</div>'
         '<h3 class="mt">国内文脈の理由</h3><ul class="compact-list">{reasons}</ul>'
@@ -764,12 +875,12 @@ def _domestic_danger_panel_html(payload: dict[str, Any], small_table: Any, esc: 
         asset_level=esc(_domestic_danger_level_label(payload.get("domestic_asset_level"))),
         fx_level=esc(_domestic_danger_level_label(payload.get("domestic_fx_level"))),
         macro_level=esc(_domestic_danger_level_label(payload.get("domestic_macro_level"))),
-        uses_values=esc(payload.get("uses_domestic_values", False)),
-        uses_price_metrics=esc(payload.get("uses_domestic_price_metrics", False)),
-        uses_macro_values=esc(payload.get("uses_domestic_macro_values", False)),
-        uses_fallback_only=esc(payload.get("uses_only_fallback_or_limitations", False)),
-        final_action=esc(not bool(payload.get("must_not_affect_final_action", True))),
-        readiness=esc(not bool(payload.get("must_not_affect_buy_readiness_score", True))),
+        uses_values=esc(_display_bool(payload.get("uses_domestic_values", False))),
+        uses_price_metrics=esc(_display_bool(payload.get("uses_domestic_price_metrics", False))),
+        uses_macro_values=esc(_display_bool(payload.get("uses_domestic_macro_values", False))),
+        uses_fallback_only=esc(_display_bool(payload.get("uses_only_fallback_or_limitations", False))),
+        final_action=esc(_display_bool(not bool(payload.get("must_not_affect_final_action", True)))),
+        readiness=esc(_display_bool(not bool(payload.get("must_not_affect_buy_readiness_score", True)))),
         table=table,
         reasons=reason_items,
         limitations=limitation_items,
@@ -789,24 +900,24 @@ def _japan_resident_integrated_context_markdown_lines(report: dict[str, Any]) ->
         f"- 国内: {_domestic_danger_level_label(payload.get('domestic_risk_level'))}",
         f"- 為替: {_domestic_danger_level_label(payload.get('fx_risk_level'))}",
         f"- 国内金利: {_domestic_danger_level_label(payload.get('rate_risk_level'))}",
-        f"- 国内インフレデータ品質: {payload.get('inflation_data_quality', '-')}",
-        f"- final_action への影響: {not bool(payload.get('must_not_affect_final_action', True))}",
-        f"- buy_readiness_score への影響: {not bool(payload.get('must_not_affect_buy_readiness_score', True))}",
+        f"- 国内インフレデータ品質: {_localize_display_text(payload.get('inflation_data_quality', '-'))}",
+        f"- 最終判断への影響: {_display_bool(not bool(payload.get('must_not_affect_final_action', True)))}",
+        f"- 買い候補度への影響: {_display_bool(not bool(payload.get('must_not_affect_buy_readiness_score', True)))}",
     ]
     for reason in payload.get("primary_reasons", []):
-        lines.append(f"- 理由: {reason}")
+        lines.append(f"- 理由: {_localize_display_text(reason)}")
     for row in payload.get("watch_items", []):
         lines.append(
-            "- {group}: 補助判定 {level} / {summary} / source={source}".format(
+            "- {group}: 補助判定 {level} / {summary} / 取得元={source}".format(
                 group=row.get("group", "-"),
                 level=_domestic_danger_level_label(row.get("level")),
-                summary=row.get("summary", "-"),
-                source=row.get("source", "-"),
+                summary=_localize_display_text(row.get("summary", "-")),
+                source=_localize_display_text(row.get("source", "-")),
             )
         )
     for limitation in payload.get("data_limitations", []):
-        lines.append(f"- データ制約: {limitation}")
-    lines.append(f"- 注記: {payload.get('caveat', '-')}")
+        lines.append(f"- データ制約: {_localize_display_text(limitation)}")
+    lines.append(f"- 注記: {_localize_display_text(payload.get('caveat', '-'))}")
     return lines
 
 
@@ -819,22 +930,22 @@ def _japan_resident_integrated_context_panel_html(payload: dict[str, Any], small
         ["国内", _domestic_danger_level_label(payload.get("domestic_risk_level"))],
         ["為替", _domestic_danger_level_label(payload.get("fx_risk_level"))],
         ["国内金利", _domestic_danger_level_label(payload.get("rate_risk_level"))],
-        ["国内インフレデータ品質", payload.get("inflation_data_quality", "-")],
-        ["final_action への影響", not bool(payload.get("must_not_affect_final_action", True))],
-        ["buy_readiness_score への影響", not bool(payload.get("must_not_affect_buy_readiness_score", True))],
+        ["国内インフレデータ品質", _localize_display_text(payload.get("inflation_data_quality", "-"))],
+        ["最終判断への影響", _display_bool(not bool(payload.get("must_not_affect_final_action", True)))],
+        ["買い候補度への影響", _display_bool(not bool(payload.get("must_not_affect_buy_readiness_score", True)))],
     ]
     item_rows = [
         [
             esc(row.get("group", "-")),
             esc(_domestic_danger_level_label(row.get("level"))),
-            esc(row.get("summary", "-")),
-            esc(row.get("source", "-")),
+            esc(_localize_display_text(row.get("summary", "-"))),
+            esc(_localize_display_text(row.get("source", "-"))),
         ]
         for row in payload.get("watch_items", [])
     ]
-    reason_items = "".join(f"<li>{esc(reason)}</li>" for reason in payload.get("primary_reasons", [])) or "<li>-</li>"
+    reason_items = "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in payload.get("primary_reasons", [])) or "<li>-</li>"
     limitation_items = (
-        "".join(f"<li>{esc(item)}</li>" for item in payload.get("data_limitations", [])) or "<li>追加のデータ制約はありません。</li>"
+        "".join(f"<li>{esc(_localize_display_text(item))}</li>" for item in payload.get("data_limitations", [])) or "<li>追加のデータ制約はありません。</li>"
     )
     return (
         '<section class="panel mt"><h3>日本在住者向け統合リスク文脈 {source}</h3>'
@@ -849,10 +960,10 @@ def _japan_resident_integrated_context_panel_html(payload: dict[str, Any], small
         source=source_chip("日本在住者向け統合リスク文脈"),
         summary=esc(SECTION_EXPLANATIONS["japan_resident_integrated_risk_context"]),
         level_table=small_table(["項目", "状態"], [[esc(row[0]), esc(row[1])] for row in level_rows]),
-        item_table=small_table(["分類", "補助判定", "要約", "source"], item_rows),
+        item_table=small_table(["分類", "補助判定", "要約", "取得元"], item_rows),
         reasons=reason_items,
         limitations=limitation_items,
-        caveat=esc(payload.get("caveat", "-")),
+        caveat=esc(_localize_display_text(payload.get("caveat", "-"))),
     )
 
 
@@ -877,12 +988,12 @@ def _risk_context_ux_hub_html(report: dict[str, Any]) -> str:
     for row in availability:
         status = str(row.get("status") or "-")
         availability_counts[status] = availability_counts.get(status, 0) + 1
-    availability_text = ", ".join(f"{key}={value}" for key, value in sorted(availability_counts.items())) or "取得状況データなし"
-    limitation_text = " / ".join(str(item) for item in limitations[:3]) if limitations else "追加のデータ制約はありません。"
+    availability_text = ", ".join(f"{STATUS_LABELS.get(key, key)}={value}" for key, value in sorted(availability_counts.items())) or "取得状況データなし"
+    limitation_text = " / ".join(_localize_display_text(item) for item in limitations[:3]) if limitations else "追加のデータ制約はありません。"
     rows = [
         (
             "本体判断",
-            f"final_action: {_jp_action(str(card.get('final_action', '-')))} / 買い候補度: {card.get('buy_readiness_score', '-')}",
+            f"最終判断: {_jp_action(str(card.get('final_action', '-')))} / 買い候補度: {card.get('buy_readiness_score', '-')}",
             "買い判断カードの結論です。補助文脈はここを上書きしません。",
         ),
         (
@@ -919,16 +1030,16 @@ def _risk_context_ux_hub_html(report: dict[str, Any]) -> str:
             (
                 "実験比較",
                 (
-                    "baseline {base} -> experimental {exp} / delta {delta}".format(
+                    "基準 {base} → 実験値 {exp} / 差分 {delta}".format(
                         base=experiment_baseline.get("buy_readiness_score", "-"),
                         exp=experiment_payload.get("adjusted_buy_readiness_score", "-"),
                         delta=(
-                            f"raw {experiment_diff.get('raw_score_delta', experiment_diff.get('score_delta', 0))}"
-                            f" / clamped {experiment_diff.get('clamped_score_delta', experiment_diff.get('score_delta', 0))}"
+                            f"調整前 {experiment_diff.get('raw_score_delta', experiment_diff.get('score_delta', 0))}"
+                            f" / 上限適用後 {experiment_diff.get('clamped_score_delta', experiment_diff.get('score_delta', 0))}"
                         ),
                     )
                 ),
-                "production既定値は変更せず、統合文脈を使う場合の境界だけ比較します。",
+                "本番既定値は変更せず、統合文脈を使う場合の境界だけ比較します。",
             )
         )
     cards = "".join(
@@ -951,7 +1062,7 @@ def _risk_context_ux_hub_html(report: dict[str, Any]) -> str:
 
 
 def _short_list_html(items: Iterable[Any], fallback: str, *, limit: int = 4) -> str:
-    rows = [str(item) for item in list(items)[:limit] if str(item)]
+    rows = [_localize_display_text(item) for item in list(items)[:limit] if str(item)]
     rows = rows or [fallback]
     return "".join(f"<li>{html.escape(row)}</li>" for row in rows)
 
@@ -976,8 +1087,8 @@ def _data_limitation_items(report: dict[str, Any]) -> list[str]:
     domestic = report.get("domestic_danger_context") or {}
     hindenburg = report.get("hindenburg_omen_context") or {}
     items: list[str] = []
-    items.extend(str(item) for item in integrated.get("data_limitations", [])[:3])
-    items.extend(str(item) for item in domestic.get("domestic_data_limitations", [])[:3])
+    items.extend(_localize_display_text(item) for item in integrated.get("data_limitations", [])[:3])
+    items.extend(_localize_display_text(item) for item in domestic.get("domestic_data_limitations", [])[:3])
     items.extend(str(item) for item in hindenburg.get("limitations", [])[:2])
     unique: list[str] = []
     for item in items:
@@ -1164,7 +1275,7 @@ def _approved_report_dashboard_html(report: dict[str, Any]) -> str:
           </section>
           <section class="context-card hindenburg-lamp hindenburg-lamp-card {hindenburg_lamp_class}">
             <div class="lamp-row"><span></span><span></span><span></span><strong>{html.escape(hindenburg_label)}</strong></div>
-            <h2>Hindenburg Omen: {html.escape(hindenburg_label)} <small>（表示専用）</small></h2>
+            <h2>ヒンデンブルグオーメン: {html.escape(hindenburg_label)} <small>（表示専用）</small><span class="manual-link-wrap">{_hindenburg_manual_link_html()}</span></h2>
             <p>{html.escape(hindenburg_summary)} 単独では売買判断に使いません。</p>
           </section>
           <a class="supplement-link-card" href="supplement_dashboard.html">
@@ -1184,7 +1295,7 @@ def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
     threshold_usage = report.get("threshold_usage", {}) or {}
     proposed_mode = "診断のみ"
     if (report.get("threshold_rule_certification") or {}).get("summary"):
-        proposed_mode = "診断のみ（rule単位で検証中）"
+        proposed_mode = "診断のみ（ルール単位で検証中）"
     reason = ", ".join(action_decision.get("policy_reasons", [])[:2]) or reliability.get("cap_reason") or spot_signal.get("reason") or "-"
     action_layers = spot_signal.get("action_layers") or {}
     diagnostics = report.get("buy_window_diagnostics") or {}
@@ -1195,10 +1306,10 @@ def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
         ("市場だけ見た判定", _jp_action(str(action_layers.get("market_raw_action", action_decision.get("market_raw_action", "-"))))),
         ("リスク調整後", _jp_action(str(action_layers.get("risk_adjusted_action", action_decision.get("risk_adjusted_action", "-"))))),
         ("最終判断", _jp_action(str(action_decision.get("action", spot_signal.get("action", "-"))))),
-        ("raw/final buy_window", f"{diagnostics.get('raw_buy_window_count', 0)} / {diagnostics.get('final_buy_window_count', 0)}"),
-        ("raw/final buy_candidate", f"{diagnostics.get('raw_buy_candidate_count', 0)} / {diagnostics.get('final_buy_candidate_count', 0)}"),
+        ("調整前/最終の買い検討ゾーン", f"{diagnostics.get('raw_buy_window_count', 0)} / {diagnostics.get('final_buy_window_count', 0)}"),
+        ("調整前/最終の買い場候補", f"{diagnostics.get('raw_buy_candidate_count', 0)} / {diagnostics.get('final_buy_candidate_count', 0)}"),
         (
-            "raw buy_window 降格",
+            "調整前の買い検討ゾーンからの降格",
             str(
                 int(diagnostics.get("raw_buy_window_to_watch_count", 0) or 0) + int(diagnostics.get("raw_buy_window_to_wait_count", 0) or 0)
             ),
@@ -1211,18 +1322,18 @@ def _first_read_summary_items(report: dict[str, Any]) -> list[tuple[str, str]]:
                 else "なし"
             ),
         ),
-        ("buy_window が出ない主因", str(zero_reasons[0]) if zero_reasons else "-"),
+        ("買い検討ゾーンが出ない主因", _localize_display_text(zero_reasons[0]) if zero_reasons else "-"),
         (
             "FX soft-cap診断",
-            f"{_jp_action(str(fx_policy_diagnostics.get('current_final_action', '-')))} -> {_jp_action(str(fx_policy_diagnostics.get('fx_soft_cap_action', '-')))} / diagnostic only",
+            f"{_jp_action(str(fx_policy_diagnostics.get('current_final_action', '-')))} → {_jp_action(str(fx_policy_diagnostics.get('fx_soft_cap_action', '-')))} / 診断専用",
         ),
-        ("判断理由", str(reason)),
+        ("判断理由", _localize_display_text(reason)),
         ("市場レジーム", _jp_regime(str((report.get("regime") or {}).get("regime_label", "-")))),
-        ("危険ライン", str(risk_lines.get("stage_key", "-"))),
-        ("Hindenburg Omen", _hindenburg_signal_label(hindenburg.get("current_signal")) if hindenburg else "未取得"),
-        ("実運用閾値", str(threshold_usage.get("final_action_threshold_set", "active"))),
-        ("proposed / candidate", proposed_mode),
-        ("次に見る項目", "データ品質 / 危険ライン trigger path / セクター内部構造"),
+        ("危険ライン", _localize_display_text(risk_lines.get("stage_key", "-"))),
+        ("ヒンデンブルグオーメン", _hindenburg_signal_label(hindenburg.get("current_signal")) if hindenburg else "未取得"),
+        ("実運用しきい値", _localize_display_text(threshold_usage.get("final_action_threshold_set", "active"))),
+        ("提案中しきい値 / 候補版", proposed_mode),
+        ("次に見る項目", "データ品質 / 危険ラインの発火経路 / セクター内部構造"),
     ]
 
 
@@ -1237,19 +1348,19 @@ def _buy_decision_card_markdown_lines(report: dict[str, Any]) -> list[str]:
     if not card:
         return []
     lines = [
-        "## Buy Decision Card / 買い判断カード",
+        "## 買い判断カード",
         f"- 最終判断: {_jp_action(str(card.get('final_action', '-')))}",
         f"- 市場だけ見た判定: {_jp_action(str(card.get('market_raw_action', '-')))}",
         f"- リスク調整後: {_jp_action(str(card.get('risk_adjusted_action', '-')))}",
-        f"- 買い候補度: {card.get('buy_readiness_score', 0)} / 100 ({card.get('readiness_level', '-')})",
+        f"- 買い候補度: {card.get('buy_readiness_score', 0)} / 100 ({_localize_display_text(card.get('readiness_level', '-'))})",
         "- 注記: 買い候補度は成功確率・期待リターン・投資成功率ではありません。条件の揃い具合を示す説明用スコアです。",
-        f"- 主な阻害要因: {card.get('primary_blocker') or 'なし'}",
+        f"- 主な阻害要因: {_localize_display_text(card.get('primary_blocker') or 'なし')}",
     ]
     for index, row in enumerate((card.get("unlock_conditions") or [])[:3], start=1):
-        lines.append(f"- 次に見る条件 {index}: {row.get('condition')} -> {row.get('target_state')}")
+        lines.append(f"- 次に見る条件 {index}: {_localize_display_text(row.get('condition'))} -> {_localize_display_text(row.get('target_state'))}")
     if card.get("sample_only_note"):
-        lines.append(f"- sample-only注意: {card.get('sample_only_note')}")
-    lines.append("- このカードは説明用であり、final_actionには影響しません。")
+        lines.append(f"- サンプル実行注意: {_localize_display_text(card.get('sample_only_note'))}")
+    lines.append("- このカードは説明用であり、最終判断には影響しません。")
     return lines
 
 
@@ -1261,19 +1372,19 @@ def _decision_boundary_experiment_markdown_lines(report: dict[str, Any]) -> list
     experimental = payload.get("experimental") or {}
     diff = payload.get("diff") or {}
     return [
-        "## Decision Boundary Experiment / 判断境界の実験比較",
-        f"- enabled: {payload.get('enabled', False)}",
-        f"- baseline final_action: {_jp_action(str(baseline.get('final_action', '-')))}",
-        f"- baseline buy_readiness_score: {baseline.get('buy_readiness_score', '-')}",
-        f"- experimental adjusted_buy_readiness_score: {experimental.get('adjusted_buy_readiness_score', '-')}",
-        f"- supplemental_warning_level: {experimental.get('supplemental_warning_level', '-')}",
-        f"- score_delta: {diff.get('score_delta', 0)}",
-        f"- raw_score_delta: {diff.get('raw_score_delta', diff.get('score_delta', 0))}",
-        f"- clamped_score_delta: {diff.get('clamped_score_delta', diff.get('score_delta', 0))}",
-        f"- clamp_reason: {diff.get('clamp_reason', '-')}",
-        f"- action_changed: {diff.get('action_changed', False)}",
-        f"- production default への影響: {not bool(payload.get('must_not_affect_production_default', True))}",
-        f"- suggested_adjustment: {experimental.get('suggested_adjustment', '-')}",
+        "## 判断境界の実験比較",
+        f"- 有効化: {_display_bool(payload.get('enabled', False))}",
+        f"- 基準の最終判断: {_jp_action(str(baseline.get('final_action', '-')))}",
+        f"- 基準の買い候補度: {baseline.get('buy_readiness_score', '-')}",
+        f"- 実験後の買い候補度: {experimental.get('adjusted_buy_readiness_score', '-')}",
+        f"- 補助警戒水準: {experimental.get('supplemental_warning_level', '-')}",
+        f"- スコア差分: {diff.get('score_delta', 0)}",
+        f"- 調整前スコア差分: {diff.get('raw_score_delta', diff.get('score_delta', 0))}",
+        f"- 上限適用後スコア差分: {diff.get('clamped_score_delta', diff.get('score_delta', 0))}",
+        f"- 上限理由: {diff.get('clamp_reason', '-')}",
+        f"- 判断変更: {_display_bool(diff.get('action_changed', False))}",
+        f"- 本番既定値への影響: {_display_bool(not bool(payload.get('must_not_affect_production_default', True)))}",
+        f"- 提案調整: {experimental.get('suggested_adjustment', '-')}",
     ]
 
 
@@ -1284,49 +1395,49 @@ def _buy_window_diagnostics_markdown_lines(report: dict[str, Any]) -> list[str]:
     blockers = diagnostics.get("blocker_counts") or {}
     top_blockers = sorted(blockers.items(), key=lambda item: int(item[1] or 0), reverse=True)[:3]
     lines = [
-        "## Buy Window Diagnostics",
-        f"- raw buy_window: {diagnostics.get('raw_buy_window_count', 0)}",
-        f"- buy_candidate: {diagnostics.get('raw_buy_candidate_count', 0)}",
-        f"- final buy_window: {diagnostics.get('final_buy_window_count', 0)}",
-        f"- final buy_candidate: {diagnostics.get('final_buy_candidate_count', 0)}",
-        f"- raw buy_window final downgrade: {int(diagnostics.get('raw_buy_window_to_watch_count', 0) or 0) + int(diagnostics.get('raw_buy_window_to_wait_count', 0) or 0)}",
+        "## 買い場判定の診断",
+        f"- 調整前の買い検討ゾーン: {diagnostics.get('raw_buy_window_count', 0)}",
+        f"- 買い場候補: {diagnostics.get('raw_buy_candidate_count', 0)}",
+        f"- 最終判断の買い検討ゾーン: {diagnostics.get('final_buy_window_count', 0)}",
+        f"- 最終判断の買い場候補: {diagnostics.get('final_buy_candidate_count', 0)}",
+        f"- 調整前の買い検討ゾーンからの降格: {int(diagnostics.get('raw_buy_window_to_watch_count', 0) or 0) + int(diagnostics.get('raw_buy_window_to_wait_count', 0) or 0)}",
         f"- FXによる買い場降格: {(report.get('japan_fx_downgrade_diagnostics') or {}).get('raw_buy_window_downgraded_by_fx_count', 0)}件",
-        f"- buy_candidate near-miss: {(report.get('buy_candidate_near_miss') or {}).get('near_miss_count', 0)}件",
+        f"- 買い場候補の惜しい未達: {(report.get('buy_candidate_near_miss') or {}).get('near_miss_count', 0)}件",
         f"- 主な不足条件: {(report.get('buy_candidate_near_miss') or {}).get('top_missing_condition', '-')}",
-        "- FX policy diagnostics: current policy unchanged; candidate policy is diagnostic only.",
-        f"- FX soft-cap diagnostic: current={_jp_action(str((report.get('fx_policy_diagnostics') or {}).get('current_final_action', '-')))} / soft_cap={_jp_action(str((report.get('fx_policy_diagnostics') or {}).get('fx_soft_cap_action', '-')))} / affects final action=false",
-        "- FX soft-cap watchlist: tracked={tracked} / ready={ready} / waiting={waiting} / decision={decision} / diagnostic only".format(
+        "- FX方針診断: 現行方針は変更なし。候補方針は診断専用です。",
+        f"- FXソフト上限診断: 現行={_jp_action(str((report.get('fx_policy_diagnostics') or {}).get('current_final_action', '-')))} / ソフト上限={_jp_action(str((report.get('fx_policy_diagnostics') or {}).get('fx_soft_cap_action', '-')))} / 最終判断への影響なし",
+        "- FXソフト上限ウォッチリスト: 追跡={tracked} / レビュー可能={ready} / 待機={waiting} / 判断={decision} / 診断専用".format(
             tracked=(report.get("fx_soft_cap_watchlist") or {}).get("tracked_case_count", 0),
             ready=(report.get("fx_soft_cap_watchlist") or {}).get("ready_for_review_count", 0),
             waiting=(report.get("fx_soft_cap_watchlist") or {}).get("waiting_future_data_count", 0),
             decision=(report.get("fx_soft_cap_watchlist") or {}).get("adoption_decision", "hold"),
         ),
-        "- FX soft-cap historical replay: weeks={weeks} / candidates={candidates} / decision={decision} / diagnostic only".format(
+        "- FXソフト上限の過去再生: 週数={weeks} / 候補={candidates} / 判断={decision} / 診断専用".format(
             weeks=(report.get("fx_soft_cap_historical_replay") or {}).get("total_replay_weeks", 0),
             candidates=(report.get("fx_soft_cap_historical_replay") or {}).get("fx_soft_cap_buy_candidate_count", 0),
             decision=(report.get("fx_soft_cap_historical_replay") or {}).get("adoption_decision", "hold"),
         ),
-        "- Conditional FX soft-cap diagnostics: best={best} / decision={decision} / affects final action=false".format(
+        "- 条件付きFXソフト上限診断: 最良候補={best} / 判断={decision} / 最終判断への影響なし".format(
             best=(report.get("fx_conditional_soft_cap_replay") or {}).get("best_candidate", "-"),
             decision=(report.get("fx_conditional_soft_cap_replay") or {}).get("adoption_decision", "hold"),
         ),
-        "- FX soft-cap DD guard diagnostics: best={best} / worstDD={before}->{after} / decision={decision} / affects final action=false".format(
+        "- FXソフト上限ドローダウンガード診断: 最良候補={best} / 最悪DD={before}→{after} / 判断={decision} / 最終判断への影響なし".format(
             best=(report.get("fx_soft_cap_dd_guard_replay") or {}).get("best_guard", "-"),
             before=_format_percent((report.get("fx_soft_cap_dd_guard_replay") or {}).get("base_worst_dd_13w")),
             after=_format_percent((report.get("fx_soft_cap_dd_guard_replay") or {}).get("best_worst_dd_13w")),
             decision=(report.get("fx_soft_cap_dd_guard_replay") or {}).get("adoption_decision", "hold"),
         ),
-        "- FX soft-cap balanced guard: count={count} / missed_good={missed} / decision={decision} / affects final action=false".format(
+        "- FXソフト上限バランスガード: 件数={count} / 良好候補の見逃し={missed} / 判断={decision} / 最終判断への影響なし".format(
             count=(report.get("fx_soft_cap_balanced_guard") or {}).get("buy_candidate_count", 0),
             missed=(report.get("fx_soft_cap_balanced_guard") or {}).get("missed_good_count", 0),
             decision=(report.get("fx_soft_cap_balanced_guard") or {}).get("adoption_decision", "hold"),
         ),
-        "- FX soft-cap long-range diagnostics: best={best} / weeks={weeks} / decision={decision} / affects final action=false".format(
+        "- FXソフト上限の長期診断: 最良候補={best} / 週数={weeks} / 判断={decision} / 最終判断への影響なし".format(
             best=(report.get("fx_soft_cap_long_range_guard_replay") or {}).get("best_candidate", "-"),
             weeks=(report.get("fx_soft_cap_long_range_guard_replay") or {}).get("usable_weeks", 0),
             decision=(report.get("fx_soft_cap_long_range_guard_replay") or {}).get("adoption_decision", "hold"),
         ),
-        "- Regime-aware FX diagnostics: best={best} / weeks={weeks} / decision={decision} / affects final action=false".format(
+        "- レジーム考慮FX診断: 最良候補={best} / 週数={weeks} / 判断={decision} / 最終判断への影響なし".format(
             best=(report.get("regime_aware_fx_policy_replay") or {}).get("best_candidate", "-"),
             weeks=(report.get("regime_aware_fx_policy_replay") or {}).get("usable_weeks", 0),
             decision=(report.get("regime_aware_fx_policy_replay") or {}).get("adoption_decision", "hold"),
@@ -1592,15 +1703,15 @@ def _threshold_usage_markdown_lines(report: dict[str, Any]) -> list[str]:
     affects_final_action = usage.get("affects_final_action", usage.get("currently_affects_final_action", "-"))
     rule_impact = rule_certification.get("currently_affects_final_action", False)
     return [
-        "## Threshold Usage / 閾値利用方針",
-        f"- 実運用閾値: {usage.get('operational_set', '-')}",
-        f"- proposed threshold: {usage.get('proposed_status', '-')}",
-        f"- candidate_v2: {usage.get('candidate_v2_status', '-')}",
-        f"- rule certification impact: {'partial' if rule_impact else 'none'}",
-        "- final action source: active threshold + reliability policy",
-        f"- proposed / candidate_v2 affects final action: {affects_final_action}",
+        "## しきい値利用方針",
+        f"- 実運用しきい値: {_localize_display_text(usage.get('operational_set', '-'))}",
+        f"- 提案中しきい値: {_localize_display_text(usage.get('proposed_status', '-'))}",
+        f"- 候補版v2: {_localize_display_text(usage.get('candidate_v2_status', '-'))}",
+        f"- ルール認証の影響: {'一部あり' if rule_impact else 'なし'}",
+        "- 最終判断の根拠: 実運用しきい値 + データ信頼性方針",
+        f"- 提案中しきい値 / 候補版v2 の最終判断への影響: {_localize_display_text(affects_final_action)}",
         "",
-        "補足: proposed / candidate_v2 / rule certification は診断・将来採用候補であり、v0.7.0 の final action には直接影響しません。",
+        "補足: 提案中しきい値 / 候補版v2 / ルール認証は診断・将来採用候補であり、v0.7.0 の最終判断には直接影響しません。",
     ]
 
 
@@ -1610,19 +1721,19 @@ def _threshold_usage_html(report: dict[str, Any]) -> str:
     affects_final_action = usage.get("affects_final_action", usage.get("currently_affects_final_action", "-"))
     rule_impact = rule_certification.get("currently_affects_final_action", False)
     rows = [
-        ("実運用閾値", usage.get("operational_set", "-")),
-        ("proposed threshold", usage.get("proposed_status", "-")),
-        ("candidate_v2", usage.get("candidate_v2_status", "-")),
-        ("rule certification impact", "partial" if rule_impact else "none"),
-        ("final action source", "active threshold + reliability policy"),
-        ("proposed / candidate_v2 affects final action", affects_final_action),
+        ("実運用しきい値", _localize_display_text(usage.get("operational_set", "-"))),
+        ("提案中しきい値", _localize_display_text(usage.get("proposed_status", "-"))),
+        ("候補版v2", _localize_display_text(usage.get("candidate_v2_status", "-"))),
+        ("ルール認証の影響", "一部あり" if rule_impact else "なし"),
+        ("最終判断の根拠", "実運用しきい値 + データ信頼性方針"),
+        ("提案中しきい値 / 候補版v2 の最終判断への影響", _localize_display_text(affects_final_action)),
     ]
     items = "".join(f"<li><strong>{html.escape(str(label))}:</strong> {html.escape(str(value))}</li>" for label, value in rows)
     return f"""
     <section class="card">
-      <h2>Threshold Usage / 閾値利用方針</h2>
+      <h2>しきい値利用方針</h2>
       <ul>{items}</ul>
-      <p>proposed / candidate_v2 / rule certification は診断・将来採用候補であり、v0.7.0 の final action には直接影響しません。</p>
+      <p>提案中しきい値 / 候補版v2 / ルール認証は診断・将来採用候補であり、v0.7.0 の最終判断には直接影響しません。</p>
     </section>
     """
 
@@ -1670,24 +1781,24 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- 市場レジーム: {regime_label}",
         f"- サイクル判定: {cycle_label} ({_display_number(report['cycle'].get('phase_angle_deg'))} 度)",
         f"- 合成スコア: {_display_number(report['score'].get('total_score'))}",
-        f"- legacy 判定用スコア: {_display_number(report['spot_signal'].get('legacy_adjusted_score', report['spot_signal'].get('adjusted_score', report['score'].get('total_score'))))}",
+        f"- 旧判定用スコア: {_display_number(report['spot_signal'].get('legacy_adjusted_score', report['spot_signal'].get('adjusted_score', report['score'].get('total_score'))))}",
         f"- 上昇再開の証拠: {recovery_grade} ({_display_compact_number(recovery_evidence.get('score'))})",
         f"- 騙し上昇の警戒: {blocker_level}",
         f"- 新判断: {decision_action}",
         f"- スポット投資判断: {action_label}",
-        f"- legacy スポット投資判断: {legacy_action_label}",
+        f"- 旧スポット投資判断: {legacy_action_label}",
         f"- 二段下げリスク: {risk_label}",
         f"- 円建て・為替リスク: {_jp_japan_risk_level(japan_risk.get('level'))} / {japan_risk.get('summary', '-')}",
         f"- 市場ストレス段階: {risk_stage_badge}",
-        f"- threshold version: {report.get('risk_thresholds', {}).get('version', '-')}",
-        f"- threshold calibrated_at: {report.get('risk_thresholds', {}).get('generated_at', '-')}",
-        f"- threshold drift: stable={drift_summary.get('stable_count', 0)} / watch={drift_summary.get('watch_count', 0)} / review={drift_summary.get('review_count', 0)} / unavailable={drift_summary.get('unavailable_count', 0)}",
-        f"- threshold drift review targets: {', '.join(drift_summary.get('review_targets', [])) or '-'}",
-        f"- threshold review status: {threshold_review.get('status', '-')} / recommended={threshold_review.get('review_recommended', False)}",
-        f"- threshold review reasons: {', '.join(threshold_review.get('reasons', [])) or '-'}",
-        f"- threshold maintenance status: {threshold_maintenance.get('status', '-')}",
-        f"- threshold maintenance elapsed: {_display_number(threshold_maintenance.get('elapsed_seconds'))} 秒",
-        f"- threshold maintenance proposal generated: {threshold_maintenance.get('proposal_generated_this_run', False)}",
+        f"- しきい値バージョン: {report.get('risk_thresholds', {}).get('version', '-')}",
+        f"- しきい値校正日時: {report.get('risk_thresholds', {}).get('generated_at', '-')}",
+        f"- しきい値ドリフト: 安定={drift_summary.get('stable_count', 0)} / 監視={drift_summary.get('watch_count', 0)} / 要確認={drift_summary.get('review_count', 0)} / 未取得={drift_summary.get('unavailable_count', 0)}",
+        f"- しきい値ドリフトのレビュー対象: {', '.join(_jp_review_target(item) for item in drift_summary.get('review_targets', [])) or '-'}",
+        f"- しきい値レビュー状態: {_jp_threshold_status(threshold_review.get('status', '-'))} / 推奨={_display_bool(threshold_review.get('review_recommended', False))}",
+        f"- しきい値レビュー理由: {', '.join(threshold_review.get('reasons', [])) or '-'}",
+        f"- しきい値メンテナンス状態: {_localize_display_text(threshold_maintenance.get('status', '-'))}",
+        f"- しきい値メンテナンス所要時間: {_display_number(threshold_maintenance.get('elapsed_seconds'))} 秒",
+        f"- しきい値提案生成: {_display_bool(threshold_maintenance.get('proposal_generated_this_run', False))}",
         "",
         *_threshold_usage_markdown_lines(report),
         "",
@@ -1701,11 +1812,11 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
     ]
     lines.extend(["## 判定理由", f"- {SECTION_EXPLANATIONS['decision_reasons']}"])
-    lines.append(f"- 上昇再開の証拠: {recovery_grade} / スコア {_display_compact_number(recovery_evidence.get('score'))}")
-    lines.append(f"- 騙し上昇の警戒: {blocker_level} / {blocker_assessment.get('summary', '-')}")
-    lines.append(f"- 最終判断: {decision_action} / mode {action_decision.get('mode', '-')}")
+    lines.append(f"- 上昇再開の証拠: {_localize_display_text(recovery_grade)} / スコア {_display_compact_number(recovery_evidence.get('score'))}")
+    lines.append(f"- 騙し上昇の警戒: {_localize_display_text(blocker_level)} / {_localize_display_text(blocker_assessment.get('summary', '-'))}")
+    lines.append(f"- 最終判断: {decision_action} / 判定モード {_localize_display_text(action_decision.get('mode', '-'))}")
     for reason in report["spot_signal"].get("rationale", []):
-        lines.append(f"- {reason}")
+        lines.append(f"- {_localize_display_text(reason)}")
 
     lines.extend(["", "## セクターローテーション", f"- {SECTION_EXPLANATIONS['sector']}"])
     for row in sector_context["rows"]:
@@ -1836,7 +1947,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     if tickers:
         lines.append("- 候補ティッカー: " + ", ".join(f"{item.get('ticker', '-')}({item.get('label', '-')})" for item in tickers))
     for reason in candidate.get("rationale", []):
-        lines.append(f"- {reason}")
+        lines.append(f"- {_localize_display_text(reason)}")
 
     lines.extend(_multi_asset_candidate_markdown_lines(report))
 
@@ -1856,7 +1967,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     if recovery_tickers:
         lines.append("- 候補ティッカー: " + ", ".join(f"{item.get('ticker', '-')}({item.get('label', '-')})" for item in recovery_tickers))
     for reason in recovery.get("rationale", []):
-        lines.append(f"- {reason}")
+        lines.append(f"- {_localize_display_text(reason)}")
 
     regime_leading = report.get("regime_leading_candidates", {})
     lines.extend(["", "## レジーム先回り候補", f"- {SECTION_EXPLANATIONS['regime_leading_candidates']}"])
@@ -1875,10 +1986,10 @@ def render_markdown(report: dict[str, Any]) -> str:
     if leading_tickers:
         lines.append(
             "- 候補ティッカー: "
-            + ", ".join(f"{item.get('ticker', '-')}({item.get('label', '-')}: {item.get('reason', '-')})" for item in leading_tickers)
+            + ", ".join(f"{item.get('ticker', '-')}({item.get('label', '-')}: {_localize_display_text(item.get('reason', '-'))})" for item in leading_tickers)
         )
     for reason in regime_leading.get("rationale", []):
-        lines.append(f"- {reason}")
+        lines.append(f"- {_localize_display_text(reason)}")
 
     lines.extend(["", "## 警告レイヤー", f"- {SECTION_EXPLANATIONS['alerts']}"])
     alerts = report.get("alerts", [])
@@ -2155,6 +2266,7 @@ def _localize_signal_value(value: Any) -> str:
         "stable": "安定",
         "unavailable": "未取得",
         "transition": "移行局面",
+        "late_cycle": "終盤局面",
         "upswing": "上昇局面",
         "risk_on": "リスクオン",
         "risk_off": "リスクオフ",
@@ -2167,23 +2279,27 @@ def _localize_decision_reason(reason: Any) -> str:
     exact = {
         "市場レジームは transition です。": "市場レジームは移行局面です。",
         "サイクル位相は upswing です。": "サイクル位相は上昇局面です。",
+        "サイクル位相は late_cycle です。": "サイクル位相は終盤局面です。",
     }
     if text in exact:
         return exact[text]
     replacements = [
         ("transition と", "移行局面と"),
+        ("late_cycle と", "終盤局面と"),
         ("upswing と", "上昇局面と"),
         ("inflation_shock と", "インフレショックと"),
         ("downswing と", "下落局面と"),
         ("risk_on と", "リスクオンと"),
         ("risk_off と", "リスクオフと"),
         (" transition ", " 移行局面 "),
+        (" late_cycle ", " 終盤局面 "),
         (" upswing ", " 上昇局面 "),
         (" inflation_shock ", " インフレショック "),
         (" downswing ", " 下落局面 "),
         (" risk_on ", " リスクオン "),
         (" risk_off ", " リスクオフ "),
         ("transition", "移行局面"),
+        ("late_cycle", "終盤局面"),
         ("upswing", "上昇局面"),
         ("inflation_shock", "インフレショック"),
         ("downswing", "下落局面"),
@@ -2271,6 +2387,70 @@ def _risk_meter_ratio(row: dict[str, Any]) -> float:
         current_value = 0.0
     upper = max(numeric_values + [current_value, 1.0])
     return min(max(current_value / upper, 0.0), 1.0)
+
+
+def _risk_pressure_ratio(row: dict[str, Any]) -> float:
+    try:
+        score = float(row.get("pressure_score"))
+    except (TypeError, ValueError):
+        score = _risk_meter_ratio(row)
+    return min(max(score, 0.0), 1.0)
+
+
+def _risk_threshold_short_text(value: Any) -> str:
+    text = str(value or "-")
+    labels = {
+        "level_zscore": "水準Z",
+        "level_percentile": "水準位置",
+        "level_and_roc_4w": "水準+4週",
+        "level_and_roc_8w": "水準+8週",
+        "roc_1w": "1週変化",
+        "roc_2w": "2週変化",
+        "roc_4w": "4週変化",
+        "roc_8w": "8週変化",
+        "roc_z_1w": "1週変化Z",
+        "roc_z_2w": "2週変化Z",
+        "roc_z_4w": "4週変化Z",
+        "roc_z_8w": "8週変化Z",
+        "drawdown_13w": "13週下落",
+        "drawdown_zscore": "下落Z",
+    }
+    for source, label in labels.items():
+        text = text.replace(source, label)
+    return _localize_display_text(text)
+
+
+def _risk_track_row_html(row: dict[str, Any]) -> str:
+    pressure = _risk_pressure_ratio(row)
+    pressure_pct = pressure * 100.0
+    tone = _risk_label_tone(row.get("line_level_label"))
+    label = str(row.get("ticker_name_ja", row.get("ticker", "-"))).replace("先物", "")
+    current = _display_compact_number(row.get("current"))
+    warning = _risk_threshold_short_text(row.get("warning_line"))
+    danger = _risk_threshold_short_text(row.get("danger_line"))
+    extreme = _risk_threshold_short_text(row.get("extreme_line"))
+    return (
+        "<div class='risk-track-row'>"
+        "<div class='risk-track-head'>"
+        f"<div class='risk-track-label'>{html.escape(label)}</div>"
+        f"<div class='risk-track-value'>現在 {html.escape(current)}</div>"
+        f"<div class='risk-track-state'>{_risk_badge_html(row.get('line_level_label', '-'), tone)}</div>"
+        "</div>"
+        "<div class='risk-track-bar' aria-label='危険度 {score:.0f} / 100'>"
+        f"<span class='risk-track-fill {html.escape(tone)}' style='width:{pressure_pct:.1f}%'></span>"
+        "<span class='risk-track-marker warning' title='注意ライン'></span>"
+        "<span class='risk-track-marker danger' title='危険ライン'></span>"
+        "<span class='risk-track-marker extreme' title='非常に危険ライン'></span>"
+        "</div>"
+        "<div class='risk-track-scale'><span>通常</span><span>注意</span><span>危険</span><span>非常に危険</span></div>"
+        "<div class='risk-track-thresholds'>"
+        f"<span>危険度 {pressure_pct:.0f}/100</span>"
+        f"<span>注意: {html.escape(warning)}</span>"
+        f"<span>危険: {html.escape(danger)}</span>"
+        f"<span>非常に危険: {html.escape(extreme)}</span>"
+        "</div>"
+        "</div>"
+    ).format(score=pressure_pct)
 
 
 def _build_sector_overview_rows(sector_context: dict[str, Any]) -> list[dict[str, Any]]:
@@ -2559,7 +2739,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
         or "なし"
     )
     candidate_rationale = (
-        "".join(f"<li>{esc(reason)}</li>" for reason in candidate.get("rationale", [])) or "<li>候補提示の条件がまだ揃っていません。</li>"
+        "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in candidate.get("rationale", [])) or "<li>候補提示の条件がまだ揃っていません。</li>"
     )
     multi_asset = report.get("multi_asset_candidates") or {}
     multi_asset_rows = [
@@ -2584,25 +2764,25 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
     multi_asset_panel = (
         '<section class="panel mt"><h3>資産クラス別の確認候補 {source}</h3>'
         "<p>{summary}</p><p><strong>注意:</strong> {disclaimer}</p>"
-        '<ul class="compact-list"><li>final_action への影響: {final_action}</li>'
-        "<li>buy_readiness_score への影響: {readiness}</li></ul>"
+        '<ul class="compact-list"><li>最終判断への影響: {final_action}</li>'
+        "<li>買い候補度への影響: {readiness}</li></ul>"
         '<div class="table-wrap">{table}</div></section>'
     ).format(
         source=source_chip("資産クラス別の確認候補"),
         summary=esc(multi_asset.get("summary", "-")),
         disclaimer=esc(multi_asset.get("disclaimer", "-")),
-        final_action=esc(multi_asset.get("affects_final_action", False)),
-        readiness=esc(multi_asset.get("affects_buy_readiness_score", False)),
+        final_action=esc(_display_bool(multi_asset.get("affects_final_action", False))),
+        readiness=esc(_display_bool(multi_asset.get("affects_buy_readiness_score", False))),
         table=multi_asset_table,
     )
     recovery_rationale = (
-        "".join(f"<li>{esc(reason)}</li>" for reason in recovery.get("rationale", [])) or "<li>先回り候補の条件はまだ揃っていません。</li>"
+        "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in recovery.get("rationale", [])) or "<li>先回り候補の条件はまだ揃っていません。</li>"
     )
     regime_leading_rationale = (
-        "".join(f"<li>{esc(reason)}</li>" for reason in regime_leading.get("rationale", []))
+        "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in regime_leading.get("rationale", []))
         or "<li>レジーム先回り候補の条件はまだ揃っていません。</li>"
     )
-    decision_rationale = "".join(f"<li>{esc(reason)}</li>" for reason in spot_signal.get("rationale", []))
+    decision_rationale = "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in spot_signal.get("rationale", []))
     risk_reason_items = (
         "".join(f"<li>{esc(_localize_decision_reason(reason))}</li>" for reason in risk_lines.get("reasons", []))
         or "<li>追加理由はありません。</li>"
@@ -2732,7 +2912,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>補足レポート ダッシュボード - {esc(report.get('title', 'Global Market Monitor'))}</title>
+  <title>補足レポート ダッシュボード - {esc(report.get('title', 'グローバル市場モニター'))}</title>
   <style>{style}</style>
 </head>
 <body>
@@ -2884,16 +3064,16 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
       </section>
 
       <section class="view view-audit">
-        <div class="view-head"><div><h2>監査</h2><p>threshold、データ取得状況、接続診断、最終警告を後から追えるようにまとめます。</p></div>{source_chip('データ取得状況 / 接続診断 / 警告')}</div>
+        <div class="view-head"><div><h2>監査</h2><p>しきい値、データ取得状況、接続診断、最終警告を後から追えるようにまとめます。</p></div>{source_chip('データ取得状況 / 接続診断 / 警告')}</div>
         <div class="metrics">
-          {kv_card('threshold version', report.get('risk_thresholds', {}).get('version', '-'))}
-          {kv_card('calibrated_at', report.get('risk_thresholds', {}).get('generated_at', '-'))}
-          {kv_card('review status', f"{threshold_review.get('status', '-')} / recommended={threshold_review.get('review_recommended', False)}", tone='warn' if threshold_review.get('review_recommended') else '')}
-          {kv_card('maintenance', f"{threshold_maintenance.get('status', '-')} / {number(threshold_maintenance.get('elapsed_seconds'))}秒")}
-          {kv_card('proposal generated', threshold_maintenance.get('proposal_generated_this_run', False))}
+          {kv_card('しきい値バージョン', report.get('risk_thresholds', {}).get('version', '-'))}
+          {kv_card('校正日時', report.get('risk_thresholds', {}).get('generated_at', '-'))}
+          {kv_card('レビュー状態', f"{_jp_threshold_status(threshold_review.get('status', '-'))} / 推奨={_display_bool(threshold_review.get('review_recommended', False))}", tone='warn' if threshold_review.get('review_recommended') else '')}
+          {kv_card('メンテナンス', f"{_localize_display_text(threshold_maintenance.get('status', '-'))} / {number(threshold_maintenance.get('elapsed_seconds'))}秒")}
+          {kv_card('提案生成', _display_bool(threshold_maintenance.get('proposal_generated_this_run', False)))}
         </div>
         <div class="grid-2">
-          <section class="panel"><h3>threshold drift {source_chip('判定の読み方')}</h3><div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));">{kv_card('stable', drift_summary.get('stable_count', 0))}{kv_card('watch', drift_summary.get('watch_count', 0), tone='warn')}{kv_card('review', drift_summary.get('review_count', 0), tone='danger')}{kv_card('unavailable', drift_summary.get('unavailable_count', 0))}</div><div class="audit-targets">{"".join(f"<span>{esc(item)}</span>" for item in drift_summary.get('review_targets', [])) or "<span>review target なし</span>"}</div><ul class="compact-list mt"><li>review reasons: {esc(', '.join(threshold_review.get('reasons', [])) or '-')}</li></ul></section>
+          <section class="panel"><h3>しきい値ドリフト {source_chip('判定の読み方')}</h3><div class="metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));">{kv_card('安定', drift_summary.get('stable_count', 0))}{kv_card('監視', drift_summary.get('watch_count', 0), tone='warn')}{kv_card('要確認', drift_summary.get('review_count', 0), tone='danger')}{kv_card('未取得', drift_summary.get('unavailable_count', 0))}</div><div class="audit-targets">{"".join(f"<span>{esc(item)}</span>" for item in drift_summary.get('review_targets', [])) or "<span>レビュー対象なし</span>"}</div><ul class="compact-list mt"><li>レビュー理由: {esc(', '.join(threshold_review.get('reasons', [])) or '-')}</li></ul></section>
           <section class="panel"><h3>接続診断 {source_chip('接続診断')}</h3><div class="table-wrap">{diagnostic_table}</div><h3 class="mt">代表エラー</h3><ul class="compact-list">{diagnostic_errors}</ul></section>
         </div>
         <section class="panel mt"><h3>データ取得状況 {source_chip('データ取得状況')}</h3><div class="table-wrap">{availability_table}</div></section>
@@ -3006,12 +3186,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     risk_highlights = _build_risk_highlight_rows(report)
     risk_highlight_rows = (
         "".join(
-            "<div class='risk-track-row'>"
-            f"<div class='risk-track-label'>{html.escape(str(row.get('ticker_name_ja', row.get('ticker', '-'))).replace('先物', ''))}</div>"
-            f"<div class='risk-track-bar'><span class='risk-track-fill {html.escape(_risk_label_tone(row.get('line_level_label')))}' style='width:{_risk_meter_ratio(row) * 100:.1f}%'></span><span class='risk-track-threshold'></span></div>"
-            f"<div class='risk-track-value'>{html.escape(_display_compact_number(row.get('current')))}</div>"
-            f"<div class='risk-track-state'>{_risk_badge_html(row.get('line_level_label', '-'), _risk_label_tone(row.get('line_level_label')))}</div>"
-            "</div>"
+            _risk_track_row_html(row)
             for row in risk_highlights
         )
         or "<div class='risk-track-empty'>主要指標データなし</div>"
@@ -3157,7 +3332,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         or "<li>現時点で追加の警告はありません。</li>"
     )
     candidate_items = (
-        "".join(f"<li>{html.escape(reason)}</li>" for reason in candidate.get("rationale", []))
+        "".join(f"<li>{html.escape(_localize_display_text(reason))}</li>" for reason in candidate.get("rationale", []))
         or "<li>候補提示の条件がまだ揃っていません。</li>"
     )
     candidate_asset = candidate.get("preferred_asset_class")
@@ -3166,7 +3341,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         ", ".join(f"{item.get('ticker', '-')}({item.get('label', '-')})" for item in candidate.get("candidate_tickers", [])) or "なし"
     )
     recovery_items = (
-        "".join(f"<li>{html.escape(reason)}</li>" for reason in recovery.get("rationale", []))
+        "".join(f"<li>{html.escape(_localize_display_text(reason))}</li>" for reason in recovery.get("rationale", []))
         or "<li>先回り候補の条件はまだ揃っていません。</li>"
     )
     recovery_asset = recovery.get("preferred_asset_class")
@@ -3175,7 +3350,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         ", ".join(f"{item.get('ticker', '-')}({item.get('label', '-')})" for item in recovery.get("candidate_tickers", [])) or "なし"
     )
     regime_leading_items = (
-        "".join(f"<li>{html.escape(reason)}</li>" for reason in regime_leading.get("rationale", []))
+        "".join(f"<li>{html.escape(_localize_display_text(reason))}</li>" for reason in regime_leading.get("rationale", []))
         or "<li>レジーム先回り候補の条件はまだ揃っていません。</li>"
     )
     regime_leading_sector = regime_leading.get("preferred_sector")
@@ -3456,6 +3631,8 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .hero-card {{ flex:1.22 1 0; }}
     .decision-card {{ flex:0.96 1 0; }}
     .hero-label, .decision-label, .mini-panel h3, .overview-panel h3, .support-panel h3 {{ margin:0; font-size:14px; font-weight:700; color:#23406f; }}
+    .manual-link-wrap {{ float:right; margin-left:8px; }}
+    .manual-link {{ display:inline-flex; align-items:center; min-height:24px; padding:0 8px; border:1px solid #9eb7d6; border-radius:6px; background:#fff; color:#17366d; font-size:12px; font-weight:800; text-decoration:none; white-space:nowrap; }}
     .hero-main {{ display:grid; grid-template-columns:minmax(0,1.14fr) minmax(230px,0.86fr); gap:20px; align-items:center; margin-top:10px; }}
     .regime-display {{ display:inline-block; max-width:none; font-size: 48px; font-weight:800; line-height:1; color:#17366d; letter-spacing:0; word-break:keep-all; overflow-wrap:normal; white-space:nowrap; }}
     .hero-copy-strong {{ margin-top:10px; max-width: 30ch; font-size:14px; line-height:1.48; color:#243b53; }}
@@ -3502,16 +3679,27 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .cycle-big {{ font-size:22px; font-weight:800; color:#17366d; }}
     .cycle-copy {{ margin-top:6px; color:#52606d; font-size:14px; line-height:1.55; }}
     .cycle-foot {{ margin-top:10px; display:inline-block; padding:8px 12px; border:1px solid var(--line); border-radius:999px; color:#52606d; font-size:13px; background:#fff; }}
-    .risk-track-row {{ display:grid; grid-template-columns:80px minmax(0,1fr) 52px 88px; gap:8px; align-items:center; margin-top:10px; }}
-    .risk-track-label {{ font-size:13px; color:#243b53; font-weight:700; }}
-    .risk-track-bar {{ position:relative; height:8px; border-radius:999px; background:#e7edf5; overflow:hidden; }}
+    .risk-track-note {{ margin:8px 0 10px; color:#52606d; font-size:12px; line-height:1.45; }}
+    .risk-track-list {{ display:grid; gap:8px; }}
+    .risk-track-row {{ display:grid; gap:5px; padding:7px 0; border-bottom:1px solid #edf2f7; }}
+    .risk-track-row:last-child {{ border-bottom:0; }}
+    .risk-track-head {{ display:grid; grid-template-columns:minmax(0,1fr) 58px 58px; gap:7px; align-items:center; }}
+    .risk-track-label {{ font-size:13px; color:#243b53; font-weight:700; min-width:0; overflow-wrap:anywhere; }}
+    .risk-track-bar {{ position:relative; height:12px; border-radius:999px; background:linear-gradient(90deg,#eaf2ed 0 40%,#fff3d7 40% 68%,#ffe4e0 68% 88%,#ffd1d1 88% 100%); overflow:hidden; box-shadow:inset 0 0 0 1px rgba(16,32,51,.07); }}
     .risk-track-fill {{ display:block; height:100%; border-radius:999px; }}
     .risk-track-fill.normal {{ background:#3fa168; }}
     .risk-track-fill.caution {{ background:#f59e0b; }}
     .risk-track-fill.danger, .risk-track-fill.extreme {{ background:#ef4444; }}
-    .risk-track-threshold {{ position:absolute; top:-4px; left:68%; width:2px; height:16px; background:#94a3b8; border-radius:2px; }}
-    .risk-track-value {{ font-size:13px; color:#243b53; text-align:right; }}
+    .risk-track-marker {{ position:absolute; top:0; bottom:0; width:2px; background:#334e68; opacity:.8; }}
+    .risk-track-marker.warning {{ left:40%; }}
+    .risk-track-marker.danger {{ left:68%; }}
+    .risk-track-marker.extreme {{ left:88%; background:#9b1c1c; }}
+    .risk-track-value {{ font-size:12px; color:#243b53; text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }}
     .risk-track-state .risk-badge {{ display:block; text-align:center; font-size:10px; line-height:1.25; padding:4px 7px; }}
+    .risk-track-scale {{ display:grid; grid-template-columns:40% 28% 20% 12%; color:#66737f; font-size:10px; line-height:1.15; }}
+    .risk-track-scale span:nth-child(n+2) {{ text-align:center; }}
+    .risk-track-thresholds {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px 8px; color:#52606d; font-size:10px; line-height:1.25; }}
+    .risk-track-thresholds span {{ min-width:0; overflow-wrap:anywhere; }}
     .candidate-boxes {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }}
     .candidate-box {{ padding:10px 10px; border:1px solid #cfe0f7; border-radius:14px; background:#fbfdff; text-align:center; }}
     .candidate-box strong {{ display:block; font-size:24px; color:#17366d; line-height:1.1; }}
@@ -3705,7 +3893,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
           <div>
             <div class=\"regime-display\">{html.escape(regime_label)}</div>
             <div class=\"hero-copy-strong\">{hero_summary_copy}</div>
-            <div class=\"inline-note\">上昇再開 {html.escape(recovery_grade_label)} / 警戒 {html.escape(blocker_level_label)} / 新判断 {html.escape(decision_action)} / legacy {html.escape(legacy_action_label)} / レジーム減点 {float(report['spot_signal'].get('regime_penalty', 0) or 0):.1f}</div>
+            <div class=\"inline-note\">上昇再開 {html.escape(recovery_grade_label)} / 警戒 {html.escape(blocker_level_label)} / 新判断 {html.escape(decision_action)} / 旧判断 {html.escape(legacy_action_label)} / レジーム減点 {float(report['spot_signal'].get('regime_penalty', 0) or 0):.1f}</div>
           </div>
           <div class=\"hero-side\">
             <div class=\"score-gauge\">
@@ -3734,7 +3922,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
           <div class=\"hero-metric\"><div class=\"k\">上昇再開の証拠</div><div class=\"v green\">{html.escape(recovery_grade_label)}</div></div>
           <div class=\"hero-metric\"><div class=\"k\">騙し上昇の警戒</div><div class=\"v orange\">{html.escape(blocker_level_label)}</div></div>
           <div class=\"hero-metric\"><div class=\"k\">スポット投資判断</div><div class=\"v blue\">{html.escape(action_label)}</div></div>
-          <div class=\"hero-metric\"><div class=\"k\">legacy 判定用スコア</div><div class=\"v\">{html.escape(_display_compact_number(report['spot_signal'].get('legacy_adjusted_score', report['spot_signal'].get('adjusted_score', report['score'].get('total_score')))))}</div></div>
+          <div class=\"hero-metric\"><div class=\"k\">旧判定用スコア</div><div class=\"v\">{html.escape(_display_compact_number(report['spot_signal'].get('legacy_adjusted_score', report['spot_signal'].get('adjusted_score', report['score'].get('total_score')))))}</div></div>
         </div>
       </section>
 
@@ -3770,8 +3958,9 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         </div>
       </section>
       <section class=\"mini-panel\">
-        <h3>危険ライン</h3>
-        <div class=\"mini-content\">
+        <h3>危険ライン（現在値と判定）</h3>
+        <p class=\"risk-track-note\">棒は各指標の採用ルールを0-100化した危険度です。現在位置、注意ライン、危険ライン、非常に危険ラインの距離感を確認します。</p>
+        <div class=\"mini-content risk-track-list\">
           {risk_highlight_rows}
         </div>
       </section>
@@ -3809,7 +3998,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         <h3>データ取得</h3>
         <div class=\"support-body\">
           <div class=\"support-head\"><div class=\"support-icon\">▣</div><div class=\"support-title\">データ健全性</div></div>
-          <div class=\"support-meta\">信頼性: <strong>{html.escape(_jp_reliability(report.get('data_reliability', {}).get('level', 'high')))}</strong><br>ソース: <strong>{html.escape(report['data_source'])}</strong><br>データ品質上限: <strong>{html.escape(_jp_action(str(report.get('data_reliability', {}).get('max_action', 'buy_window'))))}</strong><br>live 取得率: <strong>{html.escape(_display_percent(report.get('data_reliability', {}).get('live_ratio')))}</strong><br>代替取得内訳: <strong>proxy={html.escape(str(report.get('data_reliability', {}).get('proxy_fallback_count', 0)))} / sample={html.escape(str(report.get('data_reliability', {}).get('sample_fallback_count', 0)))} / unavailable={html.escape(str(report.get('data_reliability', {}).get('unavailable_count', 0)))}</strong><br>データ品質による降格: <strong>{'あり' if action_decision.get('reliability_cap_applied') else 'なし'} / {html.escape(', '.join(action_decision.get('cap_reason', [])) or str(report.get('data_reliability', {}).get('reason_code', '-')))}</strong></div>
+          <div class=\"support-meta\">信頼性: <strong>{html.escape(_jp_reliability(report.get('data_reliability', {}).get('level', 'high')))}</strong><br>ソース: <strong>{html.escape(report['data_source'])}</strong><br>データ品質上限: <strong>{html.escape(_jp_action(str(report.get('data_reliability', {}).get('max_action', 'buy_window'))))}</strong><br>実データ取得率: <strong>{html.escape(_display_percent(report.get('data_reliability', {}).get('live_ratio')))}</strong><br>代替取得内訳: <strong>代替ティッカー={html.escape(str(report.get('data_reliability', {}).get('proxy_fallback_count', 0)))} / サンプル代替={html.escape(str(report.get('data_reliability', {}).get('sample_fallback_count', 0)))} / 未取得={html.escape(str(report.get('data_reliability', {}).get('unavailable_count', 0)))}</strong><br>データ品質による降格: <strong>{'あり' if action_decision.get('reliability_cap_applied') else 'なし'} / {html.escape(', '.join(action_decision.get('cap_reason', [])) or str(report.get('data_reliability', {}).get('reason_code', '-')))}</strong></div>
         </div>
       </section>
 
@@ -3906,15 +4095,15 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         <li>サイクル判定: 上昇・終盤・回復・下降のどこに近いかを見る補助線です。</li>
         <li>合成スコア: 条件の揃い具合です。高いほど押し目検討の材料が増えます。</li>
         <li>スポット投資判断: 今すぐ積極化するか、監視を続けるか、待つかの運用向け要約です。</li>
-        <li>threshold version: {html.escape(str(report.get('risk_thresholds', {}).get('version', '-')))}</li>
-        <li>threshold calibrated_at: {html.escape(str(report.get('risk_thresholds', {}).get('generated_at', '-')))}</li>
-        <li>threshold drift: stable={drift_summary.get('stable_count', 0)} / watch={drift_summary.get('watch_count', 0)} / review={drift_summary.get('review_count', 0)} / unavailable={drift_summary.get('unavailable_count', 0)}</li>
-        <li>threshold drift review targets: {html.escape(', '.join(drift_summary.get('review_targets', [])) or '-')}</li>
-        <li>threshold review status: {html.escape(str(threshold_review.get('status', '-')))} / recommended={html.escape(str(threshold_review.get('review_recommended', False)))}</li>
-        <li>threshold review reasons: {html.escape(', '.join(threshold_review.get('reasons', [])) or '-')}</li>
-        <li>threshold maintenance status: {html.escape(str(threshold_maintenance.get('status', '-')))}</li>
-        <li>threshold maintenance elapsed: {html.escape(str(_display_number(threshold_maintenance.get('elapsed_seconds'))))} 秒</li>
-        <li>threshold maintenance proposal generated: {html.escape(str(threshold_maintenance.get('proposal_generated_this_run', False)))}</li>
+        <li>しきい値バージョン: {html.escape(str(report.get('risk_thresholds', {}).get('version', '-')))}</li>
+        <li>しきい値校正日時: {html.escape(str(report.get('risk_thresholds', {}).get('generated_at', '-')))}</li>
+        <li>しきい値ドリフト: 安定={drift_summary.get('stable_count', 0)} / 監視={drift_summary.get('watch_count', 0)} / 要確認={drift_summary.get('review_count', 0)} / 未取得={drift_summary.get('unavailable_count', 0)}</li>
+        <li>しきい値ドリフトのレビュー対象: {html.escape(', '.join(drift_summary.get('review_targets', [])) or '-')}</li>
+        <li>しきい値レビュー状態: {html.escape(_jp_threshold_status(threshold_review.get('status', '-')))} / 推奨={html.escape(_display_bool(threshold_review.get('review_recommended', False)))}</li>
+        <li>しきい値レビュー理由: {html.escape(', '.join(threshold_review.get('reasons', [])) or '-')}</li>
+        <li>しきい値メンテナンス状態: {html.escape(str(threshold_maintenance.get('status', '-')))}</li>
+        <li>しきい値メンテナンス所要時間: {html.escape(str(_display_number(threshold_maintenance.get('elapsed_seconds'))))} 秒</li>
+        <li>しきい値提案生成: {html.escape(_display_bool(threshold_maintenance.get('proposal_generated_this_run', False)))}</li>
       </ul>
     </section>
 
@@ -3926,8 +4115,8 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       <ul>
         <li>上昇再開の証拠: {html.escape(recovery_grade)} / スコア {html.escape(recovery_score)}</li>
         <li>騙し上昇の警戒: {html.escape(blocker_level)} / {html.escape(str(blocker_assessment.get('summary', '-')))}</li>
-        <li>最終判断: {html.escape(decision_action)} / mode {html.escape(str(action_decision.get('mode', '-')))}</li>
-        {"".join(f"<li>{html.escape(reason)}</li>" for reason in report["spot_signal"].get("rationale", []))}
+        <li>最終判断: {html.escape(decision_action)} / 判定モード {html.escape(str(action_decision.get('mode', '-')))}</li>
+        {"".join(f"<li>{html.escape(_localize_display_text(reason))}</li>" for reason in report["spot_signal"].get("rationale", []))}
       </ul>
     </section>
 
@@ -4521,14 +4710,14 @@ def _data_quality_html_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
 
 def _action_validation_markdown_lines(report: dict[str, Any]) -> list[str]:
     validation = report.get("action_validation") or {}
-    lines = ["", "## action validation"]
+    lines = ["", "## 判断検証"]
     status = validation.get("status", "not_available")
-    lines.append(f"- status: {status}")
+    lines.append(f"- 状態: {status}")
     if validation.get("reason"):
-        lines.append(f"- reason: {validation.get('reason')}")
+        lines.append(f"- 理由: {validation.get('reason')}")
     summary = validation.get("action_summary") or {}
     if not summary:
-        lines.append("- summary: 履歴検証はまだ利用できません。")
+        lines.append("- 要約: 履歴検証はまだ利用できません。")
         return lines
     for action, item in summary.items():
         horizon = (item.get("horizons") or {}).get("13w", {})
@@ -4537,8 +4726,8 @@ def _action_validation_markdown_lines(report: dict[str, Any]) -> list[str]:
         )
     diagnostics = validation.get("diagnostics") or {}
     if diagnostics:
-        lines.append(f"- buy_window後13週マイナス率: {_display_percent(diagnostics.get('buy_window_negative_rate_13w'))}")
-        lines.append(f"- wait後13週大幅上昇率: {_display_percent(diagnostics.get('wait_missed_rally_rate_13w'))}")
+        lines.append(f"- 買い検討ゾーン後13週マイナス率: {_display_percent(diagnostics.get('buy_window_negative_rate_13w'))}")
+        lines.append(f"- 待機後13週大幅上昇率: {_display_percent(diagnostics.get('wait_missed_rally_rate_13w'))}")
     return lines
 
 
@@ -5352,6 +5541,8 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
     .risk-line-detail-section {{ grid-column:span 1; }}
     .hindenburg-history-section .mini-panel {{ margin:0; }}
     .hindenburg-history-section .hindenburg-panel {{ border:0; padding:0; }}
+    .manual-link-wrap {{ float:right; margin-left:8px; }}
+    .manual-link {{ display:inline-flex; align-items:center; min-height:24px; padding:0 8px; border:1px solid #9eb7d6; border-radius:6px; background:#fff; color:#17366d; font-size:12px; font-weight:800; text-decoration:none; white-space:nowrap; }}
     .hindenburg-history-section .table-wrap {{ max-height:150px; }}
     .history-browser-section {{ grid-column:span 1; }}
     .history-mini-chart {{ height:150px; border:1px solid #dbe6eb; border-radius:6px; background:linear-gradient(180deg,#fff,#f8fbff); display:grid; place-items:center; color:#6b7785; font-weight:900; }}
@@ -5370,7 +5561,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
 <body>
   <main class="supplement-dashboard-shell">
     <header class="supplement-topbar">
-      <strong>Global Market Monitor</strong>
+      <strong>グローバル市場モニター</strong>
       <span>最終更新: {generated_at} / {source_name}</span>
     </header>
     <section class="supplement-hero" aria-label="補足レポート概要">
@@ -5385,7 +5576,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
         <span class="supplement-chip">補助確認</span>
         <span class="supplement-chip limit">データ制約</span>
         <span class="supplement-chip safe">本体判断への影響なし</span>
-        <span class="supplement-chip safe">データ品質上限 {quality_limit} / live {quality_live_ratio} / {quality_cap_note}</span>
+        <span class="supplement-chip safe">データ品質上限 {quality_limit} / 実データ {quality_live_ratio} / {quality_cap_note}</span>
         <a class="supplement-chip" href="report.html">本体レポートへ戻る</a>
       </div>
     </section>
@@ -5394,7 +5585,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
       <a href="#risk-lines"><b>1</b>危険ライン</a>
       <a href="#resident-context"><b>2</b>日本在住者文脈</a>
       <a href="#domestic-context"><b>3</b>国内文脈</a>
-      <a href="#hindenburg-detail"><b>4</b>Hindenburg Omen</a>
+      <a href="#hindenburg-detail"><b>4</b>ヒンデンブルグオーメン</a>
       <a href="#data-acquisition"><b>5</b>データ取得</a>
       <a href="#threshold-audit"><b>6</b>しきい値</a>
       <a href="#runtime-diagnostics"><b>7</b>実行環境</a>
@@ -5404,17 +5595,17 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
       <article class="evidence-summary-card"><h2>1. 危険ライン（主要指標）</h2><dl><dt>総合評価</dt><dd>{esc(risk_lines.get('stage_label', '-'))}</dd><dt>危険/非常に危険</dt><dd>{esc(risk_lines.get('danger_count', 0))} / {esc(risk_lines.get('extreme_count', 0))}</dd><dt>要注意理由</dt><dd>{esc(len(risk_lines.get('reasons', [])))}</dd></dl></article>
       <article class="evidence-summary-card"><h2>2. 日本在住者文脈（統合）</h2><dl><dt>統合評価</dt><dd>{esc(_domestic_danger_level_label(integrated_context.get('combined_context_level')))}</dd><dt>影響度</dt><dd>{esc(_domestic_danger_level_label(integrated_context.get('fx_risk_level')))}</dd><dt>確認項目</dt><dd>{esc(len(integrated_context.get('watch_items', [])))}</dd></dl></article>
       <article class="evidence-summary-card"><h2>3. 国内文脈（危険シグナル）</h2><dl><dt>国内資産</dt><dd>{esc(_domestic_danger_level_label(domestic_danger.get('domestic_asset_level')))}</dd><dt>国内為替</dt><dd>{esc(_domestic_danger_level_label(domestic_danger.get('domestic_fx_level')))}</dd><dt>制約</dt><dd>{esc(len(domestic_danger.get('domestic_data_limitations', [])))}</dd></dl></article>
-      <article class="evidence-summary-card"><h2>4. Hindenburg Omen</h2><dl><dt>現在のランプ状態</dt><dd>{esc(_hindenburg_signal_label((report.get('hindenburg_omen_context') or {}).get('current_signal')))}</dd><dt>最新トリガー日</dt><dd>{esc((report.get('hindenburg_omen_context') or {}).get('latest_trigger_date', '-'))}</dd><dt>発動期間中か</dt><dd>{'はい' if (report.get('hindenburg_omen_context') or {}).get('is_currently_active') else 'いいえ'}</dd></dl></article>
+      <article class="evidence-summary-card"><h2>4. ヒンデンブルグオーメン</h2><dl><dt>現在のランプ状態</dt><dd>{esc(_hindenburg_signal_label((report.get('hindenburg_omen_context') or {}).get('current_signal')))}</dd><dt>最新トリガー日</dt><dd>{esc((report.get('hindenburg_omen_context') or {}).get('latest_trigger_date', '-'))}</dd><dt>発動期間中か</dt><dd>{'はい' if (report.get('hindenburg_omen_context') or {}).get('is_currently_active') else 'いいえ'}</dd></dl></article>
       <article class="evidence-summary-card"><h2>5. 資産クラス / 候補証拠</h2><dl><dt>資産比較</dt><dd>{esc(len(report.get('asset_compare', [])))}</dd><dt>候補数</dt><dd>{esc(len(candidate.get('candidate_tickers', [])))}</dd><dt>証拠</dt><dd>参考表示</dd></dl></article>
     </section>
     <section class="supplement-evidence-grid" aria-label="補足詳細">
       <section class="evidence-card risk-line-detail-section" id="risk-lines"><h2>1. 危険ライン詳細と信頼度監査</h2><div class="table-wrap">{table(['指標','判定','現在値','注意ライン','危険ライン','非常に危険'], risk_line_rows)}</div><ul class="compact-list">{risk_reason_items}</ul></section>
       <section class="evidence-card resident-context-detail-section" id="resident-context"><h2>2. 日本在住者文脈（統合）詳細</h2>{integrated_context_panel}<div class="table-wrap" style="margin-top:8px;">{table(['為替','現在値','1週','4週','12週','判定'], fx_rows)}</div></section>
       <section class="evidence-card domestic-context-detail-section" id="domestic-context"><h2>3. 国内文脈（危険シグナル）詳細</h2>{domestic_danger_panel}</section>
-      <section class="evidence-card hindenburg-history-section" id="hindenburg-detail"><h2>4. Hindenburg Omen トリガー / 発動履歴</h2>{hindenburg_omen_panel}</section>
+      <section class="evidence-card hindenburg-history-section" id="hindenburg-detail"><h2>4. ヒンデンブルグオーメンのトリガー / 発動履歴</h2>{hindenburg_omen_panel}</section>
       <section class="evidence-card asset-candidate-evidence-section" id="asset-candidate-evidence"><h2>5. 資産クラス / 候補証拠 詳細</h2><div class="table-wrap">{table(['資産クラス','ティッカー','12週','年率ボラ','最大DD'], asset_rows)}</div><div class="table-wrap" style="margin-top:8px;">{table(['銘柄','判定','理由'], candidate_rows)}</div></section>
       <section class="evidence-card data-acquisition-section" id="data-acquisition"><h2>6. データ取得状況</h2><div class="table-wrap">{table(['要求系列','状態','実使用系列','説明'], availability_rows)}</div></section>
-      <section class="evidence-card threshold-audit-section" id="threshold-audit"><h2>7. しきい値の使用状況と認証</h2><div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));">{metric('review status', f"{esc(threshold_review.get('status', '-'))} / recommended={esc(threshold_review.get('review_recommended', False))}", 'warn' if threshold_review.get('review_recommended') else '')}{metric('maintenance', f"{esc(threshold_maintenance.get('status', '-'))} / {number(threshold_maintenance.get('elapsed_seconds'))}秒")}{metric('proposal generated', esc(threshold_maintenance.get('proposal_generated_this_run', False)))}</div><div class="drift-list"><div><span>stable</span><b>{esc(drift_summary.get('stable_count', 0))}</b></div><div><span>watch</span><b style="color:var(--orange)">{esc(drift_summary.get('watch_count', 0))}</b></div><div><span>review</span><b style="color:var(--red)">{esc(drift_summary.get('review_count', 0))}</b></div><div><span>unavailable</span><b>{esc(drift_summary.get('unavailable_count', 0))}</b></div></div>{_threshold_usage_html(report)}{_threshold_rule_certification_html(report)}</section>
+      <section class="evidence-card threshold-audit-section" id="threshold-audit"><h2>7. しきい値の使用状況と認証</h2><div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));">{metric('レビュー状態', f"{esc(_jp_threshold_status(threshold_review.get('status', '-')))} / 推奨={esc(_display_bool(threshold_review.get('review_recommended', False)))}", 'warn' if threshold_review.get('review_recommended') else '')}{metric('メンテナンス', f"{esc(_localize_display_text(threshold_maintenance.get('status', '-')))} / {number(threshold_maintenance.get('elapsed_seconds'))}秒")}{metric('提案生成', esc(_display_bool(threshold_maintenance.get('proposal_generated_this_run', False))))}</div><div class="drift-list"><div><span>安定</span><b>{esc(drift_summary.get('stable_count', 0))}</b></div><div><span>監視</span><b style="color:var(--orange)">{esc(drift_summary.get('watch_count', 0))}</b></div><div><span>要確認</span><b style="color:var(--red)">{esc(drift_summary.get('review_count', 0))}</b></div><div><span>未取得</span><b>{esc(drift_summary.get('unavailable_count', 0))}</b></div></div>{_threshold_usage_html(report)}{_threshold_rule_certification_html(report)}</section>
       <section class="evidence-card runtime-diagnostics-section" id="runtime-diagnostics"><h2>8. 実行環境 / 接続診断</h2><div class="table-wrap">{table(['項目','内容'], [[esc(k), esc(v)] for k, v in diagnostic_rows], False)}</div><div style="margin-top:8px;">{alert_cards}</div><ul class="compact-list" style="margin-top:8px;">{warning_items}</ul></section>
       <section class="evidence-card history-browser-section" id="history-browser"><h2>9. 履歴ブラウザ</h2><div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));">{metric('主基準 daily_latest', f"{esc(history_meta.get('daily_latest_count', 0))}件")}{metric('参考 all_history', f"{esc(history_meta.get('history_count', 0))}件")}{metric('最新スコア', esc(latest_history.get('score', '-')))}</div><div class="history-mini-chart">履歴確認用の参考表示</div></section>
     </section>

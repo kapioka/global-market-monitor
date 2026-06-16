@@ -28,7 +28,7 @@ def _report() -> dict:
 def test_data_quality_markdown_lines_summarize_policy():
     lines = data_quality_markdown_lines(_report())
 
-    assert "- live 取得率: 75%" in lines
+    assert "- 実データ取得率: 75%" in lines
     assert any("データ品質上限: 監視" in line for line in lines)
     assert any("critical_series_unavailable" in line for line in lines)
 
@@ -37,5 +37,5 @@ def test_data_quality_html_rows_summarize_policy():
     rows = dict(data_quality_html_rows(_report()))
 
     assert rows["判定信頼性"] == "中"
-    assert rows["live 取得率"] == "75%"
+    assert rows["実データ取得率"] == "75%"
     assert "ACWI" in rows["重要系列不足"]

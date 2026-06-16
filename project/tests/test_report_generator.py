@@ -665,13 +665,13 @@ def test_render_markdown_uses_real_newlines():
     text = render_markdown(_report())
     assert "`n" not in text
     assert "## まず見る要約" in text
-    assert "Buy Decision Card / 買い判断カード" in text
+    assert "## 買い判断カード" in text
     assert "成功確率・期待リターン・投資成功率ではありません" in text
     assert "TimesFM" not in text
     assert "- 最終判断: 監視" in text
-    assert "危険ライン trigger path" in text
+    assert "危険ラインの発火経路" in text
     assert "信頼度監査: 米国・グローバル中心の危険監視" in text
-    assert "fallback_review=10 / low_precision=7 / pass=2" in text
+    assert "暫定レビュー=10 / 精度不足=7 / 通過=2" in text
     assert "DXY と円建てFX" in text
     assert "\n## サマリー\n" in text
     assert "データ取得状況" in text
@@ -710,7 +710,7 @@ def test_render_html_includes_first_read_summary():
     assert "グローバルリスク" in html
     assert "日本在住者向け文脈" in html
     assert "データ制約" in html
-    assert "Hindenburg Omen" in html
+    assert "ヒンデンブルグオーメン" in html
     assert "詳細は補足レポートで確認" in html
     assert "本レポートは市場のモニタリングを目的としており" in html
     assert "買い判断カード" in html
@@ -727,9 +727,9 @@ def test_render_html_includes_first_read_summary():
     assert "WTI原油先物" in text
     assert "信用収縮警戒" in text
     assert "判定理由" in text
-    assert "live 取得率: 75%" in text
-    assert "データ品質上限: 監視継続 / confidence 上限 0.45" in text
-    assert "代替取得内訳: proxy=1 / sample=1 / unavailable=0" in text
+    assert "実データ取得率: 75%" in text
+    assert "データ品質上限: 監視継続 / 信頼度上限 0.45" in text
+    assert "代替取得内訳: 代替ティッカー=1 / サンプル代替=1 / 未取得=0" in text
     assert "重要系列不足: ACWI" in text
     assert "データ品質による降格: あり / 理由 sample_fallback_present" in text
     assert "投資候補" in text
@@ -748,12 +748,12 @@ def test_render_html_includes_first_read_summary():
     assert "生活影響警告 / 注意" in text
     assert "信用環境は持ち直し寄りです。" in text
     assert "判定用スコアは 0.70" in text
-    assert "- legacy 判定用スコア: 0.7" in text
+    assert "- 旧判定用スコア: 0.7" in text
     assert "- 上昇再開の証拠: confirmed (0.74)" in text
     assert "- 騙し上昇の警戒: caution" in text
     assert "- 新判断: 監視継続" in text
-    assert "- legacy スポット投資判断: 買い検討ゾーン" in text
-    assert "- 最終判断: 監視継続 / mode evidence_building_with_caution" in text
+    assert "- 旧スポット投資判断: 買い検討ゾーン" in text
+    assert "- 最終判断: 監視継続 / 判定モード 証拠形成中・注意" in text
     assert "内部警告件数" in text
     assert "危険ライン段階とは別の判定" in text
     assert '<span style="color:#1f2933;"><strong>信用波及初期</strong></span>' in text
@@ -775,7 +775,7 @@ def test_render_html_beginner_top_sections_hide_internal_terms():
     assert "グローバルリスク" in top_html
     assert "日本在住者向け文脈" in top_html
     assert "データ制約" in top_html
-    assert "Hindenburg Omen" in top_html
+    assert "ヒンデンブルグオーメン" in top_html
     assert "次の確認条件" in top_html
     assert "買い候補" in top_html
     assert "これは成功確率ではありません" in top_html
@@ -908,7 +908,7 @@ def test_render_html_contains_japanese_explanations():
     assert "アラート" in html
     assert "データ健全性" in html
     assert "データ品質上限" in html
-    assert "proxy=1 / sample=1 / unavailable=0" in html
+    assert "代替ティッカー=1 / サンプル代替=1 / 未取得=0" in html
     assert "sample_fallback_present" in html
     assert "しきい値提案" in html
     assert "上昇再開 確認済み / 警戒 注意" in html
@@ -924,7 +924,7 @@ def test_render_html_contains_japanese_explanations():
     assert "先回り候補" in html
     assert "レジーム先回り" in html
     assert "生活コスト上昇警戒" in html
-    assert "legacy 買い検討ゾーン" in html
+    assert "旧判断 買い検討ゾーン" in html
     assert "レジーム減点 0.0" in html
     assert "補足レポート 以下は監査性と詳細確認" not in html
     assert '<section class="section">' not in html
@@ -959,8 +959,8 @@ def test_render_markdown_includes_multi_asset_candidates_without_changing_decisi
     assert "4週=-3.7" in markdown
     assert "制約=missing_series" in markdown
     assert "これは買い推奨ではなく" in markdown
-    assert "final_action への影響: False" in markdown
-    assert "buy_readiness_score への影響: False" in markdown
+    assert "最終判断への影響: いいえ" in markdown
+    assert "買い候補度への影響: いいえ" in markdown
     assert report["buy_decision_card"]["final_action"] == before_action
     assert report["buy_decision_card"]["buy_readiness_score"] == before_score
     section = markdown[markdown.index("## 資産クラス別の確認候補") : markdown.index("## 先回り候補")]
@@ -995,7 +995,7 @@ def test_render_html_includes_multi_asset_candidates_table():
     assert "為替や商品価格の影響を受けます。" in html
     section = html[html.index("資産クラス別の確認候補") : html.index("先回り候補")]
     assert "unavailable" not in section
-    assert "final_action への影響: False" in html
+    assert "最終判断への影響: いいえ" in html
 
 
 def test_render_outputs_include_japan_resident_integrated_risk_context():
@@ -1011,13 +1011,15 @@ def test_render_outputs_include_japan_resident_integrated_risk_context():
         assert "米国・グローバル" in rendered
         assert "USDJPY/EURJPY" in rendered
         assert "国内インフレデータ品質" in rendered
-        assert "final_action への影響" in rendered
-        assert "buy_readiness_score への影響" in rendered
-        assert "False" in rendered
-        assert "manual_file_missing" in rendered
+        assert "最終判断への影響" in rendered
+        assert "買い候補度への影響" in rendered
+        assert "いいえ" in rendered
+        assert "手動CSV未設定" in rendered
+        assert "manual_file_missing" not in rendered
     assert "日本在住者向け統合リスク文脈" not in html
     assert "日本在住者向け文脈" in html
-    assert "manual_file_missing" in html
+    assert "手動CSV未設定" in html
+    assert "manual_file_missing" not in html
 
 
 def test_render_html_groups_core_supplemental_data_limits_and_acquisition_status():
@@ -1045,11 +1047,11 @@ def test_render_html_groups_core_supplemental_data_limits_and_acquisition_status
     assert "グローバル危険ライン" in html
     assert "データ制約・取得状況" in html
     assert "実験比較" in html
-    assert "final_action" in html
+    assert "最終判断" in html
     assert "買い候補度" in html
-    assert "baseline 72 -&gt; experimental 64 / delta raw -8 / clamped -8" in html
-    assert "manual_file_missing" in html
-    assert "proxy_fallback=1" in html
+    assert "基準 72 → 実験値 64 / 差分 調整前 -8 / 上限適用後 -8" in html
+    assert "手動CSV未設定" in html
+    assert "代替ティッカーで取得=1" in html
 
 
 def test_render_markdown_includes_decision_boundary_experiment_without_action_change():
@@ -1075,15 +1077,15 @@ def test_render_markdown_includes_decision_boundary_experiment_without_action_ch
 
     markdown = render_markdown(report)
 
-    assert "Decision Boundary Experiment / 判断境界の実験比較" in markdown
-    assert "enabled: False" in markdown
-    assert "baseline final_action: 監視継続" in markdown
-    assert "experimental adjusted_buy_readiness_score: 64" in markdown
-    assert "raw_score_delta: -8" in markdown
-    assert "clamped_score_delta: -8" in markdown
-    assert "clamp_reason: not_clamped" in markdown
-    assert "action_changed: False" in markdown
-    assert "production default への影響: False" in markdown
+    assert "判断境界の実験比較" in markdown
+    assert "有効化: いいえ" in markdown
+    assert "基準の最終判断: 監視継続" in markdown
+    assert "実験後の買い候補度: 64" in markdown
+    assert "調整前スコア差分: -8" in markdown
+    assert "上限適用後スコア差分: -8" in markdown
+    assert "上限理由: not_clamped" in markdown
+    assert "判断変更: いいえ" in markdown
+    assert "本番既定値への影響: いいえ" in markdown
 
 
 def test_render_supplement_dashboard_includes_domestic_danger_context():
@@ -1152,14 +1154,14 @@ def test_render_supplement_dashboard_includes_domestic_danger_context():
     for text in ("国内文脈の補助危険確認", "円建て債券", "2510.T", "国内REIT", "1343.T", "円建て金", "1540.T"):
         assert text in html
         assert text in markdown
-    assert "final_action への影響: False" in html
-    assert "buy_readiness_score への影響: False" in html
-    assert "manual_file_missing" in html
-    assert "endpoint_not_resolved" in html
-    assert "price_metrics_missing" in html
-    assert "price_metrics_missing" in markdown
-    assert "split_or_discontinuity_suspected" in html
-    assert "split_or_discontinuity_suspected" in markdown
+    assert "最終判断への影響: いいえ" in html
+    assert "買い候補度への影響: いいえ" in html
+    assert "手動CSV未設定" in html
+    assert "取得先未確定" in html
+    assert "価格指標未接続" in html
+    assert "価格指標未接続" in markdown
+    assert "分割・データ断絶の疑い" in html
+    assert "分割・データ断絶の疑い" in markdown
     assert "12週変化: 異常値疑いのため非採用" in html
     assert "12週変化: 異常値疑いのため非採用" in markdown
     assert "最大DD: 異常値疑いのため参考外" in html
@@ -1195,7 +1197,7 @@ def test_render_supplement_dashboard_html_maps_all_source_sections():
     assert "本体判断への影響なし" in html
     assert "report.html" in html
     assert "履歴" in html
-    for nav_label in ["危険ライン", "日本在住者文脈", "国内文脈", "Hindenburg Omen", "データ取得", "しきい値", "実行環境", "履歴"]:
+    for nav_label in ["危険ライン", "日本在住者文脈", "国内文脈", "ヒンデンブルグオーメン", "データ取得", "しきい値", "実行環境", "履歴"]:
         assert nav_label in html
     for class_name in [
         "risk-line-detail-section",
@@ -1209,13 +1211,13 @@ def test_render_supplement_dashboard_html_maps_all_source_sections():
     ]:
         assert class_name in html
     assert "データ品質上限" in html
-    assert "live 75%" in html
+    assert "実データ 75%" in html
     assert "元:" not in html
     for section in [
         "危険ライン詳細と信頼度監査",
         "日本在住者文脈（統合）詳細",
         "国内文脈（危険シグナル）詳細",
-        "Hindenburg Omen トリガー / 発動履歴",
+        "ヒンデンブルグオーメンのトリガー / 発動履歴",
         "資産クラス / 候補証拠",
         "データ取得状況",
         "しきい値の使用状況と認証",
@@ -1239,12 +1241,12 @@ def test_render_outputs_include_active_hindenburg_omen_without_decision_impact()
     html = render_html(report)
     supplement = render_supplement_dashboard_html(report)
 
-    assert "Hindenburg Omen が点灯中です。" in markdown
+    assert "ヒンデンブルグオーメンが点灯中です。" in markdown
     assert "単独では売買判断に使いません" in markdown
-    assert "active period: 2026-01-02 -> 2026-02-14" in markdown
-    assert "Hindenburg Omen" in html
+    assert "発動期間: 2026-01-02 から 2026-02-14" in markdown
+    assert "ヒンデンブルグオーメン" in html
     assert "点灯中" in html
-    assert "Hindenburg Omen" in supplement
+    assert "ヒンデンブルグオーメン" in supplement
     assert report["buy_decision_card"]["final_action"] == before_action
     assert report["buy_decision_card"]["buy_readiness_score"] == before_score
 
@@ -1258,8 +1260,8 @@ def test_render_outputs_include_inactive_and_missing_hindenburg_states():
     inactive_markdown = render_markdown(inactive)
     missing_html = render_html(missing)
 
-    assert "Hindenburg Omen: 点灯なし" in inactive_markdown
-    assert "Hindenburg Omen: 未取得" in missing_html
+    assert "ヒンデンブルグオーメン: 点灯なし" in inactive_markdown
+    assert "ヒンデンブルグオーメン: 未取得" in missing_html
     assert "市場幅CSVが未設定のため判定できません" in missing_html
 
 
@@ -1298,7 +1300,7 @@ def test_hindenburg_report_includes_history_and_experimental_labels():
 
     assert "自動取得・実験的（未成立）" in markdown
     assert "蓄積履歴: 0 / 39営業日" in markdown
-    assert "accepted=False" in markdown
+    assert "取得成功=いいえ" in markdown
     assert "自動取得・実験的" in html
 
 
@@ -1322,10 +1324,10 @@ def test_render_outputs_include_stale_hindenburg_state_without_active_notice():
     markdown = render_markdown(report)
     html = render_html(report)
 
-    assert "Hindenburg Omen: データが古いため現在点灯は未確定" in markdown
+    assert "ヒンデンブルグオーメン: データが古いため現在点灯は未確定" in markdown
     assert "市場幅CSVの最新日が古いため、現在の点灯状態は判定できません" in html
     assert "判定基準日: 2026-02-10" in markdown
-    assert "stale data: True" in markdown
+    assert "データ鮮度不足: はい" in markdown
     assert "Hindenburg Omen が点灯中です。" not in markdown
 
 
@@ -1334,7 +1336,7 @@ def test_hindenburg_report_wording_avoids_panic_and_advice_terms():
     report["hindenburg_omen_context"] = _hindenburg_payload("active")
 
     rendered = render_markdown(report)
-    hindenburg_section = rendered.split("## Hindenburg Omen / 市場幅の補助確認", 1)[1]
+    hindenburg_section = rendered.split("## ヒンデンブルグオーメン / 市場幅の補助確認", 1)[1]
 
     for forbidden in ["暴落確定", "暴落予測", "売るべき", "買うべき", "今が買い", "推奨銘柄"]:
         assert forbidden not in hindenburg_section
