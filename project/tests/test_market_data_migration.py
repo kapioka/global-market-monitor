@@ -91,6 +91,11 @@ def test_migration_rejects_wrong_hash_and_invalid_or_unreconstructable_input(tmp
     with pytest.raises(MarketDataMigrationError, match="unique"):
         load_legacy_snapshot(csv_path, metadata_path)
 
+    for non_finite in ("inf", "-inf"):
+        csv_path.write_text(f"date,ACWI\n2026-07-17,{non_finite}\n", encoding="utf-8")
+        with pytest.raises(MarketDataMigrationError, match="non-finite"):
+            load_legacy_snapshot(csv_path, metadata_path)
+
 
 def test_parity_failure_never_publishes_candidate_database(tmp_path: Path, monkeypatch) -> None:
     csv_path, metadata_path = _write_snapshot(tmp_path)

@@ -42,6 +42,7 @@ jobs:
           cache: pip
           cache-dependency-path: |
             project/requirements.txt
+            project/requirements-lock.txt
             project/requirements-dev.txt
             requirements-security.txt
 
@@ -49,6 +50,7 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install --upgrade pip
+          python -m pip install -r project/requirements-lock.txt
           python -m pip install -r project/requirements-dev.txt
           python -m pip install -r requirements-security.txt
 

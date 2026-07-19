@@ -254,8 +254,8 @@ def _normalize_wide_frame(frame: pd.DataFrame) -> pd.DataFrame:
         numeric = frame.apply(pd.to_numeric, errors="raise").astype(float)
     except (TypeError, ValueError) as exc:
         raise MarketDataMigrationError("snapshot CSV contains a non-numeric value") from exc
-    finite_values = numeric.stack()
-    if not finite_values.map(lambda value: math.isfinite(float(value))).all():
+    values = numeric.to_numpy(dtype=float, copy=False).ravel()
+    if any(not pd.isna(value) and not math.isfinite(float(value)) for value in values):
         raise MarketDataMigrationError("snapshot CSV contains a non-finite value")
     return numeric
 

@@ -131,13 +131,16 @@ def test_reconstructed_replay_keeps_policy_diagnostic_only():
 
 def test_reconstructed_replay_writes_and_loads_developer_summary(tmp_path):
     prices_path = tmp_path / "prices.csv"
+    official_series_path = tmp_path / "risk_engine_v2_official_series.csv"
     reports_dir = tmp_path / "reports"
     _prices().to_csv(prices_path)
+    _official_prices().to_csv(official_series_path)
 
     result = run_reconstructed_risk_engine_v2_replay(
         input_prices=prices_path,
         config_path="project/config.yaml",
         reports_dir=reports_dir,
+        official_series_csv=official_series_path,
         start_date="2021-01-01",
         end_date="2021-12-31",
         stride_weeks=4,
@@ -341,11 +344,16 @@ def test_reconstructed_replay_valid_default_official_series_succeeds(tmp_path, m
     assert all(store["required_series_presence"].values())
 
 
-def test_reconstructed_replay_resolves_relative_official_series_from_repo_root(tmp_path):
+def test_reconstructed_replay_resolves_relative_official_series_from_repo_root(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
     prices_path = tmp_path / "prices.csv"
     reports_dir = tmp_path / "reports"
+    official_series_path = repo_root / "project" / "reports" / "risk_engine_v2_official_series.csv"
     reports_dir.mkdir()
+    official_series_path.parent.mkdir(parents=True)
     _prices().to_csv(prices_path)
+    _official_prices().to_csv(official_series_path)
+    monkeypatch.setattr(reconstructed_replay, "REPO_ROOT", repo_root)
 
     result = run_reconstructed_risk_engine_v2_replay(
         input_prices=prices_path,

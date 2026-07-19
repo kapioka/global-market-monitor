@@ -19,15 +19,13 @@ from project.risk_line_feature_library import build_risk_line_feature_frames
         [None, None, 100.0, None],
     ],
 )
-def test_explicit_forward_fill_pct_change_matches_legacy_behavior(values):
+def test_explicit_forward_fill_pct_change_matches_legacy_contract(values):
     series = pd.Series(values, dtype=float)
-
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", FutureWarning)
-        legacy = series.pct_change()
+    filled = series.ffill()
+    legacy_expected = filled.div(filled.shift(1)).sub(1.0)
     explicit_compatible = series.ffill().pct_change(fill_method=None)
 
-    pd.testing.assert_series_equal(legacy, explicit_compatible)
+    pd.testing.assert_series_equal(legacy_expected, explicit_compatible)
 
 
 def test_build_risk_line_feature_frames_returns_all_ten_indicator_frames():

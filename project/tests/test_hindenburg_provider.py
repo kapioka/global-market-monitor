@@ -79,8 +79,11 @@ def test_configured_static_csv_rejects_oversized_response(tmp_path: Path) -> Non
     assert result.failure_code == "OVERSIZED_RESPONSE"
 
 
-def test_builtin_provider_chain_reports_all_candidates_unavailable() -> None:
-    result = acquire_builtin_provider_chain(total_budget_seconds=0)
+def test_builtin_provider_chain_reports_all_candidates_unavailable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ticks = iter((100.0, 100.001))
+    monkeypatch.setattr("project.hindenburg_provider.time.monotonic", lambda: next(ticks))
+
+    result = acquire_builtin_provider_chain(cache_dir=tmp_path, total_budget_seconds=0)
 
     assert result.status == "failed"
     assert result.failure_code == "ALL_PROVIDERS_UNAVAILABLE"
