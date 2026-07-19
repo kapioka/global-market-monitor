@@ -16,10 +16,13 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
+requests: Any
 try:
-    import requests  # type: ignore[import-untyped]
+    import requests as requests_module  # type: ignore[import-untyped, unused-ignore]
 except ImportError:  # pragma: no cover - stdlib fallback
     requests = None
+else:
+    requests = requests_module
 
 DEFAULT_CONNECT_TIMEOUT_SECONDS = 5
 DEFAULT_READ_TIMEOUT_SECONDS = 6
@@ -305,7 +308,11 @@ def _acquire_builtin_provider(
     parsed = (
         parse_barchart_market_momentum_html(body, acquired_at=utc_now_iso())
         if provider_id == "barchart_market_momentum"
-        else {"status": "failed", "failure_code": "MANDATORY_FIELD_MISSING", "limitations": ["mandatory NYSE fields not found in public HTML"]}
+        else {
+            "status": "failed",
+            "failure_code": "MANDATORY_FIELD_MISSING",
+            "limitations": ["mandatory NYSE fields not found in public HTML"],
+        }
     )
     if parsed.get("status") != "ok":
         return _builtin_failure(

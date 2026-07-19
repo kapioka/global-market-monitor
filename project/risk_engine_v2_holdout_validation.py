@@ -50,8 +50,15 @@ def build_risk_engine_v2_holdout_validation(
     split_criteria = criteria or HoldoutSplitCriteria()
     review = review_payload or build_risk_engine_v2_replay_review(replay_payload)
     policy = build_event_policy(generated_at="1970-01-01T00:00:00+00:00")
-    if split_criteria.validation_start_date != policy["validation_start_date"] or split_criteria.holdout_start_date != policy["holdout_start_date"]:
-        policy = {**policy, "validation_start_date": split_criteria.validation_start_date, "holdout_start_date": split_criteria.holdout_start_date}
+    if (
+        split_criteria.validation_start_date != policy["validation_start_date"]
+        or split_criteria.holdout_start_date != policy["holdout_start_date"]
+    ):
+        policy = {
+            **policy,
+            "validation_start_date": split_criteria.validation_start_date,
+            "holdout_start_date": split_criteria.holdout_start_date,
+        }
     events = sorted(list(review.get("events") or review.get("episodes") or []), key=lambda row: str(_event_anchor_date(row) or ""))
     weekly_timeline = _canonical_weekly_timeline(replay_payload, review)
     resolver = resolve_event_weekly_records(events, weekly_timeline)
@@ -241,13 +248,17 @@ def _split_events(events: list[dict[str, Any]], resolver: dict[str, Any], policy
             continue
         split_bases[split_name].append(enriched)
     return {
-        "train": _split_summary(split_bases["train"], purged_count=sum(1 for row in excluded if row["split"] == "train"), excluded=excluded),
+        "train": _split_summary(
+            split_bases["train"], purged_count=sum(1 for row in excluded if row["split"] == "train"), excluded=excluded
+        ),
         "validation": _split_summary(
             split_bases["validation"],
             purged_count=sum(1 for row in excluded if row["split"] == "validation"),
             excluded=excluded,
         ),
-        "holdout": _split_summary(split_bases["holdout"], purged_count=sum(1 for row in excluded if row["split"] == "holdout"), excluded=excluded),
+        "holdout": _split_summary(
+            split_bases["holdout"], purged_count=sum(1 for row in excluded if row["split"] == "holdout"), excluded=excluded
+        ),
     }
 
 
@@ -385,14 +396,17 @@ def _split_summary(episodes: list[dict[str, Any]], *, purged_count: int, exclude
     counts = Counter(str(row.get("primary_classification") or row.get("classification") or "unknown") for row in episodes)
     maturity = _maturity_summary(episodes)
     unique_records = _unique_resolved_records(episodes)
+    start_dates = [anchor for row in episodes if (anchor := _event_anchor_date(row)) is not None]
     return {
         "event_count": len(episodes),
         "episode_count": len(episodes),
         "case_count": len(unique_records) if unique_records else sum(int(row.get("case_count", 0) or 0) for row in episodes),
         "purged_overlap_count": purged_count,
         "embargoed_count": purged_count,
-        "start_date": min((_event_anchor_date(row) for row in episodes if _event_anchor_date(row)), default=None),
-        "end_date": max((str(row.get("event_end_date") or row.get("end_date") or _event_anchor_date(row)) for row in episodes), default=None),
+        "start_date": min(start_dates, default=None),
+        "end_date": max(
+            (str(row.get("event_end_date") or row.get("end_date") or _event_anchor_date(row)) for row in episodes), default=None
+        ),
         "outcome_due_date": str(episodes[-1].get("outcome_due_date")) if episodes else None,
         "maturity": maturity,
         "performance_denominator": maturity["performance_denominator"],
@@ -460,7 +474,9 @@ def _performance_summary(holdout: dict[str, Any], criteria: HoldoutSplitCriteria
     mature_episodes = [episode for episode in episodes if isinstance(episode, dict) and _episode_performance_evaluable(episode)]
     cases = _unique_resolved_records([episode for episode in episodes if isinstance(episode, dict)])
     mature_cases = _unique_resolved_records(mature_episodes)
-    mature_counts = Counter(str(episode.get("primary_classification") or episode.get("classification") or "unknown") for episode in mature_episodes)
+    mature_counts = Counter(
+        str(episode.get("primary_classification") or episode.get("classification") or "unknown") for episode in mature_episodes
+    )
     maturity = _maturity_summary([episode for episode in episodes if isinstance(episode, dict)])
     total = max(1, int(maturity["performance_denominator"] or 0))
     missed = int(mature_counts.get("missed_risk", 0) or 0)
@@ -531,11 +547,11 @@ def _confirmation_delay_summary(episodes: list[dict[str, Any]], classification: 
         for episode in episodes
         if classification is None or (episode.get("primary_classification") or episode.get("classification")) == classification
     ]
-    delays = [
-        int(episode.get("confirmation_delay_days", episode.get("confirmation_delay_calendar_days")))
-        for episode in selected
-        if episode.get("confirmation_delay_days", episode.get("confirmation_delay_calendar_days")) is not None
-    ]
+    delays: list[int] = []
+    for episode in selected:
+        delay = episode.get("confirmation_delay_days", episode.get("confirmation_delay_calendar_days"))
+        if delay is not None:
+            delays.append(int(delay))
     observation_delays: list[int] = []
     status_counts = Counter("confirmed" if episode.get("first_confirmed_warning_date") else "unconfirmed" for episode in selected)
     return {
@@ -552,7 +568,15 @@ def _confirmation_delay_summary(episodes: list[dict[str, Any]], classification: 
 
 def _warning_danger_time_in_state(cases: list[dict[str, Any]]) -> dict[str, Any]:
     by_date = {str(case.get("date")): case for case in cases if case.get("date")}
-    counts = Counter(str(case.get("confirmed_stage") or case.get("confirmed_stage_key") or case.get("confirmed_stage") or case.get("confirmed_stage", "normal")) for case in by_date.values())
+    counts = Counter(
+        str(
+            case.get("confirmed_stage")
+            or case.get("confirmed_stage_key")
+            or case.get("confirmed_stage")
+            or case.get("confirmed_stage", "normal")
+        )
+        for case in by_date.values()
+    )
     total = len(by_date) or 1
     return {
         "unique_weekly_observations": len(by_date),
@@ -572,7 +596,11 @@ def _warning_danger_time_in_state(cases: list[dict[str, Any]]) -> dict[str, Any]
 
 
 def _lead_time_summary(episodes: list[dict[str, Any]]) -> dict[str, Any]:
-    crossing = [episode for episode in episodes if episode.get("first_material_crossing_date") or episode.get("first_material_drawdown_crossing_date")]
+    crossing = [
+        episode
+        for episode in episodes
+        if episode.get("first_material_crossing_date") or episode.get("first_material_drawdown_crossing_date")
+    ]
     candidate_leads = [
         int(episode["candidate_lead_time_days"]) for episode in crossing if episode.get("candidate_lead_time_days") is not None
     ]
@@ -600,18 +628,26 @@ def _max_drawdown_by_confirmed_stage(cases: list[dict[str, Any]]) -> dict[str, f
 
 
 def _quiet_period_alert_burden(episodes: list[dict[str, Any]]) -> dict[str, Any]:
-    quiet_episodes = [episode for episode in episodes if (episode.get("primary_classification") or episode.get("classification")) == "over_warning"]
+    quiet_episodes = [
+        episode for episode in episodes if (episode.get("primary_classification") or episode.get("classification")) == "over_warning"
+    ]
     denominator = len(quiet_episodes) or 1
     warning_or_higher = [
         episode
         for episode in quiet_episodes
-        if any(str(record.get("confirmed_stage") or "normal") in {"warning", "danger", "extreme"} for record in episode.get("_resolved_weekly_records", []) or [])
+        if any(
+            str(record.get("confirmed_stage") or "normal") in {"warning", "danger", "extreme"}
+            for record in episode.get("_resolved_weekly_records", []) or []
+        )
         or any(str(stage) in {"warning", "danger", "extreme"} for stage in episode.get("confirmed_stages", []) or [])
     ]
     danger_or_higher = [
         episode
         for episode in quiet_episodes
-        if any(str(record.get("confirmed_stage") or "normal") in {"danger", "extreme"} for record in episode.get("_resolved_weekly_records", []) or [])
+        if any(
+            str(record.get("confirmed_stage") or "normal") in {"danger", "extreme"}
+            for record in episode.get("_resolved_weekly_records", []) or []
+        )
         or any(str(stage) in {"danger", "extreme"} for stage in episode.get("confirmed_stages", []) or [])
     ]
     return {
