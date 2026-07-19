@@ -4,16 +4,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-
 MANIFEST_NAME = "PACKAGE_MANIFEST.json"
 REQUIRED_FILES = (
     "README.md",
+    "LICENSE",
     "CHANGELOG.md",
     "docs/github_publish_readiness_checklist.md",
     "docs/sample/sample_report_summary.json",
@@ -37,6 +36,10 @@ FORBIDDEN_PREFIXES = (
     "release/",
 )
 FORBIDDEN_SUFFIXES = (
+    "-shm",
+    "-wal",
+    ".backup",
+    ".bak",
     ".db",
     ".key",
     ".log",
@@ -45,9 +48,14 @@ FORBIDDEN_SUFFIXES = (
     ".pfx",
     ".secret",
     ".sqlite",
+    ".sqlite3",
     ".zip",
 )
 FORBIDDEN_NAMES = {".env"}
+FORBIDDEN_PATHS = {
+    "docs/market_data_storage_baseline.json",
+    "docs/market_data_storage_migration_result.json",
+}
 
 
 @dataclass(frozen=True)
@@ -85,6 +93,7 @@ def is_forbidden_entry(path: str) -> bool:
     lower_path = normalized.lower()
     return (
         name in FORBIDDEN_NAMES
+        or lower_path in FORBIDDEN_PATHS
         or any(lower_path.startswith(prefix) for prefix in FORBIDDEN_PREFIXES)
         or any(lower_path.endswith(suffix) for suffix in FORBIDDEN_SUFFIXES)
         or ".secret." in lower_path

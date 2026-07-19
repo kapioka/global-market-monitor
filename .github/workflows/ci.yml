@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -31,6 +32,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -71,7 +74,9 @@ jobs:
 
       - name: Run security audit
         shell: pwsh
-        run: .\scripts\security_audit.ps1 -Python "python" -ExpectedTag "" -Strict
+        run: |
+          $expectedTag = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}" } else { "" }
+          .\scripts\security_audit.ps1 -Python "python" -ExpectedTag $expectedTag -Strict
 
       - name: Check release package dry run
         shell: pwsh
@@ -84,3 +89,11 @@ jobs:
       - name: Verify release package
         shell: pwsh
         run: python scripts/verify_release_package.py --latest-dir release --expected-commit ${{ github.sha }}
+
+      - name: Upload verified source package
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: global-market-monitor-source-${{ github.ref_name }}
+          path: release/global-market-monitor-*-source.zip
+          if-no-files-found: error

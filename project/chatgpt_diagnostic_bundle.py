@@ -20,6 +20,25 @@ SEED_FILES = (
     "project/pipeline.py",
     "project/report_generator.py",
     "project/risk_lines.py",
+    "project/risk_domains.py",
+    "project/risk_domain_state.py",
+    "project/risk_engine_v2_evidence_policy.py",
+    "project/risk_engine_v2_artifact_freshness.py",
+    "project/risk_engine_v2_event_policy.py",
+    "project/risk_engine_v2_market_events.py",
+    "project/risk_engine_v2_primary_coverage.py",
+    "project/risk_engine_v2_reconstructed_replay.py",
+    "project/risk_engine_v2_replay.py",
+    "project/risk_engine_v2_replay_review.py",
+    "project/risk_engine_v2_holdout_validation.py",
+    "project/risk_engine_v2_promotion_gate.py",
+    "project/risk_engine_v2_root_cause.py",
+    "project/risk_engine_v2_retention_reconciliation.py",
+    "project/risk_engine_v2_production_invariance.py",
+    "project/risk_engine_v2_event_resolver.py",
+    "project/risk_engine_v2_holdout_primary_coverage_audit.py",
+    "project/risk_engine_v2_official_series_regeneration_comparison.py",
+    "project/risk_engine_v2_official_series.py",
     "project/risk_line_confidence_audit.py",
     "project/domestic_market_metrics.py",
     "project/domestic_danger_context.py",
@@ -69,6 +88,21 @@ TEST_FILES = (
     "project/tests/test_multi_asset_candidates.py",
     "project/tests/test_main.py",
     "project/tests/test_chatgpt_diagnostic_bundle.py",
+    "project/tests/test_risk_engine_v2_evidence_policy.py",
+    "project/tests/test_risk_engine_v2_artifact_freshness.py",
+    "project/tests/test_risk_engine_v2_event_policy.py",
+    "project/tests/test_risk_engine_v2_market_events.py",
+    "project/tests/test_risk_engine_v2_primary_coverage.py",
+    "project/tests/test_risk_engine_v2_reconstructed_replay.py",
+    "project/tests/test_risk_engine_v2_replay.py",
+    "project/tests/test_risk_engine_v2_replay_review.py",
+    "project/tests/test_risk_engine_v2_holdout_validation.py",
+    "project/tests/test_risk_engine_v2_promotion_gate.py",
+    "project/tests/test_risk_engine_v2_root_cause.py",
+    "project/tests/test_risk_engine_v2_production_invariance.py",
+    "project/tests/test_risk_engine_v2_holdout_primary_coverage_audit.py",
+    "project/tests/test_risk_engine_v2_official_series_regeneration_comparison.py",
+    "project/tests/test_risk_engine_v2_official_series.py",
 )
 
 DOC_FILES = (
@@ -83,6 +117,7 @@ DOC_FILES = (
     "docs/v0.8.57_hindenburg_omen_display_monitor.md",
     "docs/v0.8.59_rc_metadata_report_polish.md",
     "docs/v0.8.60_rc_final_polish.md",
+    "docs/risk_engine_v2_current_state.md",
     "docs/actual_data_readiness_regression_v0.8.16.md",
     "docs/buy_readiness_score_recalibration_v0.8.15.md",
     "docs/multi_asset_signal_design_inventory_v0.8.22.md",
@@ -92,6 +127,20 @@ REPORT_FILES = (
     "project/reports/report.md",
     "project/reports/report.html",
     "project/reports/supplement_dashboard.html",
+    "project/reports/risk_engine_v2_reconstructed_replay.md",
+    "project/reports/risk_engine_v2_replay_review.md",
+    "project/reports/risk_engine_v2_holdout_validation.md",
+    "project/reports/risk_engine_v2_root_cause.md",
+    "project/reports/risk_engine_v2_reconstructed_replay.json",
+    "project/reports/risk_engine_v2_replay_review.json",
+    "project/reports/risk_engine_v2_holdout_validation.json",
+    "project/reports/risk_engine_v2_root_cause.json",
+    "project/reports/risk_engine_v2_retention_reconciliation.json",
+    "project/reports/risk_engine_v2_production_invariance.json",
+    "project/reports/risk_engine_v2_holdout_primary_coverage_audit.json",
+    "project/reports/risk_engine_v2_holdout_primary_coverage_audit.md",
+    "project/reports/risk_engine_v2_holdout_primary_coverage_matrix.csv",
+    "project/reports/risk_engine_v2_official_series_regeneration_comparison.json",
 )
 
 EXCLUDED_PREFIXES = (
@@ -118,7 +167,8 @@ Please review the included files for these points:
 8. Japan resident integrated context: confirm it remains display-only and does not affect final_action or buy_readiness_score.
 9. Decision boundary experiment: confirm production default remains unchanged and the experimental payload is disabled/comparison-only.
 10. Investment wording: flag wording that could look like investment advice, automatic trading, or guaranteed outcome.
-11. Release risk: identify any reason this local RC should not proceed to a broader release validation pass.
+11. risk_engine_v2 event-first evidence integrity: confirm weekly timeline evidence is retained, one market drawdown is counted once, old episode mapping is explicit, maturity denominators are event-level, and holdout/root-cause evidence is not using future data or tuning against holdout.
+12. Release risk: identify any reason this local RC should not proceed to a broader release validation pass.
 """
 
 
@@ -151,6 +201,9 @@ def build_chatgpt_diagnostic_bundle(output_path: Path | None = None, *, version:
         shutil.copy2(source, target)
 
     (bundle_root / "DIAGNOSTIC_MANIFEST.md").write_text(_manifest(version, included), encoding="utf-8")
+    (bundle_root / "DIAGNOSTIC_MANIFEST.json").write_text(
+        json.dumps(_manifest_json(version, included), ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     (bundle_root / "logic_review_questions.md").write_text(_question_text(version), encoding="utf-8")
 
     with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
@@ -254,6 +307,27 @@ Review the local RC logic and report context after v0.8.53 polish. This bundle i
 {included_lines}
 """
     )
+
+
+def _manifest_json(version: str, included: list[str]) -> dict[str, object]:
+    status = _run_git(["status", "--short"])
+    head = _run_git(["rev-parse", "HEAD"])
+    branch = _run_git(["branch", "--show-current"])
+    return {
+        "schema_version": "chatgpt_diagnostic_bundle_manifest.v2",
+        "generation_time": datetime.now().isoformat(timespec="seconds"),
+        "version": version,
+        "branch": branch.strip(),
+        "head": head.strip(),
+        "pre_bundle_git_status": status.splitlines() if status.strip() else [],
+        "included_file_list": included,
+        "artifact_hashes": {path: _sha256(REPO_ROOT / path) for path in included if (REPO_ROOT / path).is_file()},
+        "schema_policy_versions": {
+            "event_policy": "risk_engine_v2_event_policy.v1",
+            "retention_policy": "risk_engine_v2_retention_policy.v1",
+            "bundle_manifest": "chatgpt_diagnostic_bundle_manifest.v2",
+        },
+    }
 
 
 def _question_text(version: str) -> str:

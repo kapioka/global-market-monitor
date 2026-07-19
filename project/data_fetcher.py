@@ -240,9 +240,11 @@ def _fetch_fred_ticker(
                 "Accept": "text/csv,text/plain,*/*",
             },
         )
-        if "DATE" not in raw.columns or fred_series not in raw.columns:
+        date_column = _find_date_column(raw.columns)
+        value_column = _find_series_value_column(raw.columns, fred_series)
+        if date_column is None or value_column is None:
             raise ValueError("fred csv schema mismatch")
-        series = pd.Series(raw[fred_series].values, index=pd.to_datetime(raw["DATE"]), name=ticker)
+        series = pd.Series(raw[value_column].values, index=pd.to_datetime(raw[date_column]), name=ticker)
         series = pd.to_numeric(series, errors="coerce").dropna()
         if series.empty:
             raise ValueError("fred series contained only missing values")
@@ -344,6 +346,17 @@ def _fetch_freddie_mac_pmms_series(ticker: str) -> tuple[pd.Series | None, dict[
         return series, {"symbol": "PMMS_history.csv", "status": "ok", "detail": "downloaded from Freddie Mac PMMS"}
     except Exception as exc:
         return None, {"symbol": "PMMS_history.csv", "status": "failed", "detail": _short_error(exc)}
+
+
+def _find_series_value_column(columns: Any, series_id: str) -> str | None:
+    normalized = {str(column).strip().lower(): str(column) for column in columns}
+    direct = normalized.get(series_id.lower())
+    if direct is not None:
+        return direct
+    generic = normalized.get("value") or normalized.get("observed_value")
+    if generic is not None:
+        return generic
+    return None
 
 
 def _read_csv_from_url(

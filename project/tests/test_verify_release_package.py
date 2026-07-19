@@ -64,6 +64,28 @@ def test_verify_package_rejects_forbidden_entry(tmp_path):
         raise AssertionError("expected VerificationError")
 
 
+def test_verify_package_rejects_local_market_data_artifacts(tmp_path):
+    module = load_verify_module()
+
+    for forbidden_path in (
+        "project/market_data.sqlite3",
+        "project/market_data.sqlite3-wal",
+        "project/market_data.sqlite3-shm",
+        "project/market_data.db.backup",
+        "docs/market_data_storage_baseline.json",
+        "docs/market_data_storage_migration_result.json",
+    ):
+        package = tmp_path / f"{Path(forbidden_path).name}.zip"
+        write_package(package, required_files(module) + [forbidden_path])
+
+        try:
+            module.verify_package(package, expected_tag="v0.7.5")
+        except module.VerificationError as exc:
+            assert "Forbidden entries" in exc.reason
+        else:
+            raise AssertionError(f"expected VerificationError for {forbidden_path}")
+
+
 def test_verify_package_rejects_wrong_tag(tmp_path):
     module = load_verify_module()
     package = tmp_path / "release.zip"

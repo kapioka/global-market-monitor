@@ -5,7 +5,7 @@ from copy import deepcopy
 import pytest
 
 from project.japan_resident_integrated_context import build_japan_resident_integrated_risk_context
-from project.report_generator import render_html, render_markdown, render_supplement_dashboard_html
+from project.report_generator import _domestic_candidate_rows_for_top, render_html, render_markdown, render_supplement_dashboard_html
 
 
 def _report() -> dict:
@@ -233,7 +233,17 @@ def _report() -> dict:
                 "change_12w": 0.102,
                 "zscore": 1.3,
                 "signal_label": "インフレ圧力上昇",
-            }
+            },
+            {
+                "ticker": "GC=F",
+                "ticker_name_ja": "金先物",
+                "current": 4172.9,
+                "change_1w": 0.0,
+                "change_4w": -0.085,
+                "change_12w": -0.1029,
+                "zscore": -0.1219,
+                "signal_label": "中立",
+            },
         ],
         "japan_risk": {
             "available": True,
@@ -692,6 +702,10 @@ def test_render_markdown_uses_real_newlines():
     assert "相対広がり指標: watch_share=0.75 / promising_share=0.25" in text
     assert "相対広がり要約: 裾野は十分 / 有望比率は中程度" in text
     assert "単独主導内訳: 集中=中 / 裾野不足=中 / 先頭優位=高" in text
+    assert "しきい値レビュー" not in text
+    assert "しきい値提案" not in text
+    assert "しきい値利用方針" not in text
+    assert "しきい値ルール認証" not in text
 
 
 def test_render_html_includes_first_read_summary():
@@ -705,6 +719,9 @@ def test_render_html_includes_first_read_summary():
     assert "context-stack" in html
     assert "hindenburg-lamp-card" in html
     assert "glance-summary" in html
+    assert "reading-guide" in html
+    assert "まず見る：今日の判断" in html
+    assert "候補は「買う銘柄」ではなく、次に観察する対象" in html
     assert "本体判断" in html
     assert "補助確認" in html
     assert "グローバルリスク" in html
@@ -713,6 +730,7 @@ def test_render_html_includes_first_read_summary():
     assert "ヒンデンブルグオーメン" in html
     assert "詳細は補足レポートで確認" in html
     assert "本レポートは市場のモニタリングを目的としており" in html
+    assert html.count('class="monitor-note-segment"') == 2
     assert "買い判断カード" in html
     assert "これは成功確率ではありません" in html
     assert "SPY" in html
@@ -759,10 +777,77 @@ def test_render_html_includes_first_read_summary():
     assert '<span style="color:#1f2933;"><strong>信用波及初期</strong></span>' in text
 
 
+def test_render_html_shows_oil_directional_context_instead_of_generic_zero_risk():
+    report = _report()
+    report["risk_lines"]["indicators"].append(
+        {
+            "ticker": "CL=F",
+            "ticker_name_ja": "WTI原油先物",
+            "current": 76.54,
+            "change_1w": -0.04,
+            "change_4w": -0.18,
+            "change_12w": -0.22,
+            "zscore": -1.2,
+            "line_level": "normal",
+            "line_level_label": "通常",
+            "pressure_score": 0.0,
+            "warning_line": "roc_8w:0.095138",
+            "danger_line": "level_and_roc_8w:0.903846",
+            "extreme_line": "roc_2w:0.084365",
+            "line_reason": "本判定に使える採用済み基準には未到達です。",
+            "oil_context": {
+                "overall_status": "normal",
+                "inflation_pressure_score": 0.0,
+                "demand_collapse_score": 42.0,
+                "oil_decline_pressure_score": 80.0,
+                "wti_return_20d": -0.18,
+                "risk_signal_allowed": True,
+                "data_quality": "valid",
+                "quality_flags": ["valid"],
+                "limitations": ["原油下落単独では需要崩壊シグナルにせず、株式と信用の確認を待ちます"],
+                "reason": "原油は下落方向の圧力がありますが、株式・信用市場の同時悪化が揃っていないため、需要崩壊シグナルにはしていません。",
+            },
+        }
+    )
+
+    html = render_html(report)
+
+    assert "インフレ方向圧力 0/100" in html
+    assert "需要減速方向 42/100" in html
+    assert "4週変化 -18.0%" in html
+    assert "危険度 0/100" not in html
+
+
+def test_render_html_shows_top_data_provenance_strip():
+    report = _report()
+    report["data_provenance"] = {
+        "data_mode_label": "キャッシュ使用",
+        "price_basis_date": "2026-06-19",
+        "retrieved_at": "2026-06-20T21:07:09",
+        "live_fetch_performed": False,
+        "live_fetch_label": "ライブ更新なし",
+        "freshness_status": "fresh",
+        "freshness_label": "営業日基準で正常",
+    }
+
+    html = render_html(report)
+
+    top = html[: html.index('<section class="approved-report-dashboard main-dashboard-shell"')]
+    assert "データ更新:" not in top
+    assert "データモード" in top
+    assert "キャッシュ使用" in top
+    assert "価格基準日" in top
+    assert "2026-06-19" in top
+    assert "取得日時" in top
+    assert "2026-06-20 21:07 JST" in top
+    assert "ライブ更新なし" in top
+    assert "営業日基準で正常" in top
+
+
 def test_render_html_beginner_top_sections_hide_internal_terms():
     html = render_html(_report())
     start = html.index('<section class="approved-report-dashboard main-dashboard-shell"')
-    end = html.index('<div class="mini-grid">', start)
+    end = html.index('<div class="mini-grid report-ops-grid">', start)
     top_html = html[start:end]
     regime_index = top_html.index("市場レジーム")
     supplemental_index = top_html.index('<section class="supplemental-signal-strip"')
@@ -856,6 +941,11 @@ def test_render_html_readiness_gauge_renders_score_from_left_origin(score, rende
             ["候補なし"],
         ),
         (
+            "inflation_shock",
+            lambda report: report["buy_decision_card"].update({"primary_blocker": "inflation_shock"}),
+            ["インフレショックの影響が残る"],
+        ),
+        (
             "long_blocker",
             lambda report: report["buy_decision_card"].update(
                 {
@@ -891,6 +981,7 @@ def test_render_html_beginner_top_sections_support_synthetic_scenarios(scenario,
         "sample-only",
         "final_action",
         "buy_readiness_score",
+        "in横ばいion shock",
         "買うべき",
         "今が買い",
         "利益が出る",
@@ -902,7 +993,8 @@ def test_render_html_beginner_top_sections_support_synthetic_scenarios(scenario,
 def test_render_html_contains_japanese_explanations():
     html = render_html(_report())
     assert "市場レジーム" in html
-    assert "データ更新" in html
+    assert "生成日時" in html
+    assert "データ更新:" not in html
     assert "スポット投資判断" in html
     assert "セクター概要" in html
     assert "アラート" in html
@@ -910,17 +1002,15 @@ def test_render_html_contains_japanese_explanations():
     assert "データ品質上限" in html
     assert "代替ティッカー=1 / サンプル代替=1 / 未取得=0" in html
     assert "sample_fallback_present" in html
-    assert "しきい値提案" in html
+    assert "しきい値提案" not in html
+    assert "しきい値レビュー" not in html
+    assert "しきい値利用方針" not in html
+    assert "しきい値ルール認証" not in html
+    assert "レジーム補助" in html
     assert "上昇再開 確認済み / 警戒 注意" in html
     assert "上昇再開の証拠" in html
     assert "騙し上昇の警戒" in html
     assert "レジーム減点はなく、判定用スコアは 0.70" in html
-    assert "ステータス<strong>要確認</strong>" in html
-    assert '<div class="l">安定</div>' in html
-    assert '<div class="l">監視</div>' in html
-    assert '<div class="l">要確認</div>' in html
-    assert '<div class="l">未取得</div>' in html
-    assert "しきい値レビュー" in html
     assert "先回り候補" in html
     assert "レジーム先回り" in html
     assert "生活コスト上昇警戒" in html
@@ -996,6 +1086,165 @@ def test_render_html_includes_multi_asset_candidates_table():
     section = html[html.index("資産クラス別の確認候補") : html.index("先回り候補")]
     assert "unavailable" not in section
     assert "最終判断への影響: いいえ" in html
+
+
+def test_render_outputs_include_risk_line_proof_and_diagnostic_rule_status():
+    report = deepcopy(_report())
+    indicator = report["risk_lines"]["indicators"][0]
+    indicator.update(
+        {
+            "accepted_rule": {
+                "stage": "danger",
+                "feature": "level_percentile",
+                "value": 1.0,
+                "threshold": 0.903846,
+                "direction": "higher",
+                "source": "historical_quantile",
+                "confidence": "medium",
+            },
+            "diagnostic_rule_hits": [
+                {
+                    "stage": "extreme",
+                    "feature": "roc_z_1w",
+                    "value": 1.3605,
+                    "threshold": 1.148726,
+                    "direction": "higher",
+                    "source": "fallback_review",
+                    "confidence": "fallback_review",
+                    "reason": "fallback_review thresholds are diagnostic only and cannot affect final action.",
+                }
+            ],
+        }
+    )
+
+    markdown = render_markdown(report)
+    html = render_html(report)
+
+    for rendered in (markdown, html):
+        assert "本判定根拠" in rendered
+        assert "参考・除外" in rendered
+        assert "level_percentile=1" in rendered
+        assert "roc_z_1w=1.3605" in rendered
+        assert "暫定レビュー" in rendered
+
+
+def test_render_html_top_candidate_card_keeps_domestic_candidates_inside_existing_three_blocks():
+    report = deepcopy(_report())
+    payload = _multi_asset_payload()
+    for row in payload["candidates"]:
+        if row.get("asset_class") == "bond_jpy":
+            row.update(
+                {
+                    "symbol": "2510.T",
+                    "source_data_available": True,
+                    "metrics": {"current_value": 90.0, "change_4w": -1.1, "change_12w": -4.2, "trend_label": "weakening"},
+                }
+            )
+    payload["candidates"].append(
+        {
+            "asset_class": "reit_jp",
+            "asset_class_label": "国内REIT候補",
+            "symbol": "1343.T",
+            "display_name": "国内REIT ETF",
+            "role": "real_asset_income",
+            "role_label": "国内不動産・利回り確認",
+            "status": "informational",
+            "reason_category": "jp_reit_context",
+            "reason": "国内REITを株式・債券とは別に確認します。",
+            "caution": "REITは金利上昇の影響を受けます。",
+            "source_data_available": True,
+            "metrics": {"current_value": 90.0, "change_4w": -2.2, "trend_label": "weakening"},
+        }
+    )
+    report["multi_asset_candidates"] = payload
+
+    html = render_html(report)
+    start = html.index('<section class="first-read-card candidate-summary-card">')
+    end = html.index("</section>", start)
+    candidate_card = html[start:end]
+
+    assert candidate_card.count('class="candidate-mini-block"') == 3
+    assert candidate_card.count("candidate-chip-row compact domestic") == 3
+    for text in ("1306.T", "2510.T", "1343.T", "4週 -3.7%", "4週 -1.1%", "4週 -2.2%"):
+        assert text in candidate_card
+    assert "資産クラス別の確認候補" not in candidate_card
+
+
+def test_top_domestic_candidate_buckets_use_distinct_existing_calculation_shapes():
+    report = {
+        "regime": {"regime_label": "transition"},
+        "multi_asset_candidates": {
+            "candidates": [
+                {
+                    "asset_class": "jp_equity",
+                    "symbol": "1306.T",
+                    "source_data_available": True,
+                    "metrics": {"change_4w": -1.5, "momentum_12w": -2.0, "max_drawdown": -12.0},
+                },
+                {
+                    "asset_class": "bond_jpy",
+                    "symbol": "2510.T",
+                    "source_data_available": True,
+                    "metrics": {"change_4w": 0.8, "momentum_12w": -3.0, "max_drawdown": -9.0},
+                },
+                {
+                    "asset_class": "reit_jp",
+                    "symbol": "1343.T",
+                    "source_data_available": True,
+                    "metrics": {"change_4w": 2.5, "momentum_12w": -7.0, "max_drawdown": -16.0},
+                },
+            ]
+        },
+    }
+
+    main_symbols = [row["symbol"] for row in _domestic_candidate_rows_for_top(report, "main")]
+    recovery_symbols = [row["symbol"] for row in _domestic_candidate_rows_for_top(report, "recovery")]
+    regime_symbols = [row["symbol"] for row in _domestic_candidate_rows_for_top(report, "regime")]
+
+    assert main_symbols == ["1306.T", "2510.T", "1343.T"]
+    assert recovery_symbols == ["1343.T", "2510.T"]
+    assert regime_symbols == ["1343.T", "2510.T", "1306.T"]
+
+
+def test_top_domestic_candidate_uses_valid_domestic_metric_fallback_when_primary_is_suspicious():
+    report = {
+        "regime": {"regime_label": "transition"},
+        "multi_asset_candidates": {
+            "candidates": [
+                {
+                    "asset_class": "jp_equity",
+                    "symbol": "1306.T",
+                    "source_data_available": True,
+                    "metrics": {"change_4w": 4.8, "change_12w": -88.7, "limitations": ["split_or_discontinuity_suspected"]},
+                }
+            ]
+        },
+        "domestic_market_metrics": {
+            "by_symbol": {
+                "1306.T": {
+                    "symbol": "1306.T",
+                    "asset_group": "jp_equity",
+                    "is_available": True,
+                    "change_4w": 4.8,
+                    "limitations": ["split_or_discontinuity_suspected"],
+                },
+                "1321.T": {
+                    "symbol": "1321.T",
+                    "asset_group": "jp_equity",
+                    "is_available": True,
+                    "change_4w": 1.4,
+                    "momentum_12w": 3.2,
+                    "max_drawdown": -4.5,
+                    "limitations": [],
+                },
+            }
+        },
+    }
+
+    rows = _domestic_candidate_rows_for_top(report, "main")
+
+    assert [row["symbol"] for row in rows] == ["1321.T"]
+    assert rows[0]["metric_text"] == "4週 1.4%"
 
 
 def test_render_outputs_include_japan_resident_integrated_risk_context():
@@ -1192,6 +1441,10 @@ def test_render_supplement_dashboard_html_maps_all_source_sections():
     assert "supplement-dashboard-shell" in html
     assert "evidence-summary-grid" in html
     assert "supplement-evidence-grid" in html
+    assert "supplement-reading-guide" in html
+    assert "まず確認する5つの要点" in html
+    assert "判断の根拠" in html
+    assert "データ品質" in html
     assert "補足レポート" in html
     assert "本体判断ではなく、補助確認と検証用の詳細です" in html
     assert "本体判断への影響なし" in html
@@ -1204,6 +1457,7 @@ def test_render_supplement_dashboard_html_maps_all_source_sections():
         "resident-context-detail-section",
         "domestic-context-detail-section",
         "hindenburg-history-section",
+        "episode-chronicle-launch-section",
         "data-acquisition-section",
         "threshold-audit-section",
         "runtime-diagnostics-section",
@@ -1218,6 +1472,7 @@ def test_render_supplement_dashboard_html_maps_all_source_sections():
         "日本在住者文脈（統合）詳細",
         "国内文脈（危険シグナル）詳細",
         "ヒンデンブルグオーメンのトリガー / 発動履歴",
+        "市場警戒年代記",
         "資産クラス / 候補証拠",
         "データ取得状況",
         "しきい値の使用状況と認証",
@@ -1249,6 +1504,66 @@ def test_render_outputs_include_active_hindenburg_omen_without_decision_impact()
     assert "ヒンデンブルグオーメン" in supplement
     assert report["buy_decision_card"]["final_action"] == before_action
     assert report["buy_decision_card"]["buy_readiness_score"] == before_score
+
+
+def test_supplement_opens_ready_episode_chronicle_in_separate_window_without_decision_impact():
+    report = deepcopy(_report())
+    before_action = report["buy_decision_card"]["final_action"]
+    before_score = report["buy_decision_card"]["buy_readiness_score"]
+    report["risk_engine_v2_episode_chronicle"] = {
+        "status": "ready",
+        "freshness_status": "current",
+        "policy_status": "diagnostic_only_not_promoted",
+        "affects_final_action": False,
+        "promotion_allowed": False,
+        "page_filename": "risk_engine_v2_episode_chronicle.html",
+        "episode_count": 18,
+        "mature_count": 16,
+        "pending_count": 2,
+        "latest_event_title": "2026年7月17日 — 警戒局面",
+        "generated_at": "2026-07-19T00:00:00+00:00",
+    }
+
+    supplement = render_supplement_dashboard_html(report)
+
+    hindenburg_index = supplement.index("4. ヒンデンブルグオーメン")
+    chronicle_index = supplement.index("5. 市場警戒年代記")
+    asset_index = supplement.index("6. 資産クラス / 候補証拠")
+    assert hindenburg_index < chronicle_index < asset_index
+    assert 'href="risk_engine_v2_episode_chronicle.html"' in supplement
+    assert 'target="_blank"' in supplement
+    assert 'rel="noopener"' in supplement
+    assert supplement.count('href="risk_engine_v2_episode_chronicle.html"') == 2
+    hero = supplement.split('<section class="supplement-hero"', 1)[1].split("</section>", 1)[0]
+    assert 'href="risk_engine_v2_episode_chronicle.html"' in hero
+    assert '<span class="supplement-chip">補助確認</span>' not in hero
+    assert hero.index("データ制約") < hero.index("本体判断への影響なし")
+    assert hero.index("本体判断への影響なし") < hero.index("市場警戒年代記を別窓で開く")
+    assert hero.index("市場警戒年代記を別窓で開く") < hero.index("本体レポートへ戻る")
+    assert "2026年7月17日 — 警戒局面" in supplement
+    assert report["buy_decision_card"]["final_action"] == before_action
+    assert report["buy_decision_card"]["buy_readiness_score"] == before_score
+
+
+def test_supplement_disables_episode_chronicle_when_contract_is_not_ready():
+    report = deepcopy(_report())
+    report["risk_engine_v2_episode_chronicle"] = {
+        "status": "invalid",
+        "reason": "証拠成果物が古いため開けません",
+        "page_filename": "risk_engine_v2_episode_chronicle.html",
+    }
+
+    supplement = render_supplement_dashboard_html(report)
+
+    assert "市場警戒年代記は現在開けません" in supplement
+    assert 'aria-disabled="true"' in supplement
+    assert 'href="risk_engine_v2_episode_chronicle.html"' not in supplement
+    assert supplement.count('aria-disabled="true"') == 2
+    hero = supplement.split('<section class="supplement-hero"', 1)[1].split("</section>", 1)[0]
+    assert "市場警戒年代記は現在開けません" in hero
+    assert '<span class="supplement-chip">補助確認</span>' not in hero
+    assert "証拠成果物が古いため開けません" in supplement
+    assert "10. 履歴ブラウザ" in supplement
 
 
 def test_render_outputs_include_inactive_and_missing_hindenburg_states():

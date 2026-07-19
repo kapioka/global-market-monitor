@@ -1,5 +1,52 @@
 # Changelog
 
+## v0.10.0 - 市場警戒年代記と安全な市場データ保存基盤
+
+### Added
+
+- 個人・非商用の実行だけを許可する独自ライセンスと、商用利用・改変・再配布の禁止、無保証、責任制限を追加。
+
+- 通常実行から自動更新できる読み取り専用の「市場警戒年代記」を追加しました。
+- 過去の警戒局面と市場急落を、価格チャート、関連指標、時系列説明、評価、データ出所とともに確認できるようにしました。
+- 補足ダッシュボードから年代記を別ウィンドウで開く導線を追加しました。
+- 市場時系列をローカルSQLiteへ移行するshadow移行器と、CSVとの完全一致検証を追加しました。
+
+### Changed
+
+- Risk Engine V2のevent-first診断、holdout、root-cause、retention、official-series比較の証拠整合性をfail-closedで強化しました。
+- 年代記の関連指標を当時の証拠から選び、ACWIを含め最大5系列で比較できるようにしました。
+- 同一入力の再実行、訂正履歴、競合保存先、未知DB、古い観測時刻を安全に扱うSQLite保存契約を追加しました。
+- READMEを、概要、最短起動、画面の見方、データ制約が初見で分かる構成へ整理しました。
+- 依存監査で検出されたSoupsieveのDoS脆弱性を避けるため、lockを2.8.4へ更新しました。
+
+### Safety / Scope
+
+- `risk_engine_v2.mode=shadow`、`promotion_allowed=false`、`policy_status=diagnostic_only_not_promoted`を維持します。
+- `final_action`、productionの買い候補度、`reliability_policy`、threshold JSON、buy-window / buy-candidate policyを変更していません。
+- SQLiteは照合段階です。既存CSVを削除せず、通常の読み取り経路や保存期間も変更していません。
+- 市場キャッシュ、SQLite DB、生成済みレポート、ログ、ローカル移行実績は公開物へ含めません。
+
+## Historical detail - risk_engine_v2 Event-First Diagnostic Repair
+
+### Changed
+
+- Repaired `risk_engine_v2` event-first diagnostics so unrecovered material drawdowns keep ownership through the latest observation while censoring remains a separate diagnostic field.
+- Switched holdout validation to fixed event-anchor date boundaries, with boundary purge/embargo reporting and holdout-only primary coverage readiness.
+- Converted holdout and root-cause diagnostics to resolve event `weekly_timeline_record_ids` against canonical weekly replay records.
+- Added diagnostic-only retention reconciliation and production-invariance JSON artifacts, and included required JSON reports in the ChatGPT diagnostic bundle manifest.
+- Added a holdout primary coverage audit that explains week-by-series primary evidence failures and reconciles replay-wide versus holdout coverage states.
+- Regenerated the canonical risk_engine_v2 replay from the real local official-series store, fail-fasts explicit missing official-series paths before output writes, and added before/after comparison evidence for the missing-store repair.
+- Corrected holdout primary coverage audit failure semantics so successful eligible series rows do not receive `unknown_reason`, unavailable root causes are emitted only for unavailable weekly cases, and missing/default official-series stores fail safely before canonical replay outputs are overwritten.
+- Corrected volatility-index data quality so valid historical VIX/MOVE jumps are not permanently classified as split-like discontinuities.
+- Distinguished official OAS availability from stage-scoring availability in the live shadow diagnostic, while retaining HYG/LQD as the validated stage proxy.
+- Allowed production-invariance checks to accept append-only weekly extensions while still rejecting missing historical weeks and protected-field changes.
+- Refreshed the canonical official-series store through 2026-07-02 and regenerated 444 weekly diagnostic replay records with controlled production invariance.
+
+### Scope
+
+- Kept `risk_engine_v2` diagnostic-only/shadow and `promotion_allowed=false`.
+- Did not change `final_action`, production `buy_readiness_score`, threshold JSON, domain calculations, global stage policy, persistence rules, Hindenburg behavior, dependencies, CI, tags, releases, or pushes.
+
 ## v0.9.1 - Japanese Report Wording and Risk-Line Display Polish
 
 ### Changed

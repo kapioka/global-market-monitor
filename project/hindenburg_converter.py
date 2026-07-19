@@ -4,6 +4,7 @@ import csv
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from collections.abc import Sequence
 from typing import Any
 
 CANONICAL_COLUMNS = [
@@ -111,7 +112,7 @@ def normalize_hindenburg_csv(input_path: str | Path, output_path: str | Path, *,
     return ConversionSummary("ok", rows_read, len(rows), rejected_rows, str(output), errors).as_dict()
 
 
-def _build_column_mapping(fieldnames: list[str]) -> tuple[list[str], dict[str, str]]:
+def _build_column_mapping(fieldnames: Sequence[str]) -> tuple[list[str], dict[str, str]]:
     errors: list[str] = []
     mapping: dict[str, str] = {}
     seen_canonical: dict[str, str] = {}

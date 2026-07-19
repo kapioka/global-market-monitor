@@ -2,7 +2,8 @@ param(
     [switch]$InstallTools,
     [switch]$Strict,
     [switch]$SkipDependencyAudit,
-    [string]$ExpectedTag = "v0.7.2",
+    [switch]$AllowProtectedDecisionDiff,
+    [string]$ExpectedTag = "",
     [string]$Python = "python"
 )
 
@@ -17,6 +18,7 @@ $summary = [ordered]@{
     generated_at = (Get-Date).ToString("s")
     repo_root = $repoRoot.Path
     strict = [bool]$Strict
+    allow_protected_decision_diff = [bool]$AllowProtectedDecisionDiff
     expected_tag = $ExpectedTag
     publish_readiness = "pass"
     blockers = @()
@@ -138,7 +140,7 @@ if (Test-Tool "detect-secrets") {
     $detectOutput = Join-Path $securityDir "detect-secrets.baseline.json"
     $detectResult = Invoke-Capture "detect_secrets_scan" $detectOutput {
         detect-secrets scan --all-files `
-            --exclude-files '^(\.tmp|\.mypy_cache|\.ruff_cache|project[\\/]reports|project[\\/]cache|project[\\/]runtime|project[\\/]\.runtime|\.git|archive|docs[\\/]visual-evidence)([\\/]|$)'
+            --exclude-files '^(\.tmp|\.mypy_cache|\.ruff_cache|project[\\/]reports|project[\\/]cache|project[\\/]runtime|project[\\/]\.runtime|\.git|archive|docs[\\/]visual-evidence)([\\/]|$)|^docs[\\/]market_data_storage_(baseline|migration_result)\.json$'
     }
     $detectFindingCount = 0
     try {
@@ -211,6 +213,32 @@ $thresholdDiff = @(git diff -- project/risk_line_thresholds_active.json project/
 $summary.checks.threshold_json_diff = @{ status = "ran"; diff_line_count = $thresholdDiff.Count }
 if ($thresholdDiff.Count -gt 0) {
     Add-Blocker "Threshold JSON files have diffs."
+}
+
+$protectedDecisionPaths = @(
+    "project/reliability_policy.py",
+    "project/spot_signal.py",
+    "project/action_schema.py",
+    "project/threshold_decision_policy.py"
+)
+$protectedDecisionDiff = @(
+    git diff -- @protectedDecisionPaths
+    git diff --cached -- @protectedDecisionPaths
+)
+$protectedDecisionStatus = @(git status --short -- @protectedDecisionPaths)
+$summary.checks.protected_decision_diff = @{
+    status = "ran"
+    paths = $protectedDecisionPaths
+    diff_line_count = $protectedDecisionDiff.Count
+    status_entries = $protectedDecisionStatus
+    explicitly_allowed = [bool]$AllowProtectedDecisionDiff
+}
+if ($protectedDecisionDiff.Count -gt 0 -or $protectedDecisionStatus.Count -gt 0) {
+    if ($AllowProtectedDecisionDiff) {
+        Add-Warning "Protected decision-surface diffs were explicitly allowed for this audit; review them manually before publication."
+    } else {
+        Add-Blocker "Protected decision-surface files have unapproved diffs. Re-run only with -AllowProtectedDecisionDiff after explicit user authorization for that exact scope."
+    }
 }
 
 $reqTimesFm = @(Select-String -Path "project/requirements.txt","project/requirements-dev.txt","project/requirements-lock.txt","pyproject.toml" -Pattern "timesfm|times-fm|torch|jax|flax|tensorflow" -CaseSensitive:$false -ErrorAction SilentlyContinue)

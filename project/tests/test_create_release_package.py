@@ -24,6 +24,12 @@ def test_generated_and_secret_adjacent_paths_are_excluded():
     assert module.is_excluded("docs/visual-evidence/example.png")
     assert module.is_excluded("local.secret.json")
     assert module.is_excluded("deploy.pem")
+    assert module.is_excluded("project/cache.db.sqlite3")
+    assert module.is_excluded("project/cache.db.sqlite3-wal")
+    assert module.is_excluded("project/cache.db.sqlite3-shm")
+    assert module.is_excluded("project/cache.db.backup")
+    assert module.is_excluded("docs/market_data_storage_baseline.json")
+    assert module.is_excluded("docs/market_data_storage_migration_result.json")
 
 
 def test_source_and_sample_docs_are_included():

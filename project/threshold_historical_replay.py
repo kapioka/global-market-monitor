@@ -783,7 +783,7 @@ def _feature_cache_item(
     zscore_window: int,
     label: str | None = None,
 ) -> dict[str, Any]:
-    features = _build_feature_values(series, windows, zscore_window)
+    features = _build_feature_values(series, ticker, windows, zscore_window)
     return {
         "ticker": ticker,
         "label": label,

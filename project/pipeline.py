@@ -13,6 +13,7 @@ from project.buy_decision_card import build_buy_decision_card
 from project.credit_monitor import build_credit_monitor
 from project.cycle_analysis import analyze_cycle
 from project.data_fetcher import FetchResult, fetch_market_data
+from project.data_provenance import build_report_data_provenance
 from project.decision_attribution import build_decision_attribution
 from project.decision_boundary_experiment import build_decision_boundary_experiment
 from project.domestic_danger_context import build_domestic_danger_context
@@ -25,11 +26,14 @@ from project.japan_macro_adapters import build_optional_japan_macro_context
 from project.japan_resident_integrated_context import build_japan_resident_integrated_risk_context
 from project.japan_risk_monitor import build_japan_risk_monitor
 from project.multi_asset_candidates import build_multi_asset_candidates
+from project.oil_context import attach_oil_context_to_rows, build_oil_context
 from project.preprocess import compute_returns, preprocess_prices
 from project.recovery_candidates import build_recovery_candidates
 from project.regime_analysis import analyze_market_regime
 from project.regime_leading_candidates import build_regime_leading_candidates
 from project.reliability_policy import assess_data_reliability
+from project.risk_domain_state import apply_risk_domain_persistence, default_risk_domain_state_path, load_risk_domain_state
+from project.risk_domains import evaluate_risk_domains
 from project.risk_line_confidence_audit import build_risk_line_confidence_audit
 from project.risk_line_review_status import load_risk_line_review_status
 from project.risk_line_threshold_drift_report import load_risk_line_threshold_drift_snapshot
@@ -50,6 +54,9 @@ def collect_tickers(config: dict[str, Any]) -> list[str]:
     tickers: list[str] = []
     for mapping in ticker_groups.values():
         tickers.extend(mapping.values())
+    official_series = (config.get("risk_engine_v2") or {}).get("official_series") or {}
+    if isinstance(official_series, dict):
+        tickers.extend(str(value) for value in official_series.values() if value)
     deduped: list[str] = []
     for ticker in tickers:
         if ticker not in deduped:
@@ -88,6 +95,10 @@ def resample_weekly_closes(prices: Any) -> Any:
     if prices.empty:
         return prices
     weekly = prices.resample("W-FRI").last().dropna(how="all")
+    if not weekly.empty:
+        latest_observation = prices.dropna(how="all").index.max()
+        if latest_observation is not None:
+            weekly = weekly.loc[weekly.index <= latest_observation]
     return weekly.ffill()
 
 
@@ -99,7 +110,9 @@ def build_report(
     maintenance_summary: dict[str, Any] | None = None,
     history_alignment: dict[str, Any] | None = None,
     japan_macro_context: dict[str, Any] | None = None,
+    episode_chronicle_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    generated_at = generated_at_for_date(config, as_of_date)
     prices = fetch.prices
     if as_of_date is not None and not prices.empty:
         cutoff = datetime.combine(as_of_date, time.max)
@@ -108,6 +121,14 @@ def build_report(
         prices = resample_weekly_closes(prices)
 
     prices, preprocessing_warnings = preprocess_prices(prices, config["data"]["min_history_points"])
+    data_provenance = build_report_data_provenance(
+        prices,
+        generated_at=generated_at,
+        fetch_diagnostics=fetch.diagnostics,
+        data_source=fetch.source,
+        as_of_date=as_of_date,
+        freshness_max_business_days=int(config.get("data", {}).get("freshness_max_business_days", 2)),
+    )
     returns = compute_returns(prices)
     availability_map = {entry.get("requested_ticker"): entry for entry in fetch.acquisition_log}
 
@@ -138,6 +159,14 @@ def build_report(
     fx_soft_cap_balanced_guard = load_fx_soft_cap_balanced_guard_summary(reports_dir) if reports_dir else {}
     fx_soft_cap_long_range_guard_replay = load_fx_soft_cap_long_range_guard_replay_summary(reports_dir) if reports_dir else {}
     regime_aware_fx_policy_replay = load_regime_aware_fx_policy_replay_summary(reports_dir) if reports_dir else {}
+    risk_engine_v2_replay = load_risk_engine_v2_replay_summary(reports_dir) if reports_dir else {}
+    risk_engine_v2_reconstructed_replay = load_risk_engine_v2_reconstructed_replay_summary(reports_dir) if reports_dir else {}
+    risk_engine_v2_holdout_validation = load_risk_engine_v2_holdout_validation_summary(reports_dir) if reports_dir else {}
+    risk_engine_v2_episode_chronicle = (
+        dict(episode_chronicle_summary)
+        if episode_chronicle_summary is not None
+        else load_risk_engine_v2_episode_chronicle_summary(reports_dir) if reports_dir else {}
+    )
     fx_soft_cap_watchlist = load_fx_soft_cap_watchlist_summary(reports_dir) if reports_dir else {}
     proposed_threshold_payload = load_threshold_payload(Path(__file__).resolve().parent / "risk_line_thresholds_proposed.json")
     proposed_metadata = metadata_for_payload(proposed_threshold_payload)
@@ -178,6 +207,8 @@ def build_report(
     usable_credit_monitor = _filter_live_monitor_rows(credit_monitor, availability_map)
     usable_inflation_monitor = _filter_live_monitor_rows(inflation_monitor, availability_map)
     usable_risk_monitor = _filter_live_monitor_rows(risk_monitor, availability_map)
+    oil_context = build_oil_context(usable_risk_monitor, settings=config.get("risk_engine_v2", {}))
+    usable_risk_monitor = attach_oil_context_to_rows(usable_risk_monitor, oil_context)
     reliability = assess_data_reliability(config, fetch)
     sector_vector_config = config.get("sector_vector_analysis", {})
     sector_rotation = analyze_sector_rotation(prices, config["tickers"]["sector_etfs"], vector_config=sector_vector_config)
@@ -219,7 +250,11 @@ def build_report(
         sector_rotation=sector_rotation,
     )
     asset_compare = compare_asset_classes(prices, config["tickers"]["asset_classes"])
-    domestic_market_metrics = build_domestic_market_metrics(prices, acquisition_log=fetch.acquisition_log)
+    domestic_market_metrics = build_domestic_market_metrics(
+        prices,
+        acquisition_log=fetch.acquisition_log,
+        data_provenance=data_provenance,
+    )
     spot_signal = evaluate_spot_signal(
         score,
         regime,
@@ -254,6 +289,31 @@ def build_report(
         warnings.append(reliability["reason"])
     elif risk_lines.get("strict_missing_indicators"):
         warnings.append(risk_lines["summary"])
+    risk_domains = evaluate_risk_domains(
+        stress_monitor=usable_risk_monitor,
+        credit_monitor=usable_credit_monitor,
+        inflation_monitor=usable_inflation_monitor,
+        config=config,
+        available_series={str(column) for column in prices.columns if prices[column].notna().any()},
+    )
+    risk_engine_state: dict[str, Any] = {"status": "not_configured", "will_persist": False}
+    if reports_dir:
+        risk_engine_state_path = default_risk_domain_state_path(reports_dir)
+        previous_risk_domain_state = load_risk_domain_state(risk_engine_state_path)
+        risk_domains, next_risk_domain_state = apply_risk_domain_persistence(
+            risk_domains,
+            previous_state=previous_risk_domain_state,
+            settings=config.get("risk_engine_v2", {}),
+            generated_at=generated_at,
+        )
+        risk_engine_state = {
+            "status": "ready",
+            "path": str(risk_engine_state_path),
+            "previous_state_loaded": not bool(previous_risk_domain_state.get("load_error")),
+            "will_persist": bool(reliability.get("decision_allowed", False)),
+            "next_state": next_risk_domain_state,
+        }
+    risk_engine_comparison = _build_risk_engine_comparison(risk_lines, risk_domains)
     investment_candidates = build_investment_candidates(
         {
             "regime": regime,
@@ -326,9 +386,10 @@ def build_report(
     fx_policy_diagnostics = build_fx_policy_diagnostics(spot_signal, japan_risk)
     report = {
         "title": config["app"]["report_title"],
-        "generated_at": generated_at_for_date(config, as_of_date),
+        "generated_at": generated_at,
         "history_alignment": history_alignment or {},
         "data_source": fetch.source,
+        "data_provenance": data_provenance,
         "runtime_context": _runtime_context(),
         "fetch_diagnostics": fetch.diagnostics,
         "data_reliability": reliability,
@@ -341,6 +402,7 @@ def build_report(
         "credit_monitor": usable_credit_monitor,
         "inflation_monitor": usable_inflation_monitor,
         "risk_monitor": usable_risk_monitor,
+        "oil_context": oil_context,
         "japan_risk": japan_risk,
         "japan_resident_context": japan_macro_context,
         "risk_thresholds": active_threshold_payload.get("threshold_set", {}),
@@ -351,6 +413,11 @@ def build_report(
         "threshold_usage": threshold_usage,
         "threshold_rule_certification": threshold_rule_certification,
         "risk_lines": risk_lines,
+        "risk_engine_schema_version": "2.0",
+        "risk_engine_mode": str((config.get("risk_engine_v2") or {}).get("mode", "shadow")),
+        "risk_domains": risk_domains,
+        "risk_engine_state": risk_engine_state,
+        "risk_engine_comparison": risk_engine_comparison,
         "risk_line_confidence_audit": risk_line_confidence_audit,
         "hindenburg_omen_context": hindenburg_omen_context,
         "spot_signal": spot_signal,
@@ -366,6 +433,10 @@ def build_report(
         "fx_soft_cap_balanced_guard": fx_soft_cap_balanced_guard,
         "fx_soft_cap_long_range_guard_replay": fx_soft_cap_long_range_guard_replay,
         "regime_aware_fx_policy_replay": regime_aware_fx_policy_replay,
+        "risk_engine_v2_replay": risk_engine_v2_replay,
+        "risk_engine_v2_reconstructed_replay": risk_engine_v2_reconstructed_replay,
+        "risk_engine_v2_holdout_validation": risk_engine_v2_holdout_validation,
+        "risk_engine_v2_episode_chronicle": risk_engine_v2_episode_chronicle,
         "fx_policy_diagnostics": fx_policy_diagnostics,
         "fx_soft_cap_watchlist": fx_soft_cap_watchlist,
         "investment_candidates": investment_candidates,
@@ -391,6 +462,21 @@ def _runtime_context() -> dict[str, Any]:
         "is_frozen": bool(getattr(sys, "frozen", False)),
         "python_executable": str(executable),
         "working_directory": str(Path.cwd().resolve()),
+    }
+
+
+def _build_risk_engine_comparison(risk_lines: dict[str, Any], risk_domains: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "legacy_stage": risk_lines.get("stage_key", "normal"),
+        "legacy_stage_label": risk_lines.get("stage_label", "-"),
+        "legacy_composite_score": risk_lines.get("composite_risk_score"),
+        "domain_v2_stage": risk_domains.get("stage", "normal"),
+        "domain_v2_composite_score": risk_domains.get("composite_domain_score"),
+        "domain_v2_independent_stressed_domain_count": risk_domains.get("independent_stressed_domain_count", 0),
+        "domain_v2_strict_judgement_available": risk_domains.get("strict_judgement_available", False),
+        "mode": risk_domains.get("engine_mode", "shadow"),
+        "affects_final_action": False,
+        "policy_status": "shadow_only",
     }
 
 
@@ -675,6 +761,174 @@ def load_regime_aware_fx_policy_replay_summary(reports_dir: str | Path | None) -
         "affects_final_action": payload.get("affects_final_action", False),
         "usable_weeks": payload.get("usable_weeks", 0),
         "candidates": payload.get("candidates", []),
+    }
+
+
+def load_risk_engine_v2_replay_summary(reports_dir: str | Path | None) -> dict[str, Any]:
+    if not reports_dir:
+        return {}
+    path = Path(reports_dir) / "risk_engine_v2_replay.json"
+    if not path.exists():
+        return {"status": "not_available", "reason": "risk_engine_v2 replay has not been generated"}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"status": "unavailable", "reason": f"risk_engine_v2 replay could not be loaded: {exc}"}
+    summary = payload.get("summary") or {}
+    outcome_summary = summary.get("outcome_summary") or {}
+    decision = payload.get("decision") or {}
+    return {
+        "status": payload.get("status"),
+        "policy_status": payload.get("policy_status"),
+        "affects_final_action": payload.get("affects_final_action", False),
+        "total_cases": summary.get("total_cases", 0),
+        "strict_available_cases": summary.get("strict_available_cases", 0),
+        "domain_stage_counts": summary.get("domain_stage_counts", {}),
+        "confirmed_stage_counts": summary.get("confirmed_stage_counts", {}),
+        "legacy_domain_stage_divergence_count": summary.get("legacy_domain_stage_divergence_count", 0),
+        "oil_status_counts": summary.get("oil_status_counts", {}),
+        "oil_reference_only_count": summary.get("oil_reference_only_count", 0),
+        "outcome_status": outcome_summary.get("status"),
+        "outcome_usable_cases": outcome_summary.get("usable_cases", 0),
+        "promotion_allowed": decision.get("promotion_allowed", False),
+        "decision_reason": decision.get("reason", "-"),
+    }
+
+
+def load_risk_engine_v2_reconstructed_replay_summary(reports_dir: str | Path | None) -> dict[str, Any]:
+    if not reports_dir:
+        return {}
+    path = Path(reports_dir) / "risk_engine_v2_reconstructed_replay.json"
+    if not path.exists():
+        return {"status": "not_available", "reason": "risk_engine_v2 reconstructed replay has not been generated"}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"status": "unavailable", "reason": f"risk_engine_v2 reconstructed replay could not be loaded: {exc}"}
+    summary = payload.get("summary") or {}
+    outcome_summary = summary.get("outcome_summary") or {}
+    decision = payload.get("decision") or {}
+    reconstruction = payload.get("reconstruction") or {}
+    return {
+        "status": payload.get("status"),
+        "policy_status": payload.get("policy_status"),
+        "affects_final_action": payload.get("affects_final_action", False),
+        "total_cases": summary.get("total_cases", 0),
+        "strict_available_cases": summary.get("strict_available_cases", 0),
+        "confirmed_stage_counts": summary.get("confirmed_stage_counts", {}),
+        "legacy_domain_stage_divergence_count": summary.get("legacy_domain_stage_divergence_count", 0),
+        "oil_status_counts": summary.get("oil_status_counts", {}),
+        "outcome_status": outcome_summary.get("status"),
+        "outcome_usable_cases": outcome_summary.get("usable_cases", 0),
+        "outcome_case_status_counts": outcome_summary.get("case_status_counts", {}),
+        "outcome_buckets": outcome_summary.get("buckets", {}),
+        "promotion_allowed": decision.get("promotion_allowed", False),
+        "decision_reason": decision.get("reason", "-"),
+        "reconstruction": reconstruction,
+    }
+
+
+def load_risk_engine_v2_holdout_validation_summary(reports_dir: str | Path | None) -> dict[str, Any]:
+    if not reports_dir:
+        return {}
+    path = Path(reports_dir) / "risk_engine_v2_holdout_validation.json"
+    if not path.exists():
+        return {"status": "not_available", "reason": "risk_engine_v2 holdout validation has not been generated"}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return {"status": "unavailable", "reason": f"risk_engine_v2 holdout validation could not be loaded: {exc}"}
+    decision = payload.get("decision") or {}
+    holdout = payload.get("holdout") or {}
+    gate = payload.get("promotion_gate") or {}
+    return {
+        "status": payload.get("status"),
+        "policy_status": payload.get("policy_status"),
+        "affects_final_action": payload.get("affects_final_action", False),
+        "validation_level": payload.get("validation_level"),
+        "strict_primary_available": payload.get("strict_primary_available", False),
+        "holdout_status": holdout.get("status"),
+        "split_status": holdout.get("split_status"),
+        "evidence_status": holdout.get("evidence_status"),
+        "performance_status": holdout.get("performance_status"),
+        "holdout_episode_count": holdout.get("episode_count", 0),
+        "holdout_case_count": holdout.get("case_count", 0),
+        "holdout_reason": holdout.get("reason", "-"),
+        "holdout_performance": holdout.get("performance", {}),
+        "cadence_status": payload.get("cadence_status"),
+        "split_policy": payload.get("split_policy", {}),
+        "split_boundaries": payload.get("split_boundaries", {}),
+        "splits": payload.get("splits", {}),
+        "promotion_allowed": decision.get("promotion_allowed", False),
+        "decision_reason": decision.get("reason", "-"),
+        "promotion_gate_status": gate.get("status", "-"),
+        "promotion_gate_blockers": gate.get("blockers", []),
+    }
+
+
+def load_risk_engine_v2_episode_chronicle_summary(reports_dir: str | Path | None) -> dict[str, Any]:
+    if not reports_dir:
+        return {}
+    reports_path = Path(reports_dir)
+    path = reports_path / "risk_engine_v2_episode_chronicle.json"
+    if not path.exists():
+        return {"status": "not_available", "reason": "市場警戒年代記はまだ生成されていません"}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return {"status": "unavailable", "reason": f"市場警戒年代記を読み込めません: {exc}"}
+    if not isinstance(payload, dict):
+        return {"status": "invalid", "reason": "市場警戒年代記のルートがJSONオブジェクトではありません"}
+    decision = payload.get("decision")
+    contract = payload.get("contract")
+    page_filename = payload.get("page_filename")
+    violations: list[str] = []
+    if payload.get("schema_version") != "risk_engine_v2.episode_chronicle.v1":
+        violations.append("schema_version")
+    if payload.get("implementation_version") != "risk_engine_v2.episode_chronicle.implementation.v3":
+        violations.append("implementation_version")
+    if payload.get("status") != "ready":
+        violations.append("status")
+    if payload.get("freshness_status") != "current":
+        violations.append("freshness_status")
+    if payload.get("policy_status") != "diagnostic_only_not_promoted":
+        violations.append("policy_status")
+    if payload.get("affects_final_action") is not False:
+        violations.append("affects_final_action")
+    if payload.get("promotion_allowed") is not False:
+        violations.append("promotion_allowed")
+    if not isinstance(decision, dict) or decision.get("promotion_allowed") is not False:
+        violations.append("decision.promotion_allowed")
+    if not isinstance(contract, dict) or contract.get("status") != "pass":
+        violations.append("contract.status")
+    if not isinstance(page_filename, str) or not page_filename or Path(page_filename).name != page_filename:
+        violations.append("page_filename")
+    elif not (reports_path / page_filename).exists():
+        violations.append("page_file")
+    summary = payload.get("summary")
+    if not isinstance(summary, dict):
+        violations.append("summary")
+        summary = {}
+    if violations:
+        return {
+            "status": "invalid",
+            "reason": "市場警戒年代記の安全契約を確認できません: " + ", ".join(violations),
+        }
+    return {
+        "status": "ready",
+        "freshness_status": payload.get("freshness_status"),
+        "generated_at": payload.get("generated_at"),
+        "generation_id": payload.get("generation_id"),
+        "episode_count": summary.get("episode_count", 0),
+        "mature_count": summary.get("mature_count", 0),
+        "pending_count": summary.get("pending_count", 0),
+        "latest_event_id": summary.get("latest_event_id"),
+        "latest_event_title": summary.get("latest_event_title"),
+        "latest_event_date": summary.get("latest_event_date"),
+        "page_filename": page_filename,
+        "policy_status": payload.get("policy_status"),
+        "affects_final_action": False,
+        "promotion_allowed": False,
     }
 
 

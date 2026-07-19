@@ -142,6 +142,7 @@ def write_reports(
     history_path.mkdir(parents=True, exist_ok=True)
 
     markdown_text = render_markdown(report)
+    developer_markdown_text = render_developer_diagnostics_markdown(report)
     history_entries = load_history_entries(history_path)
     html_text = render_html(report, history_entries=history_entries)
     supplement_html_text = render_supplement_dashboard_html(report, history_entries=history_entries)
@@ -149,6 +150,7 @@ def write_reports(
 
     markdown_path = reports_path / "report.md"
     html_path = reports_path / "report.html"
+    developer_markdown_path = reports_path / "developer_diagnostics.md"
     supplement_html_path = reports_path / "supplement_dashboard.html"
     history_markdown_path = history_path / f"report_{timestamp}.md"
     history_html_path = history_path / f"report_{timestamp}.html"
@@ -156,6 +158,7 @@ def write_reports(
 
     markdown_path.write_text(markdown_text, encoding="utf-8")
     html_path.write_text(html_text, encoding="utf-8")
+    developer_markdown_path.write_text(developer_markdown_text, encoding="utf-8")
     supplement_html_path.write_text(supplement_html_text, encoding="utf-8")
     history_markdown_path.write_text(markdown_text, encoding="utf-8")
     history_html_path.write_text(html_text, encoding="utf-8")
@@ -165,6 +168,7 @@ def write_reports(
         sample_path.mkdir(parents=True, exist_ok=True)
         (sample_path / "report_sample.md").write_text(markdown_text, encoding="utf-8")
         (sample_path / "report_sample.html").write_text(html_text, encoding="utf-8")
+        (sample_path / "developer_diagnostics_sample.md").write_text(developer_markdown_text, encoding="utf-8")
         (sample_path / "supplement_dashboard_sample.html").write_text(supplement_html_text, encoding="utf-8")
 
     return markdown_path, html_path, history_markdown_path, history_html_path, history_json_path
@@ -500,6 +504,79 @@ def _risk_line_confidence_audit_html(audit: dict[str, Any]) -> str:
         f"<li>{html.escape(line[2:] if line.startswith('- ') else line)}</li>" for line in _risk_line_confidence_audit_markdown_lines(audit)
     )
     return f"<ul>{items}</ul>"
+
+
+def _risk_accepted_rule_summary(row: dict[str, Any]) -> str:
+    accepted = row.get("accepted_rule") or {}
+    if not accepted:
+        return str(row.get("line_reason") or "採用可能な発火基準なし")
+    stage = _risk_stage_label(str(accepted.get("stage") or ""))
+    feature = str(accepted.get("feature") or "-")
+    value = _display_compact_number(accepted.get("value"), 4)
+    threshold = _display_compact_number(accepted.get("threshold"), 4)
+    direction = "以上" if str(accepted.get("direction") or "higher") == "higher" else "以下"
+    confidence = _risk_confidence_label(accepted.get("confidence"))
+    source = _risk_source_label(accepted.get("source"))
+    return f"{stage}: {feature}={value} / 基準 {threshold} {direction} / 根拠 {source}・{confidence}"
+
+
+def _risk_diagnostic_rule_summary(row: dict[str, Any]) -> str:
+    hits = row.get("diagnostic_rule_hits") or []
+    if not hits:
+        return "なし"
+    parts = []
+    for hit in hits[:3]:
+        stage = _risk_stage_label(str(hit.get("stage") or ""))
+        feature = str(hit.get("feature") or "-")
+        value = _display_compact_number(hit.get("value"), 4)
+        threshold = _display_compact_number(hit.get("threshold"), 4)
+        direction = "以上" if str(hit.get("direction") or "higher") == "higher" else "以下"
+        confidence = _risk_confidence_label(hit.get("confidence"))
+        reason = _risk_rule_reason_label(hit.get("reason"))
+        reason_suffix = f" / {reason}" if reason else ""
+        parts.append(f"{stage}: {feature}={value} / 基準 {threshold} {direction} / {confidence} のため参考扱い{reason_suffix}")
+    return " ; ".join(parts)
+
+
+def _risk_stage_label(stage: str) -> str:
+    return {
+        "warning": "警戒",
+        "danger": "危険",
+        "extreme": "非常に危険",
+        "normal": "通常",
+    }.get(stage, stage or "-")
+
+
+def _risk_source_label(value: Any) -> str:
+    return {
+        "historical_quantile": "履歴検証",
+        "fallback_review": "暫定レビュー",
+        "not_evaluable": "active基準",
+        "insufficient_data": "データ不足",
+    }.get(str(value or ""), str(value or "-"))
+
+
+def _risk_confidence_label(value: Any) -> str:
+    return {
+        "high": "高",
+        "medium": "中",
+        "low": "低",
+        "fallback_review": "暫定レビュー",
+        "not_evaluable": "証拠メタ不足",
+    }.get(str(value or ""), str(value or "-"))
+
+
+def _risk_rule_reason_label(value: Any) -> str:
+    text = str(value or "")
+    if not text:
+        return ""
+    if "fallback_review thresholds are diagnostic only" in text:
+        return "診断専用の暫定基準"
+    if "insufficient completed forward-return evidence" in text:
+        return "完了した将来リターン証拠不足"
+    if "weak evidence" in text:
+        return "証拠が弱く本判定には注意"
+    return text
 
 
 def _hindenburg_signal_label(signal: Any) -> str:
@@ -843,7 +920,9 @@ def _domestic_danger_reason_text(row: dict[str, Any]) -> str:
 def _domestic_danger_panel_html(payload: dict[str, Any], small_table: Any, esc: Any, source_chip: Any) -> str:
     if not payload:
         return ""
-    reason_items = "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in payload.get("domestic_danger_reasons", [])) or "<li>-</li>"
+    reason_items = (
+        "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in payload.get("domestic_danger_reasons", [])) or "<li>-</li>"
+    )
     limitation_items = (
         "".join(f"<li>{esc(_localize_display_text(item))}</li>" for item in payload.get("domestic_data_limitations", []))
         or "<li>追加のデータ制約はありません。</li>"
@@ -943,9 +1022,12 @@ def _japan_resident_integrated_context_panel_html(payload: dict[str, Any], small
         ]
         for row in payload.get("watch_items", [])
     ]
-    reason_items = "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in payload.get("primary_reasons", [])) or "<li>-</li>"
+    reason_items = (
+        "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in payload.get("primary_reasons", [])) or "<li>-</li>"
+    )
     limitation_items = (
-        "".join(f"<li>{esc(_localize_display_text(item))}</li>" for item in payload.get("data_limitations", [])) or "<li>追加のデータ制約はありません。</li>"
+        "".join(f"<li>{esc(_localize_display_text(item))}</li>" for item in payload.get("data_limitations", []))
+        or "<li>追加のデータ制約はありません。</li>"
     )
     return (
         '<section class="panel mt"><h3>日本在住者向け統合リスク文脈 {source}</h3>'
@@ -988,8 +1070,12 @@ def _risk_context_ux_hub_html(report: dict[str, Any]) -> str:
     for row in availability:
         status = str(row.get("status") or "-")
         availability_counts[status] = availability_counts.get(status, 0) + 1
-    availability_text = ", ".join(f"{STATUS_LABELS.get(key, key)}={value}" for key, value in sorted(availability_counts.items())) or "取得状況データなし"
-    limitation_text = " / ".join(_localize_display_text(item) for item in limitations[:3]) if limitations else "追加のデータ制約はありません。"
+    availability_text = (
+        ", ".join(f"{STATUS_LABELS.get(key, key)}={value}" for key, value in sorted(availability_counts.items())) or "取得状況データなし"
+    )
+    limitation_text = (
+        " / ".join(_localize_display_text(item) for item in limitations[:3]) if limitations else "追加のデータ制約はありません。"
+    )
     rows = [
         (
             "本体判断",
@@ -1013,16 +1099,16 @@ def _risk_context_ux_hub_html(report: dict[str, Any]) -> str:
         )
     rows.extend(
         [
-        (
-            "データ制約・取得状況",
-            f"{limitation_text} / {availability_text}",
-            "不足系列や取得状態は、観測された危険と分けて読みます。",
-        ),
-        (
-            "市場監視",
-            " / ".join(market_monitoring[:4]),
-            "主要市場、金利、為替、ストレス指標を横断して補助確認します。",
-        ),
+            (
+                "データ制約・取得状況",
+                f"{limitation_text} / {availability_text}",
+                "不足系列や取得状態は、観測された危険と分けて読みます。",
+            ),
+            (
+                "市場監視",
+                " / ".join(market_monitoring[:4]),
+                "主要市場、金利、為替、ストレス指標を横断して補助確認します。",
+            ),
         ]
     )
     if experiment:
@@ -1112,12 +1198,13 @@ def _supplemental_signal_strip_html(report: dict[str, Any]) -> str:
     risk_lines = report.get("risk_lines") or {}
     domestic = report.get("domestic_danger_context") or {}
     _, availability_chip = _availability_summary(report)
+    gold_value, gold_kind = _gold_signal_strip_status(report)
     signal_items = [
         ("VIX", risk_lines.get("stage_label", "-"), "補助確認"),
         ("米10年", "確認中", "補助確認"),
         ("DXY", "確認中", "補助確認"),
         ("HYG", "信用環境", "補助確認"),
-        ("金", "参考表示", "表示専用"),
+        ("金", gold_value, gold_kind),
         ("原油", "確認中", "補助確認"),
         ("TOPIX", _domestic_danger_level_label(domestic.get("domestic_asset_level")), "国内文脈"),
         ("未取得", availability_chip, "データ制約"),
@@ -1136,10 +1223,27 @@ def _supplemental_signal_strip_html(report: dict[str, Any]) -> str:
     )
     return (
         '<section class="supplemental-signal-strip" aria-label="補助確認">'
-        '<div class="section-title-row"><h2>補助確認</h2><span class="section-chip">表示専用 / 単独判断には不使用</span></div>'
+        '<div class="section-title-row"><h2>補助確認</h2><span class="section-chip">リスク文脈 / 単独判断には不使用</span></div>'
         f'<div class="signal-strip-grid">{signal_strip}</div>'
         "</section>"
     )
+
+
+def _gold_signal_strip_status(report: dict[str, Any]) -> tuple[str, str]:
+    row = _find_monitor_row(report.get("inflation_monitor") or [], {"GC=F", "GLD", "IAU"})
+    if not row:
+        return "未取得", "候補未接続"
+    signal = str(row.get("signal_label") or "中立")
+    if signal == "安全資産選好":
+        return "安全資産選好", "レジーム警戒に使用"
+    return signal if signal != "中立" else "中立", "レジーム補助"
+
+
+def _find_monitor_row(rows: Iterable[dict[str, Any]], tickers: set[str]) -> dict[str, Any] | None:
+    for row in rows:
+        if str(row.get("ticker") or "") in tickers:
+            return row
+    return None
 
 
 def _approved_report_dashboard_html(report: dict[str, Any]) -> str:
@@ -1190,29 +1294,40 @@ def _approved_report_dashboard_html(report: dict[str, Any]) -> str:
         else "国内文脈なし"
     )
 
-    main_candidate_chips = "".join(
-        f"<span class='candidate-chip'>{html.escape(str(item.get('ticker', '-')))}</span>"
-        for item in candidate.get("candidate_tickers", [])[:4]
-    ) or "<span class='candidate-chip muted'>候補なし</span>"
-    recovery_candidate_chips = "".join(
-        f"<span class='candidate-chip gold'>{html.escape(str(item.get('ticker', '-')))}</span>"
-        for item in recovery.get("candidate_tickers", [])[:4]
-    ) or "<span class='candidate-chip muted'>候補なし</span>"
-    regime_leading_candidate_chips = "".join(
-        f"<span class='candidate-chip violet'>{html.escape(str(item.get('ticker', '-')))}</span>"
-        for item in regime_leading.get("candidate_tickers", [])[:4]
-    ) or "<span class='candidate-chip muted'>候補なし</span>"
+    main_candidate_chips = _candidate_chip_html(candidate.get("candidate_tickers", [])[:4])
+    recovery_candidate_chips = _candidate_chip_html(recovery.get("candidate_tickers", [])[:4], tone="gold")
+    regime_leading_candidate_chips = _candidate_chip_html(regime_leading.get("candidate_tickers", [])[:4], tone="violet")
+    main_domestic_chips = _candidate_chip_html(
+        _domestic_candidate_rows_for_top(report, "main"), tone="domestic", compact_metric=True, fallback=False
+    )
+    recovery_domestic_chips = _candidate_chip_html(
+        _domestic_candidate_rows_for_top(report, "recovery"), tone="domestic", compact_metric=True, fallback=False
+    )
+    regime_domestic_chips = _candidate_chip_html(
+        _domestic_candidate_rows_for_top(report, "regime"), tone="domestic", compact_metric=True, fallback=False
+    )
     return f"""
       <section class="approved-report-dashboard main-dashboard-shell" aria-label="本体判断と補助確認の要約">
         <div class="main-report-left">
           <section class="glance-summary visual-first-read main-decision-section" aria-label="本体判断">
-            <div class="section-title-row"><h2>▥ 本体判断</h2></div>
+            <div class="section-title-row">
+              <div>
+                <span class="section-eyebrow">本体判断</span>
+                <h2>まず見る：今日の判断</h2>
+              </div>
+              <span class="section-chip">上から順に読む</span>
+            </div>
+            <ol class="reading-guide" aria-label="この画面の読み方">
+              <li><b>1</b><span><strong>結論</strong><small>いま動く場面か</small></span></li>
+              <li><b>2</b><span><strong>理由</strong><small>良い材料と注意材料</small></span></li>
+              <li><b>3</b><span><strong>次の確認</strong><small>何が変われば再検討か</small></span></li>
+            </ol>
             <div class="decision-summary-grid">
               <article class="decision-hero-card decision-hero">
                 <div class="decision-hero-icon">⌕</div>
                 <div>
                   <strong>{html.escape(final_action)}</strong>
-                  <div class="decision-hero-label">現在のモニタリング判断</div>
+                  <div class="decision-hero-label">いまの結論</div>
                   <p>{html.escape(buy_timing_note)}</p>
                 </div>
               </article>
@@ -1225,39 +1340,46 @@ def _approved_report_dashboard_html(report: dict[str, Any]) -> str:
               </article>
             </div>
             <div class="main-reason-grid">
-              <article class="first-read-card">
-                <h3>☑ 次の確認条件</h3>
+              <article class="first-read-card next-check-card">
+                <span class="term-note">次の確認条件</span>
+                <h3><b>1</b> 次に確認すること</h3>
                 <ul>{_short_list_html(next_conditions, "VIX、金利、主要指数の落ち着きを確認します", limit=3)}</ul>
                 <small>監視判断であり、売買を指示するものではありません</small>
               </article>
               <article class="first-read-card positive">
-                <h3>＋ 主なプラス要因</h3>
+                <span class="term-note">主なプラス要因</span>
+                <h3><b>2</b> 良い材料</h3>
                 <ul>{_short_list_html(positives, "プラス要因は限定的です", limit=4)}</ul>
               </article>
               <article class="first-read-card negative">
-                <h3>－ 主なマイナス要因</h3>
+                <span class="term-note">主なマイナス要因</span>
+                <h3><b>3</b> 注意したい材料</h3>
                 <ul>{_short_list_html(negatives, "大きなマイナス要因は限定的です", limit=4)}</ul>
               </article>
             </div>
           </section>
           <div class="lower-summary-row">
             <section class="first-read-card candidate-summary-card">
-              <h3>候補一覧</h3>
+              <span class="term-note">候補一覧</span>
+              <h3>候補は「買う銘柄」ではなく、次に観察する対象</h3>
               <div class="candidate-follow-grid">
                 <div class="candidate-mini-block">
                   <strong>主要候補</strong>
                   <span>積極判断よりも待機優先です</span>
                   <div class="candidate-chip-row compact">{main_candidate_chips}</div>
+                  <div class="candidate-chip-row compact domestic">{main_domestic_chips}</div>
                 </div>
                 <div class="candidate-mini-block">
                   <strong>先回り候補</strong>
                   <span>反転初期を拾う候補</span>
                   <div class="candidate-chip-row compact">{recovery_candidate_chips}</div>
+                  <div class="candidate-chip-row compact domestic">{recovery_domestic_chips}</div>
                 </div>
                 <div class="candidate-mini-block">
                   <strong>レジーム先回り</strong>
                   <span>次の地合いで効きやすい候補</span>
                   <div class="candidate-chip-row compact">{regime_leading_candidate_chips}</div>
+                  <div class="candidate-chip-row compact domestic">{regime_domestic_chips}</div>
                 </div>
               </div>
             </section>
@@ -1265,11 +1387,13 @@ def _approved_report_dashboard_html(report: dict[str, Any]) -> str:
         </div>
         <aside class="main-report-context-stack context-stack" aria-label="補助文脈">
           <section class="context-card global">
-            <h2>🛡 グローバルリスク</h2>
+            <span class="context-eyebrow">補助確認 1</span>
+            <h2>グローバルリスク</h2>
             <div class="context-row"><strong>{html.escape(str(risk_lines.get("stage_label", "-")))}</strong><span>{html.escape(str(risk_lines.get("summary") or "米国・グローバル中心の危険監視です。"))}</span></div>
           </section>
           <section class="context-card resident">
-            <h2>👤 日本在住者向け文脈</h2>
+            <span class="context-eyebrow">補助確認 2</span>
+            <h2>日本在住者向け文脈</h2>
             <div class="context-row"><strong>為替・物価・金利</strong><span>{html.escape(integrated_summary)}</span></div>
             <div class="context-row"><strong>国内補助</strong><span>{html.escape(domestic_summary)}</span></div>
           </section>
@@ -1357,7 +1481,9 @@ def _buy_decision_card_markdown_lines(report: dict[str, Any]) -> list[str]:
         f"- 主な阻害要因: {_localize_display_text(card.get('primary_blocker') or 'なし')}",
     ]
     for index, row in enumerate((card.get("unlock_conditions") or [])[:3], start=1):
-        lines.append(f"- 次に見る条件 {index}: {_localize_display_text(row.get('condition'))} -> {_localize_display_text(row.get('target_state'))}")
+        lines.append(
+            f"- 次に見る条件 {index}: {_localize_display_text(row.get('condition'))} -> {_localize_display_text(row.get('target_state'))}"
+        )
     if card.get("sample_only_note"):
         lines.append(f"- サンプル実行注意: {_localize_display_text(card.get('sample_only_note'))}")
     lines.append("- このカードは説明用であり、最終判断には影響しません。")
@@ -1498,6 +1624,7 @@ def _beginner_blocker_label(value: Any) -> str:
     if not text:
         return "大きな見送り理由は限定的"
     mapping = {
+        "inflation_shock": "インフレショックの影響が残る",
         "fx_risk": "為替リスクの影響が残る",
         "rate_shock": "金利ショックの影響が残る",
         "sample_only": "確認用データが含まれる",
@@ -1538,6 +1665,200 @@ def _beginner_next_items(candidate: dict[str, Any], risk_lines: dict[str, Any]) 
 def _beginner_candidate_items(candidate: dict[str, Any]) -> list[str]:
     items = [str(item.get("ticker", "-")) for item in candidate.get("candidate_tickers", [])[:2] if item.get("ticker")]
     return items or ["候補なし"]
+
+
+def _candidate_chip_html(
+    rows: Iterable[dict[str, Any]],
+    *,
+    tone: str = "",
+    compact_metric: bool = False,
+    fallback: bool = True,
+) -> str:
+    chips = []
+    tone_class = f" {tone}" if tone else ""
+    for row in rows:
+        symbol = str(row.get("ticker") or row.get("symbol") or "-")
+        metric = str(row.get("metric_text") or "")
+        body = html.escape(symbol)
+        if compact_metric and metric:
+            body += f"<small>{html.escape(metric)}</small>"
+        chips.append(f"<span class='candidate-chip{tone_class}'>{body}</span>")
+    if chips:
+        return "".join(chips)
+    return "<span class='candidate-chip muted'>候補なし</span>" if fallback else ""
+
+
+def _domestic_candidate_rows_for_top(report: dict[str, Any], bucket: str) -> list[dict[str, Any]]:
+    candidates = (report.get("multi_asset_candidates") or {}).get("candidates") or []
+    prepared = [_top_domestic_candidate_row(row) for row in candidates]
+    rows = [row for row in prepared if row]
+    fallback_by_class: dict[str, dict[str, Any]] = {}
+    existing_classes = {existing["asset_class"] for existing in rows}
+    for row in _domestic_metric_fallback_rows_for_top(report):
+        asset_class = str(row["asset_class"])
+        if asset_class not in existing_classes and asset_class not in fallback_by_class:
+            fallback_by_class[asset_class] = row
+    rows.extend(fallback_by_class.values())
+    if bucket == "main":
+        order = {"jp_equity": 0, "bond_jpy": 1, "reit_jp": 2}
+        return sorted(rows, key=lambda row: order.get(str(row.get("asset_class")), 99))[:3]
+    if bucket == "recovery":
+        return _top_recovery_domestic_rows(rows)
+    if bucket == "regime":
+        return _top_regime_domestic_rows(rows, str((report.get("regime") or {}).get("regime_label") or ""))
+    return []
+
+
+def _top_domestic_candidate_row(row: dict[str, Any]) -> dict[str, Any] | None:
+    asset_class = str(row.get("asset_class") or "")
+    if asset_class not in {"jp_equity", "bond_jpy", "reit_jp"}:
+        return None
+    symbol = str(row.get("symbol") or "")
+    if not symbol:
+        return None
+    metrics = row.get("metrics") or {}
+    if not row.get("source_data_available") or _has_suspicious_metric_limitation(metrics.get("limitations")):
+        return None
+    metric_text = _compact_candidate_metric(metrics)
+    if not metric_text:
+        return None
+    return {
+        "asset_class": asset_class,
+        "symbol": symbol,
+        "metric_text": metric_text,
+        "momentum_4w": _metric_percent_value(metrics, "change_4w"),
+        "momentum_12w": _metric_percent_value(metrics, "momentum_12w", fallback_key="change_12w"),
+        "max_drawdown": _metric_percent_value(metrics, "max_drawdown"),
+    }
+
+
+def _domestic_metric_fallback_rows_for_top(report: dict[str, Any]) -> list[dict[str, Any]]:
+    group_to_class = {"jp_equity": "jp_equity", "jpy_bond": "bond_jpy", "jp_reit": "reit_jp"}
+    preferred_order = {"jp_equity": 0, "jpy_bond": 1, "jp_reit": 2}
+    metrics_by_symbol = (report.get("domestic_market_metrics") or {}).get("by_symbol") or {}
+    rows: list[dict[str, Any]] = []
+    for metric in metrics_by_symbol.values():
+        asset_group = str(metric.get("asset_group") or "")
+        asset_class = group_to_class.get(asset_group)
+        if not asset_class:
+            continue
+        symbol = str(metric.get("symbol") or "")
+        if not symbol or not metric.get("is_available") or _has_suspicious_metric_limitation(metric.get("limitations")):
+            continue
+        metric_text = _compact_candidate_metric(metric)
+        if not metric_text:
+            continue
+        rows.append(
+            {
+                "asset_class": asset_class,
+                "symbol": symbol,
+                "metric_text": metric_text,
+                "momentum_4w": _metric_percent_value(metric, "change_4w"),
+                "momentum_12w": _metric_percent_value(metric, "momentum_12w", fallback_key="change_12w"),
+                "max_drawdown": _metric_percent_value(metric, "max_drawdown"),
+                "source_order": preferred_order.get(asset_group, 99),
+            }
+        )
+    return sorted(rows, key=lambda row: (row.get("source_order", 99), row["symbol"]))
+
+
+def _top_recovery_domestic_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    scored: list[dict[str, Any]] = []
+    for row in rows:
+        mom_4w = row.get("momentum_4w")
+        mom_12w = row.get("momentum_12w")
+        drawdown = row.get("max_drawdown")
+        if mom_4w is None or mom_12w is None or drawdown is None:
+            continue
+        is_rate_like = row.get("asset_class") == "bond_jpy"
+        deep_drawdown = -8.0 if is_rate_like else -10.0
+        collapse_floor = -30.0 if is_rate_like else -35.0
+        if not (mom_4w > 0 and mom_12w <= 5.0 and drawdown <= deep_drawdown and drawdown >= collapse_floor):
+            continue
+        score = 0.0
+        score += 1.2 if mom_4w >= 2.0 else 0.8
+        score += 1.0 if mom_12w <= -5.0 else 0.6 if mom_12w <= 2.0 else 0.0
+        score += 1.1 if drawdown <= (-12.0 if is_rate_like else -14.0) else 0.7
+        if mom_4w - mom_12w >= 6.0:
+            score += 0.9
+        scored.append({**row, "score": score})
+    return sorted(scored, key=lambda row: row["score"], reverse=True)[:3]
+
+
+def _top_regime_domestic_rows(rows: list[dict[str, Any]], regime_label: str) -> list[dict[str, Any]]:
+    theme = _domestic_regime_theme(regime_label)
+    if not theme:
+        return []
+    scored: list[dict[str, Any]] = []
+    for row in rows:
+        asset_class = str(row.get("asset_class") or "")
+        if asset_class not in theme:
+            continue
+        mom_4w = row.get("momentum_4w")
+        mom_12w = row.get("momentum_12w")
+        if mom_4w is None or mom_12w is None:
+            continue
+        score = float(theme[asset_class])
+        if mom_4w >= 3.0:
+            score += 0.95
+        elif mom_4w > 0:
+            score += 0.65
+        elif mom_4w >= -1.0:
+            score += 0.25
+        else:
+            score -= 0.25
+        if mom_12w <= -6.0:
+            score += 0.75
+        elif mom_12w <= 4.0:
+            score += 0.55
+        elif mom_12w <= 12.0:
+            score += 0.2
+        else:
+            score -= 0.25
+        if mom_4w - mom_12w >= 5.0:
+            score += 0.7
+        elif mom_4w - mom_12w >= 2.0:
+            score += 0.4
+        if score >= 0.95:
+            scored.append({**row, "score": score})
+    return sorted(scored, key=lambda row: row["score"], reverse=True)[:3]
+
+
+def _domestic_regime_theme(regime_label: str) -> dict[str, float]:
+    return {
+        "risk_off": {"bond_jpy": 1.0, "jp_equity": 0.75, "reit_jp": 0.2},
+        "transition": {"jp_equity": 0.9, "reit_jp": 0.75, "bond_jpy": 0.65},
+        "early_recovery": {"jp_equity": 0.65, "reit_jp": 0.85, "bond_jpy": 0.35},
+        "inflation_shock": {"jp_equity": 0.45, "reit_jp": 0.2, "bond_jpy": 0.25},
+    }.get(regime_label, {})
+
+
+def _metric_percent_value(metrics: dict[str, Any], key: str, *, fallback_key: str | None = None) -> float | None:
+    raw_value = metrics.get(key)
+    if raw_value is None and fallback_key:
+        raw_value = metrics.get(fallback_key)
+    if raw_value is None:
+        return None
+    try:
+        value = float(raw_value)
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(value):
+        return None
+    if key in {"momentum_12w", "max_drawdown"} and abs(value) <= 1.0:
+        return value * 100.0
+    return value
+
+
+def _compact_candidate_metric(metrics: dict[str, Any]) -> str:
+    for key, label in (("change_4w", "4週"), ("momentum_12w", "12週"), ("change_12w", "12週")):
+        value = metrics.get(key)
+        if value is not None:
+            return f"{label} {_display_compact_number(value, 1)}%"
+    trend = metrics.get("trend_label")
+    if trend:
+        return _localize_display_text(trend)
+    return ""
 
 
 def _beginner_risk_level(risk_lines: dict[str, Any]) -> tuple[str, str]:
@@ -1738,6 +2059,82 @@ def _threshold_usage_html(report: dict[str, Any]) -> str:
     """
 
 
+def render_developer_diagnostics_markdown(report: dict[str, Any]) -> str:
+    """Render developer-only diagnostics kept out of the regular report."""
+    threshold_drift = report.get("risk_threshold_drift") or {}
+    drift_summary = threshold_drift.get("summary") or {}
+    threshold_review = report.get("risk_threshold_review") or {}
+    threshold_maintenance = report.get("risk_threshold_maintenance") or {}
+    risk_engine_replay = report.get("risk_engine_v2_replay") or {}
+    reconstructed_replay = report.get("risk_engine_v2_reconstructed_replay") or {}
+    holdout_validation = report.get("risk_engine_v2_holdout_validation") or {}
+    lines = [
+        f"# 開発診断: {report.get('title', 'Report')}",
+        "",
+        f"- 生成時刻: {report.get('generated_at', '-')}",
+        "- 用途: 開発者向けのしきい値・診断情報です。通常の report.html / report.md には表示しません。",
+        "- 最終判断への影響: なし",
+        "",
+        "## しきい値レビュー",
+        f"- しきい値バージョン: {report.get('risk_thresholds', {}).get('version', '-')}",
+        f"- しきい値校正日時: {report.get('risk_thresholds', {}).get('generated_at', '-')}",
+        f"- しきい値ドリフト: 安定={drift_summary.get('stable_count', 0)} / 監視={drift_summary.get('watch_count', 0)} / 要確認={drift_summary.get('review_count', 0)} / 未取得={drift_summary.get('unavailable_count', 0)}",
+        f"- しきい値ドリフトのレビュー対象: {', '.join(_jp_review_target(item) for item in drift_summary.get('review_targets', [])) or '-'}",
+        f"- しきい値レビュー状態: {_jp_threshold_status(threshold_review.get('status', '-'))} / 推奨={_display_bool(threshold_review.get('review_recommended', False))}",
+        f"- しきい値レビュー理由: {', '.join(threshold_review.get('reasons', [])) or '-'}",
+        f"- しきい値メンテナンス状態: {_localize_display_text(threshold_maintenance.get('status', '-'))}",
+        f"- しきい値メンテナンス所要時間: {_display_number(threshold_maintenance.get('elapsed_seconds'))} 秒",
+        f"- しきい値提案生成: {_display_bool(threshold_maintenance.get('proposal_generated_this_run', False))}",
+        "",
+        *_threshold_usage_markdown_lines(report),
+        "",
+        *_threshold_rule_certification_markdown_lines(report),
+        "",
+        "## risk_engine_v2 保存履歴リプレイ",
+        f"- status: {risk_engine_replay.get('status', '-')}",
+        f"- policy_status: {risk_engine_replay.get('policy_status', '-')}",
+        f"- total_cases: {risk_engine_replay.get('total_cases', 0)}",
+        f"- strict_available_cases: {risk_engine_replay.get('strict_available_cases', 0)}",
+        f"- outcome_status: {risk_engine_replay.get('outcome_status', '-')}",
+        f"- outcome_usable_cases: {risk_engine_replay.get('outcome_usable_cases', 0)}",
+        f"- promotion_allowed: {_display_bool(risk_engine_replay.get('promotion_allowed', False))}",
+        f"- decision_reason: {risk_engine_replay.get('decision_reason', '-')}",
+        "",
+        "## risk_engine_v2 再構築リプレイ",
+        f"- status: {reconstructed_replay.get('status', '-')}",
+        f"- policy_status: {reconstructed_replay.get('policy_status', '-')}",
+        f"- total_cases: {reconstructed_replay.get('total_cases', 0)}",
+        f"- strict_available_cases: {reconstructed_replay.get('strict_available_cases', 0)}",
+        f"- outcome_status: {reconstructed_replay.get('outcome_status', '-')}",
+        f"- outcome_usable_cases: {reconstructed_replay.get('outcome_usable_cases', 0)}",
+        f"- promotion_allowed: {_display_bool(reconstructed_replay.get('promotion_allowed', False))}",
+        f"- decision_reason: {reconstructed_replay.get('decision_reason', '-')}",
+        f"- reconstruction: {(reconstructed_replay.get('reconstruction') or {}).get('source', '-')}",
+        f"- history_files_modified: {_display_bool((reconstructed_replay.get('reconstruction') or {}).get('history_files_modified', False))}",
+        "",
+        "## risk_engine_v2 holdout validation",
+        f"- status: {holdout_validation.get('status', '-')}",
+        f"- policy_status: {holdout_validation.get('policy_status', '-')}",
+        f"- validation_level: {holdout_validation.get('validation_level', '-')}",
+        f"- strict_primary_available: {_display_bool(holdout_validation.get('strict_primary_available', False))}",
+        f"- holdout_status: {holdout_validation.get('holdout_status', '-')}",
+        f"- split_status: {holdout_validation.get('split_status', '-')}",
+        f"- evidence_status: {holdout_validation.get('evidence_status', '-')}",
+        f"- performance_status: {holdout_validation.get('performance_status', '-')}",
+        f"- cadence_status: {holdout_validation.get('cadence_status', '-')}",
+        f"- holdout_episode_count: {holdout_validation.get('holdout_episode_count', 0)}",
+        f"- holdout_case_count: {holdout_validation.get('holdout_case_count', 0)}",
+        f"- holdout_reason: {holdout_validation.get('holdout_reason', '-')}",
+        f"- split_policy: {(holdout_validation.get('split_policy') or {}).get('type', '-')}",
+        f"- promotion_allowed: {_display_bool(holdout_validation.get('promotion_allowed', False))}",
+        f"- decision_reason: {holdout_validation.get('decision_reason', '-')}",
+        f"- promotion_gate_status: {holdout_validation.get('promotion_gate_status', '-')}",
+        f"- promotion_gate_blockers: {holdout_validation.get('promotion_gate_blockers', [])}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
 def render_markdown(report: dict[str, Any]) -> str:
     regime_label = _jp_regime(report["regime"]["regime_label"])
     cycle_label = _jp_cycle(report["cycle"]["phase_label"])
@@ -1745,12 +2142,6 @@ def render_markdown(report: dict[str, Any]) -> str:
     legacy_action_label = _jp_action(report["spot_signal"].get("legacy_action", report["spot_signal"].get("action", "")))
     risk_label = _jp_risk(report["spot_signal"]["second_leg_risk"])
     risk_lines = report.get("risk_lines", {})
-    threshold_drift = report.get("risk_threshold_drift") or {}
-    drift_summary = threshold_drift.get("summary") or {}
-    threshold_review = report.get("risk_threshold_review") or {}
-    threshold_maintenance = report.get("risk_threshold_maintenance") or {}
-    threshold_review = report.get("risk_threshold_review") or {}
-    threshold_maintenance = report.get("risk_threshold_maintenance") or {}
     recovery_evidence = report.get("spot_signal", {}).get("recovery_evidence", {})
     blocker_assessment = report.get("spot_signal", {}).get("blocker_assessment", {})
     action_decision = report.get("spot_signal", {}).get("action_decision", {})
@@ -1761,8 +2152,6 @@ def render_markdown(report: dict[str, Any]) -> str:
     internal_warning_count = len(report.get("warnings", []))
     sector_context = _build_sector_rotation_context(report.get("sector_rotation", {}))
     japan_risk = report.get("japan_risk", {})
-    threshold_drift = report.get("risk_threshold_drift") or {}
-    drift_summary = threshold_drift.get("summary") or {}
 
     lines = [
         f"# {report['title']}",
@@ -1790,20 +2179,6 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- 二段下げリスク: {risk_label}",
         f"- 円建て・為替リスク: {_jp_japan_risk_level(japan_risk.get('level'))} / {japan_risk.get('summary', '-')}",
         f"- 市場ストレス段階: {risk_stage_badge}",
-        f"- しきい値バージョン: {report.get('risk_thresholds', {}).get('version', '-')}",
-        f"- しきい値校正日時: {report.get('risk_thresholds', {}).get('generated_at', '-')}",
-        f"- しきい値ドリフト: 安定={drift_summary.get('stable_count', 0)} / 監視={drift_summary.get('watch_count', 0)} / 要確認={drift_summary.get('review_count', 0)} / 未取得={drift_summary.get('unavailable_count', 0)}",
-        f"- しきい値ドリフトのレビュー対象: {', '.join(_jp_review_target(item) for item in drift_summary.get('review_targets', [])) or '-'}",
-        f"- しきい値レビュー状態: {_jp_threshold_status(threshold_review.get('status', '-'))} / 推奨={_display_bool(threshold_review.get('review_recommended', False))}",
-        f"- しきい値レビュー理由: {', '.join(threshold_review.get('reasons', [])) or '-'}",
-        f"- しきい値メンテナンス状態: {_localize_display_text(threshold_maintenance.get('status', '-'))}",
-        f"- しきい値メンテナンス所要時間: {_display_number(threshold_maintenance.get('elapsed_seconds'))} 秒",
-        f"- しきい値提案生成: {_display_bool(threshold_maintenance.get('proposal_generated_this_run', False))}",
-        "",
-        *_threshold_usage_markdown_lines(report),
-        "",
-        *_threshold_rule_certification_markdown_lines(report),
-        "",
         "## 解説",
         f"- 市場レジーム: {SECTION_EXPLANATIONS['regime']}",
         f"- サイクル判定: {SECTION_EXPLANATIONS['cycle']}",
@@ -1812,8 +2187,12 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
     ]
     lines.extend(["## 判定理由", f"- {SECTION_EXPLANATIONS['decision_reasons']}"])
-    lines.append(f"- 上昇再開の証拠: {_localize_display_text(recovery_grade)} / スコア {_display_compact_number(recovery_evidence.get('score'))}")
-    lines.append(f"- 騙し上昇の警戒: {_localize_display_text(blocker_level)} / {_localize_display_text(blocker_assessment.get('summary', '-'))}")
+    lines.append(
+        f"- 上昇再開の証拠: {_localize_display_text(recovery_grade)} / スコア {_display_compact_number(recovery_evidence.get('score'))}"
+    )
+    lines.append(
+        f"- 騙し上昇の警戒: {_localize_display_text(blocker_level)} / {_localize_display_text(blocker_assessment.get('summary', '-'))}"
+    )
     lines.append(f"- 最終判断: {decision_action} / 判定モード {_localize_display_text(action_decision.get('mode', '-'))}")
     for reason in report["spot_signal"].get("rationale", []):
         lines.append(f"- {_localize_display_text(reason)}")
@@ -1928,6 +2307,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append(
             f"- {row.get('ticker_name_ja', row.get('ticker', '-'))} ({row.get('ticker', '-')}): 現在値 {_display_number(row.get('current'))} / 1週 {_display_number(row.get('change_1w'))} / 4週 {_display_number(row.get('change_4w'))} / z {_display_number(row.get('zscore'))} / 判定 {line_badge} / warning {_format_risk_threshold_markdown(row.get('warning_line', '-'))} / danger {_format_risk_threshold_markdown(row.get('danger_line', '-'))} / extreme {_format_risk_threshold_markdown(row.get('extreme_line', '-'))}"
         )
+        lines.append(f"  - 本判定根拠: {_risk_accepted_rule_summary(row)}")
+        lines.append(f"  - 参考・除外根拠: {_risk_diagnostic_rule_summary(row)}")
     lines.extend(_hindenburg_omen_markdown_lines(report))
     lines.extend(_domestic_danger_markdown_lines(report))
     lines.extend(_japan_resident_integrated_context_markdown_lines(report))
@@ -1986,7 +2367,10 @@ def render_markdown(report: dict[str, Any]) -> str:
     if leading_tickers:
         lines.append(
             "- 候補ティッカー: "
-            + ", ".join(f"{item.get('ticker', '-')}({item.get('label', '-')}: {_localize_display_text(item.get('reason', '-'))})" for item in leading_tickers)
+            + ", ".join(
+                f"{item.get('ticker', '-')}({item.get('label', '-')}: {_localize_display_text(item.get('reason', '-'))})"
+                for item in leading_tickers
+            )
         )
     for reason in regime_leading.get("rationale", []):
         lines.append(f"- {_localize_display_text(reason)}")
@@ -2421,6 +2805,9 @@ def _risk_threshold_short_text(value: Any) -> str:
 
 
 def _risk_track_row_html(row: dict[str, Any]) -> str:
+    oil_context = row.get("oil_context") if row.get("ticker") in {"CL=F", "BZ=F"} else None
+    if isinstance(oil_context, dict):
+        return _oil_risk_track_row_html(row, oil_context)
     pressure = _risk_pressure_ratio(row)
     pressure_pct = pressure * 100.0
     tone = _risk_label_tone(row.get("line_level_label"))
@@ -2429,6 +2816,8 @@ def _risk_track_row_html(row: dict[str, Any]) -> str:
     warning = _risk_threshold_short_text(row.get("warning_line"))
     danger = _risk_threshold_short_text(row.get("danger_line"))
     extreme = _risk_threshold_short_text(row.get("extreme_line"))
+    accepted = _risk_accepted_rule_summary(row)
+    diagnostic = _risk_diagnostic_rule_summary(row)
     return (
         "<div class='risk-track-row'>"
         "<div class='risk-track-head'>"
@@ -2449,8 +2838,124 @@ def _risk_track_row_html(row: dict[str, Any]) -> str:
         f"<span>危険: {html.escape(danger)}</span>"
         f"<span>非常に危険: {html.escape(extreme)}</span>"
         "</div>"
+        "<div class='risk-track-proof'>"
+        f"<span>本判定根拠: {html.escape(accepted)}</span>"
+        f"<span>参考・除外: {html.escape(diagnostic)}</span>"
+        "</div>"
         "</div>"
     ).format(score=pressure_pct)
+
+
+def _oil_risk_track_row_html(row: dict[str, Any], oil_context: dict[str, Any]) -> str:
+    inflation_score = _optional_score_pct(oil_context.get("inflation_pressure_score"))
+    demand_score = _optional_score_pct(oil_context.get("demand_collapse_score"))
+    pressure_pct = max(inflation_score or 0.0, demand_score or 0.0)
+    status = str(oil_context.get("overall_status", "normal"))
+    tone = _oil_status_tone(status)
+    label = str(row.get("ticker_name_ja", row.get("ticker", "-"))).replace("先物", "")
+    current = _display_compact_number(row.get("current"))
+    inflation_label = _score_or_unavailable(oil_context.get("inflation_pressure_score"))
+    demand_label = _score_or_unavailable(oil_context.get("demand_collapse_score"))
+    wti_20d = _percent_or_dash(oil_context.get("wti_return_20d"))
+    data_quality = _oil_data_quality_label(oil_context)
+    reason = str(oil_context.get("reason", "-"))
+    status_label = _oil_status_label(status)
+    if not oil_context.get("risk_signal_allowed", False):
+        pressure_pct = 0.0
+    return (
+        "<div class='risk-track-row oil-context-row'>"
+        "<div class='risk-track-head'>"
+        f"<div class='risk-track-label'>{html.escape(label)}</div>"
+        f"<div class='risk-track-value'>現在 {html.escape(current)}</div>"
+        f"<div class='risk-track-state'>{_risk_badge_html(status_label, tone)}</div>"
+        "</div>"
+        f"<div class='risk-track-bar' aria-label='原油方向別圧力 {pressure_pct:.0f} / 100'>"
+        f"<span class='risk-track-fill {html.escape(tone)}' style='width:{pressure_pct:.1f}%'></span>"
+        "<span class='risk-track-marker warning' title='確認ライン'></span>"
+        "<span class='risk-track-marker danger' title='ストレスライン'></span>"
+        "<span class='risk-track-marker extreme' title='強いストレスライン'></span>"
+        "</div>"
+        "<div class='risk-track-scale'><span>通常</span><span>確認</span><span>ストレス</span><span>強いストレス</span></div>"
+        "<div class='risk-track-thresholds'>"
+        f"<span>インフレ方向圧力 {html.escape(inflation_label)}</span>"
+        f"<span>需要減速方向 {html.escape(demand_label)}</span>"
+        f"<span>4週変化 {html.escape(wti_20d)}</span>"
+        f"<span>データ品質 {html.escape(data_quality)}</span>"
+        "</div>"
+        "<div class='risk-track-proof'>"
+        f"<span>判定理由: {html.escape(reason)}</span>"
+        f"<span>参考・除外: {html.escape(_oil_limitations_text(oil_context))}</span>"
+        "</div>"
+        "</div>"
+    )
+
+
+def _optional_score_pct(value: Any) -> float | None:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(numeric):
+        return None
+    return min(max(numeric, 0.0), 100.0)
+
+
+def _score_or_unavailable(value: Any) -> str:
+    numeric = _optional_score_pct(value)
+    if numeric is None:
+        return "未評価"
+    return f"{numeric:.0f}/100"
+
+
+def _percent_or_dash(value: Any) -> str:
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError):
+        return "-"
+    if math.isnan(numeric):
+        return "-"
+    return f"{numeric * 100:.1f}%"
+
+
+def _oil_status_label(status: str) -> str:
+    return {
+        "normal": "通常",
+        "inflation_watch": "インフレ確認",
+        "demand_watch": "需要減速確認",
+        "inflation_stress": "インフレ圧力",
+        "demand_stress": "需要減速",
+        "unavailable": "参考外",
+    }.get(status, status)
+
+
+def _oil_status_tone(status: str) -> str:
+    if status in {"inflation_stress", "demand_stress"}:
+        return "danger"
+    if status in {"inflation_watch", "demand_watch"}:
+        return "caution"
+    if status == "unavailable":
+        return "weak"
+    return "normal"
+
+
+def _oil_data_quality_label(oil_context: dict[str, Any]) -> str:
+    if oil_context.get("risk_signal_allowed", False):
+        return "有効"
+    flags = oil_context.get("quality_flags", [])
+    if "suspicious_discontinuity" in flags:
+        return "先物ロール/不連続疑い"
+    if "same_observation_comparison" in flags:
+        return "比較値なし"
+    if "comparison_unavailable" in flags:
+        return "算出不可"
+    if "stale" in flags:
+        return "データ遅延"
+    return "参考外"
+
+
+def _oil_limitations_text(oil_context: dict[str, Any]) -> str:
+    limitations = [str(item) for item in oil_context.get("limitations", []) if str(item).strip()]
+    return " / ".join(limitations[:2]) if limitations else "なし"
 
 
 def _build_sector_overview_rows(sector_context: dict[str, Any]) -> list[dict[str, Any]]:
@@ -2581,11 +3086,12 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
             _format_risk_threshold_html(row.get("warning_line")),
             _format_risk_threshold_html(row.get("danger_line")),
             _format_risk_threshold_html(row.get("extreme_line")),
-            esc(row.get("line_reason", "-")),
+            esc(_risk_accepted_rule_summary(row)),
+            esc(_risk_diagnostic_rule_summary(row)),
         ]
         for row in risk_lines.get("indicators", [])
     ]
-    risk_line_table = small_table(["指標", "判定", "現在値", "warning", "danger", "extreme", "根拠"], risk_line_rows)
+    risk_line_table = small_table(["指標", "判定", "現在値", "warning", "danger", "extreme", "本判定根拠", "参考・除外"], risk_line_rows)
     risk_line_confidence_audit_html = _risk_line_confidence_audit_html(report.get("risk_line_confidence_audit") or {})
     hindenburg_omen_panel = _hindenburg_omen_panel_html(hindenburg_omen, esc)
     domestic_danger_panel = _domestic_danger_panel_html(domestic_danger, small_table, esc, source_chip)
@@ -2715,6 +3221,7 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
         ["実行ファイル", runtime_context.get("python_executable", "-")],
         ["作業フォルダ", runtime_context.get("working_directory", "-")],
         ["取得ソース", diagnostic_summary.get("source", report.get("data_source", "-"))],
+        *_execution_mode_html_rows(report),
         *_data_quality_html_rows(report),
         ["失敗試行数", diagnostic_summary.get("failed_attempt_count", 0)],
         ["接続不良疑い", "あり" if diagnostic_summary.get("suspected_network_issue") else "なし"],
@@ -2739,7 +3246,8 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
         or "なし"
     )
     candidate_rationale = (
-        "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in candidate.get("rationale", [])) or "<li>候補提示の条件がまだ揃っていません。</li>"
+        "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in candidate.get("rationale", []))
+        or "<li>候補提示の条件がまだ揃っていません。</li>"
     )
     multi_asset = report.get("multi_asset_candidates") or {}
     multi_asset_rows = [
@@ -2776,7 +3284,8 @@ def _render_supplement_dashboard_html_legacy(report: dict[str, Any], history_ent
         table=multi_asset_table,
     )
     recovery_rationale = (
-        "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in recovery.get("rationale", [])) or "<li>先回り候補の条件はまだ揃っていません。</li>"
+        "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in recovery.get("rationale", []))
+        or "<li>先回り候補の条件はまだ揃っていません。</li>"
     )
     regime_leading_rationale = (
         "".join(f"<li>{esc(_localize_display_text(reason))}</li>" for reason in regime_leading.get("rationale", []))
@@ -3185,11 +3694,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     score_degrees = 180 * score_ratio
     risk_highlights = _build_risk_highlight_rows(report)
     risk_highlight_rows = (
-        "".join(
-            _risk_track_row_html(row)
-            for row in risk_highlights
-        )
-        or "<div class='risk-track-empty'>主要指標データなし</div>"
+        "".join(_risk_track_row_html(row) for row in risk_highlights) or "<div class='risk-track-empty'>主要指標データなし</div>"
     )
     sector_overview_rows = _build_sector_overview_rows(sector_context)
     sector_max_abs = max([abs(float(row.get("return_12w", 0.0) or 0.0)) for row in sector_overview_rows] + [1.0])
@@ -3209,8 +3714,8 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     history_payload_json = json.dumps(history_payload, ensure_ascii=False).replace("</", "<\\/")
     approved_report_dashboard_html = _approved_report_dashboard_html(report)
     supplemental_signal_strip_html = _supplemental_signal_strip_html(report)
-    _, topbar_update_label = _availability_summary(report)
     risk_context_ux_hub_html = _risk_context_ux_hub_html(report)
+    provenance_strip_html = _top_provenance_strip_html(report)
 
     warning_items = "".join(f"<li>{html.escape(warning)}</li>" for warning in report["warnings"]) or "<li>重要な警告はありません。</li>"
     sector_rows = (
@@ -3311,11 +3816,12 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
             f"<td>{_format_risk_threshold_html(row.get('warning_line'))}</td>"
             f"<td>{_format_risk_threshold_html(row.get('danger_line'))}</td>"
             f"<td>{_format_risk_threshold_html(row.get('extreme_line'))}</td>"
-            f"<td>{html.escape(str(row.get('line_reason', '-')))}</td>"
+            f"<td>{html.escape(_risk_accepted_rule_summary(row))}</td>"
+            f"<td>{html.escape(_risk_diagnostic_rule_summary(row))}</td>"
             "</tr>"
             for row in risk_lines.get("indicators", [])
         )
-        or "<tr><td colspan='7'>有効データなし</td></tr>"
+        or "<tr><td colspan='8'>有効データなし</td></tr>"
     )
     risk_line_reason_items = (
         "".join(f"<li>{html.escape(str(reason))}</li>" for reason in risk_lines.get("reasons", [])) or "<li>追加理由はありません。</li>"
@@ -3393,6 +3899,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
             ("実行ファイル", runtime_context.get("python_executable", "-")),
             ("作業フォルダ", runtime_context.get("working_directory", "-")),
             ("取得ソース", str(summary.get("source", report.get("data_source", "-")))),
+            *_execution_mode_html_rows(report),
             *_data_quality_html_rows(report),
             ("失敗試行数", str(summary.get("failed_attempt_count", 0))),
             ("接続不良疑い", "あり" if summary.get("suspected_network_issue") else "なし"),
@@ -3487,37 +3994,42 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .sector-table {{ width: 100%; }}
     .sector-caption {{ font-size: 13px; color: var(--muted); }}
     .sector-label-badge {{ display: inline-block; margin-top: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; background: rgba(16,32,51,0.08); color: #1f2933; }}
-    .topbar {{ display:grid; grid-template-columns:minmax(360px,1fr) auto auto; grid-template-rows:auto auto; align-items:center; gap:6px 28px; padding: 8px 14px 12px; margin-bottom: 10px; background: rgba(255,255,255,0.74); border:0; border-radius:0; }}
-    .brand {{ grid-column:1; grid-row:1 / span 2; display:flex; align-items:center; justify-content:flex-start; gap:16px; min-width:0; align-self:center; }}
+    .topbar {{ display:grid; grid-template-columns:minmax(420px,.85fr) minmax(0,1.4fr); grid-template-rows:auto auto; align-items:center; gap:12px 24px; padding:12px 16px 14px; margin-bottom:14px; background:rgba(255,255,255,.82); border-bottom:1px solid #d9e2ec; border-radius:0; }}
+    .brand {{ grid-column:1; grid-row:1; display:flex; align-items:center; justify-content:flex-start; gap:16px; min-width:0; align-self:center; }}
     .brand-mark {{ width:48px; height:48px; border-radius:999px; background:#fff; color:#17366d; display:grid; place-items:center; font-size:35px; font-weight:900; border:0; }}
     .brand-title {{ display:flex; align-items:center; gap:0; min-width:0; }}
-    .brand-title h1 {{ margin:0; font-size:42px; line-height:1.05; color:#0a1530; white-space:nowrap; letter-spacing:0; }}
-    .report-chip {{ grid-column:2; grid-row:1; justify-self:end; display:inline-flex; align-items:center; justify-content:center; min-height:36px; padding:0 16px; border:1.25px solid #d99b5f; border-radius:12px; background:#fff7ed; color:#b45309; font-size:15px; font-weight:900; text-decoration:none; box-shadow:none; white-space:nowrap; }}
-    .report-chip:hover {{ background:#e7f5f3; box-shadow:inset 0 -4px 0 #0a7f7c; }}
-    .report-chip:focus-visible {{ outline:2px solid #0a7f7c; outline-offset:2px; }}
-    .status-strip {{ grid-column:2; grid-row:2; display:flex; gap:18px; flex-wrap:wrap; justify-content:flex-end; }}
+    .brand-title h1 {{ margin:0; font-size:clamp(28px,2.6vw,38px); line-height:1.08; color:#0a1530; white-space:nowrap; letter-spacing:-.02em; }}
+    .status-strip {{ grid-column:1; grid-row:2; display:grid; grid-template-columns:minmax(190px,1.45fr) minmax(110px,.8fr) minmax(80px,.6fr); gap:0; justify-content:start; }}
     .status-box {{ min-width:150px; padding-left:18px; border-left:1px solid var(--line); }}
     .status-box:first-child {{ border-left:0; padding-left:0; }}
     .status-box .k {{ font-size:12px; color:var(--muted); font-weight:700; }}
-    .status-box .v {{ margin-top:4px; font-size:14px; font-weight:800; color:#1f3b67; }}
-    .monitor-note {{ grid-column:3; grid-row:1 / span 2; justify-self:end; color:#1f2933; font-size:13px; line-height:1.55; text-align:right; max-width:360px; font-weight:800; }}
-    .data-update-chip {{ display:inline-flex; align-items:center; min-height:34px; padding:0 12px; border:1px solid #e5b16e; border-radius:999px; background:#fff7ed; color:#b45309; font-weight:900; font-size:13px; white-space:nowrap; }}
+    .status-box .v {{ margin-top:4px; font-size:13px; font-weight:800; color:#1f3b67; white-space:nowrap; }}
+    .monitor-note {{ grid-column:2; grid-row:1; justify-self:end; align-self:center; color:#1f2933; font-size:13px; line-height:1.55; text-align:right; max-width:460px; font-weight:800; line-break:strict; }}
+    .monitor-note-segment {{ display:inline-block; white-space:nowrap; }}
     .dashboard-grid {{ display:flex; gap:16px; align-items:stretch; margin-bottom:32px; flex-wrap:wrap; }}
-    .approved-report-dashboard {{ display:grid; grid-template-columns:minmax(0,1.8fr) minmax(420px,.95fr); gap:12px; margin-bottom:12px; align-items:stretch; }}
-    .main-dashboard-shell {{ min-height:760px; }}
+    .approved-report-dashboard {{ display:grid; grid-template-columns:minmax(0,1.9fr) minmax(330px,.72fr); gap:18px; margin-bottom:18px; align-items:start; }}
+    .main-dashboard-shell {{ min-height:0; }}
     .main-report-left {{ display:grid; grid-template-rows:auto auto 1fr; gap:10px; min-width:0; }}
     .main-report-context-stack {{ display:grid; gap:8px; min-width:0; }}
-    .visual-first-read, .supplemental-signal-strip, .first-read-card, .context-card, .supplement-link-card {{ border:1px solid #b7c6d8; border-radius:10px; background:rgba(255,255,255,0.96); box-shadow:0 2px 9px rgba(16,32,51,0.035); }}
-    .visual-first-read {{ padding:12px 18px 14px; }}
+    .visual-first-read, .supplemental-signal-strip, .first-read-card, .context-card, .supplement-link-card {{ border:1px solid #d7e0ea; border-radius:14px; background:rgba(255,255,255,.97); box-shadow:none; }}
+    .visual-first-read {{ padding:20px 22px 22px; }}
     .section-title-row {{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }}
-    .section-title-row h2 {{ margin:0; color:#17366d; font-size:23px; line-height:1.15; font-weight:900; }}
+    .section-title-row h2 {{ margin:4px 0 0; color:#102a55; font-size:clamp(25px,2vw,32px); line-height:1.15; font-weight:900; letter-spacing:-.02em; }}
+    .section-eyebrow, .term-note, .context-eyebrow {{ display:block; color:#66788e; font-size:12px; line-height:1.2; font-weight:900; letter-spacing:.06em; }}
+    .reading-guide {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; margin:0 0 18px; padding:0; list-style:none; border-block:1px solid #dbe4ee; }}
+    .reading-guide li {{ position:relative; display:flex; align-items:center; gap:10px; min-height:64px; padding:10px 16px; }}
+    .reading-guide li + li {{ border-left:1px solid #dbe4ee; }}
+    .reading-guide b {{ display:grid; place-items:center; width:28px; height:28px; flex:0 0 auto; border-radius:999px; background:#e8f0fb; color:#173f7a; font-size:14px; }}
+    .reading-guide strong, .reading-guide small {{ display:block; }}
+    .reading-guide strong {{ color:#17366d; font-size:15px; }}
+    .reading-guide small {{ margin-top:2px; color:#66737f; font-size:12px; }}
     .section-chip {{ display:inline-flex; align-items:center; min-height:26px; padding:0 10px; border-radius:999px; border:1px solid #c7d7eb; background:#f6f9fd; color:#23406f; font-size:12px; font-weight:900; white-space:nowrap; }}
-    .decision-summary-grid {{ display:grid; grid-template-columns:minmax(380px,.9fr) minmax(420px,1.1fr); gap:18px; align-items:stretch; }}
+    .decision-summary-grid {{ display:grid; grid-template-columns:minmax(340px,1.05fr) minmax(340px,.95fr); gap:18px; align-items:stretch; }}
     .decision-hero-card {{ display:grid; grid-template-columns:118px minmax(0,1fr); gap:22px; align-items:center; min-height:142px; padding:20px 26px; border-radius:10px; background:linear-gradient(135deg,#102a55,#173f7a); color:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.12); }}
     .decision-hero-icon {{ width:92px; height:92px; border-radius:999px; display:grid; place-items:center; border:4px solid rgba(130,181,240,.72); color:#d6e7ff; font-size:54px; font-weight:900; }}
     .decision-hero-label {{ margin-top:10px; padding-top:10px; border-top:1px dashed rgba(255,255,255,.7); color:#d8e6fa; font-size:15px; font-weight:900; }}
-    .decision-hero-card strong {{ display:block; margin-top:0; font-size:42px; line-height:1; letter-spacing:0; }}
-    .decision-hero-card p {{ margin:5px 0 0; color:#edf5ff; font-size:14px; line-height:1.35; }}
+    .decision-hero-card strong {{ display:block; margin-top:0; font-size:clamp(38px,3.4vw,52px); line-height:1; letter-spacing:-.02em; }}
+    .decision-hero-card p {{ margin:8px 0 0; color:#edf5ff; font-size:15px; line-height:1.5; }}
     .readiness-summary-card {{ min-height:142px; padding:18px 20px 14px; border:1px solid #b7c6d8; border-radius:10px; background:#fff; }}
     .score-row {{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; color:#17366d; font-weight:900; }}
     .score-row span {{ font-size:17px; }}
@@ -3531,11 +4043,12 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .readiness-scale span:nth-child(2), .readiness-scale span:nth-child(3), .readiness-scale span:nth-child(4) {{ text-align:center; }}
     .readiness-scale span:last-child {{ text-align:right; }}
     .readiness-summary-card p {{ margin:6px 0 0; color:#52606d; font-size:12px; line-height:1.35; }}
-    .main-reason-grid {{ display:grid; grid-template-columns:minmax(0,.92fr) minmax(0,1fr) minmax(0,1fr); gap:12px; margin-top:12px; }}
+    .main-reason-grid {{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,.9fr) minmax(0,.95fr); gap:12px; margin-top:18px; }}
     .reason-heading {{ margin:13px 0 0; color:#17366d; font-size:17px; }}
-    .first-read-card {{ padding:12px 14px; min-width:0; }}
-    .first-read-card h3 {{ margin:0 0 10px; color:#17366d; font-size:19px; }}
-    .first-read-card ul {{ margin:0; padding-left:18px; color:#1f2933; line-height:1.62; font-size:15px; }}
+    .first-read-card {{ padding:16px 18px; min-width:0; }}
+    .first-read-card h3 {{ display:flex; align-items:center; gap:9px; margin:5px 0 12px; color:#17366d; font-size:20px; line-height:1.35; }}
+    .first-read-card h3 b {{ display:grid; place-items:center; width:26px; height:26px; flex:0 0 auto; border-radius:999px; background:#edf3fb; color:#173f7a; font-size:13px; }}
+    .first-read-card ul {{ margin:0; padding-left:19px; color:#1f2933; line-height:1.72; font-size:15px; }}
     .first-read-card li + li {{ margin-top:4px; }}
     .first-read-card small {{ display:block; margin-top:10px; color:#66737f; line-height:1.45; }}
     .first-read-card.positive h3 {{ color:#16724f; }}
@@ -3557,12 +4070,12 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .summary-choice {{ min-height:38px; padding:8px 10px; border:1px solid #d9e5f5; border-radius:9px; background:#fbfdff; display:flex; align-items:center; justify-content:space-between; gap:8px; }}
     .summary-choice span {{ color:#111922; font-weight:800; }}
     .summary-choice b {{ color:#1d4ed8; font-size:12px; padding:3px 8px; border-radius:999px; background:#ecf4ff; }}
-    .context-card {{ padding:11px 14px; }}
-    .context-card h2 {{ margin:0 0 7px; color:#17366d; font-size:20px; }}
+    .context-card {{ padding:16px 18px; }}
+    .context-card h2 {{ margin:5px 0 10px; color:#17366d; font-size:20px; line-height:1.3; }}
     .context-card strong {{ display:block; color:#111922; font-size:15px; line-height:1.35; }}
     .context-card p, .context-card li {{ color:#425466; font-size:13px; line-height:1.45; }}
     .context-card ul {{ margin:8px 0 0; padding-left:18px; }}
-    .context-row {{ display:grid; grid-template-columns:160px minmax(0,1fr); gap:8px; align-items:center; min-height:30px; border:1px solid #dfe7ef; border-radius:8px; padding:4px 8px; background:#fff; }}
+    .context-row {{ display:grid; grid-template-columns:1fr; gap:5px; align-items:start; min-height:30px; border-top:1px solid #dfe7ef; padding:10px 0 0; background:transparent; }}
     .context-row + .context-row {{ margin-top:6px; }}
     .context-row span {{ color:#1f2933; font-size:13px; line-height:1.35; }}
     .context-card.global {{ border-left:4px solid #f59e0b; }}
@@ -3576,9 +4089,11 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .hindenburg-lamp.active .lamp-row span:nth-child(2) {{ background:#f59e0b; }}
     .hindenburg-lamp.unavailable .lamp-row span:nth-child(3) {{ background:#9aa8b6; }}
     .lamp-row strong {{ margin-left:auto; color:#17366d; font-size:14px; }}
-    .supplement-link-card {{ display:flex; flex-direction:column; justify-content:center; gap:8px; min-height:112px; padding:16px 20px; text-decoration:none; color:#17366d; }}
+    .supplement-link-card {{ display:flex; flex-direction:column; justify-content:center; gap:8px; min-height:112px; padding:18px 20px; text-decoration:none; color:#fff; background:#173f7a; border-color:#173f7a; transition:transform .16s ease, background-color .16s ease; }}
     .supplement-link-card strong {{ font-size:18px; }}
-    .supplement-link-card span {{ color:#52606d; }}
+    .supplement-link-card span {{ color:#dce9f9; }}
+    .supplement-link-card:hover {{ transform:translateY(-2px); background:#102f62; }}
+    .supplement-link-card:focus-visible {{ outline:3px solid #86b7f2; outline-offset:3px; }}
     .detail-summary-grid {{ margin-top:18px; }}
     .glance-summary, .buy-decision-flow {{ flex: 0 0 100%; max-width:100%; box-sizing:border-box; background: rgba(255,255,255,0.94); border:1px solid var(--line); border-radius:18px; padding:18px 20px; }}
     .visual-first-read.glance-summary {{ flex:initial; max-width:none; }}
@@ -3700,6 +4215,14 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .risk-track-scale span:nth-child(n+2) {{ text-align:center; }}
     .risk-track-thresholds {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:3px 8px; color:#52606d; font-size:10px; line-height:1.25; }}
     .risk-track-thresholds span {{ min-width:0; overflow-wrap:anywhere; }}
+    .risk-track-proof {{ display:grid; gap:2px; color:#334e68; font-size:10px; line-height:1.28; }}
+    .risk-track-proof span {{ min-width:0; overflow-wrap:anywhere; }}
+    .provenance-strip {{ grid-column:2; grid-row:2; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin:0; }}
+    .provenance-chip {{ border:1px solid #d7e4ef; background:#f8fbff; border-radius:8px; padding:7px 9px; min-width:0; }}
+    .provenance-chip strong {{ display:block; color:#17366d; font-size:12px; line-height:1.2; overflow-wrap:anywhere; }}
+    .provenance-chip span {{ display:block; margin-top:3px; color:#52606d; font-size:11px; line-height:1.25; overflow-wrap:anywhere; }}
+    .provenance-chip.warn {{ border-color:#f4c779; background:#fff8e8; }}
+    .provenance-chip.danger {{ border-color:#f4a3a3; background:#fff1f1; }}
     .candidate-boxes {{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px; }}
     .candidate-box {{ padding:10px 10px; border:1px solid #cfe0f7; border-radius:14px; background:#fbfdff; text-align:center; }}
     .candidate-box strong {{ display:block; font-size:24px; color:#17366d; line-height:1.1; }}
@@ -3766,17 +4289,22 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .support-title {{ font-size:16px; font-weight:800; color:#17366d; }}
     .candidate-chip-row {{ margin-top:14px; display:flex; gap:10px; flex-wrap:wrap; }}
     .candidate-chip-row.compact {{ margin-top:8px; gap:8px; }}
+    .candidate-chip-row.domestic {{ margin-top:6px; gap:6px; }}
     .candidate-chip {{ padding:10px 16px; border:1px solid #e1d5bb; border-radius:14px; background:#fff8ee; color:#a16207; font-size:18px; font-weight:800; }}
     .candidate-chip-row.compact .candidate-chip {{ padding:7px 12px; font-size:15px; border-radius:10px; }}
+    .candidate-chip-row.domestic .candidate-chip {{ padding:5px 8px; font-size:13px; border-radius:8px; }}
     .candidate-chip.muted {{ background:#f8fafc; border-color:#d9e2ec; color:#52606d; }}
     .candidate-chip.gold {{ background:#fff8ee; border-color:#ecd7aa; color:#b7791f; }}
     .candidate-chip.violet {{ background:#f7f2ff; border-color:#d8c7ff; color:#6d4cc7; }}
+    .candidate-chip.domestic {{ background:#eef8f4; border-color:#badbcc; color:#246b4f; }}
+    .candidate-chip small {{ display:block; margin-top:2px; color:inherit; font-size:11px; line-height:1.1; opacity:.78; }}
     .support-meta {{ margin-top:12px; color:#52606d; font-size:13px; line-height:1.55; }}
     .support-meta strong {{ color:#17366d; font-weight:800; word-break:break-word; }}
     .candidate-summary-card {{ grid-column:1 / -1; }}
     .candidate-cluster-grid {{ display:grid; grid-template-columns:minmax(0,1.1fr) minmax(220px,.9fr); gap:14px; align-items:stretch; }}
-    .candidate-follow-grid {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:12px; }}
-    .candidate-mini-block {{ padding:14px 16px; border:1px solid var(--line); border-radius:10px; background:#fff; min-width:0; min-height:166px; display:flex; flex-direction:column; }}
+    .candidate-follow-grid {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; margin-top:12px; border-top:1px solid #dbe4ee; }}
+    .candidate-mini-block {{ padding:16px 18px; border:0; border-radius:0; background:#fff; min-width:0; min-height:150px; display:flex; flex-direction:column; }}
+    .candidate-mini-block + .candidate-mini-block {{ border-left:1px solid #dbe4ee; }}
     .candidate-mini-block strong {{ display:block; color:#17366d; font-size:18px; line-height:1.35; }}
     .candidate-mini-block span {{ display:block; margin-top:6px; color:#52606d; font-size:14px; line-height:1.55; }}
     .history-embed {{ margin-top:18px; }}
@@ -3807,7 +4335,11 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .history-toolbar output {{ color:#52606d; font-size:13px; font-weight:700; }}
     ul {{ margin: 0; padding-left: 20px; }}
     @media (max-width: 860px) {{
-      .topbar {{ flex-direction:column; align-items:flex-start; }}
+      .topbar {{ grid-template-columns:1fr; grid-template-rows:auto; gap:12px; padding:12px 4px 16px; }}
+      .brand, .status-strip, .monitor-note, .provenance-strip {{ grid-column:1; grid-row:auto; justify-self:stretch; }}
+      .brand {{ gap:10px; }}
+      .brand-mark {{ width:38px; height:38px; font-size:28px; }}
+      .brand-title h1 {{ font-size:28px; white-space:normal; }}
       .status-strip {{ width:100%; }}
       .status-box {{ border-left:0; padding-left:0; }}
       .approved-report-dashboard {{ grid-template-columns:1fr; }}
@@ -3835,6 +4367,8 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       .history-embed-side {{ width:100%; }}
       .history-embed-strip {{ grid-template-columns:1fr; }}
       .history-toolbar {{ grid-template-columns:1fr; }}
+      .provenance-strip {{ grid-template-columns:1fr 1fr; }}
+      .monitor-note {{ max-width:none; text-align:left; font-size:12px; }}
       .hero-top {{ flex-direction: column; }}
       .hero-link-card {{ width: 100%; }}
       .sector-top {{ grid-template-columns: 1fr; }}
@@ -3860,9 +4394,32 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     @media (max-width: 860px) {{
       .main-report-context-stack {{ grid-template-columns:1fr; }}
       .decision-hero-card {{ grid-template-columns:1fr; text-align:center; justify-items:center; }}
+      .reading-guide {{ grid-template-columns:1fr; }}
+      .reading-guide li + li {{ border-left:0; border-top:1px solid #dbe4ee; }}
+      .visual-first-read {{ padding:16px; }}
+      .section-title-row {{ align-items:flex-start; }}
+      .section-chip {{ white-space:normal; text-align:center; }}
+      .candidate-mini-block + .candidate-mini-block {{ border-left:0; border-top:1px solid #dbe4ee; }}
       .glance-grid {{ grid-template-columns:1fr 1fr; }}
       .buy-steps {{ grid-template-columns:1fr; }}
       .buy-step:not(:last-child)::after {{ display:none; }}
+    }}
+    @media (max-width: 520px) {{
+      .topbar {{ gap:8px; margin-bottom:10px; }}
+      .status-strip {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }}
+      .status-box {{ min-width:0; }}
+      .status-box .k {{ font-size:10px; }}
+      .status-box .v {{ font-size:12px; white-space:normal; overflow-wrap:anywhere; }}
+      .provenance-strip, .monitor-note {{ display:none; }}
+      .section-title-row h2 {{ font-size:24px; }}
+      .reading-guide {{ grid-template-columns:repeat(3,minmax(0,1fr)); }}
+      .reading-guide li {{ min-height:58px; gap:7px; padding:8px 6px; }}
+      .reading-guide li + li {{ border-top:0; border-left:1px solid #dbe4ee; }}
+      .reading-guide b {{ width:24px; height:24px; font-size:12px; }}
+      .reading-guide strong {{ font-size:13px; }}
+      .reading-guide small {{ display:none; }}
+      .decision-hero-card {{ padding:18px; }}
+      .decision-hero-icon {{ width:72px; height:72px; font-size:42px; }}
     }}
   </style>
 </head>
@@ -3875,13 +4432,13 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
           <h1>{html.escape(report['title'])}</h1>
         </div>
       </div>
-      <span class=\"report-chip data-update-chip\">↻ データ更新: {html.escape(topbar_update_label)}</span>
       <div class=\"status-strip\">
         <div class=\"status-box\"><div class=\"k\">生成日時</div><div class=\"v\">{html.escape(report['generated_at'])} JST</div></div>
         <div class=\"status-box\"><div class=\"k\">データソース</div><div class=\"v\">{html.escape(report['data_source'])}</div></div>
         <div class=\"status-box\"><div class=\"k\">判定信頼性</div><div class=\"v\">{html.escape(_jp_reliability(report.get('data_reliability', {}).get('level', 'high')))}</div></div>
       </div>
-      <div class=\"monitor-note\">本レポートは市場のモニタリングを目的としており、投資助言・推奨を行うものではありません。</div>
+      {provenance_strip_html}
+      <div class=\"monitor-note\"><span class=\"monitor-note-segment\">本レポートは市場のモニタリングを目的としており、</span><span class=\"monitor-note-segment\">投資助言・推奨を行うものではありません。</span></div>
     </div>
 
     {approved_report_dashboard_html}
@@ -3981,19 +4538,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     {supplemental_signal_strip_html}
     {risk_context_ux_hub_html}
 
-    <div class=\"mini-grid\">
-      <section class=\"mini-panel\">
-        <h3>しきい値レビュー</h3>
-        <div class=\"mini-content\">
-          <div class=\"threshold-status\">ステータス<strong>{html.escape(threshold_status_label)}</strong></div>
-          <div class=\"threshold-strip\">
-            <div class=\"threshold-item\"><div class=\"n\" style=\"color:#1f9d66;\">{drift_summary.get('stable_count', 0)}</div><div class=\"l\">{drift_labels['stable']}</div></div>
-            <div class=\"threshold-item\"><div class=\"n\" style=\"color:#d97706;\">{drift_summary.get('watch_count', 0)}</div><div class=\"l\">{drift_labels['watch']}</div></div>
-            <div class=\"threshold-item\"><div class=\"n\" style=\"color:#ef4444;\">{drift_summary.get('review_count', 0)}</div><div class=\"l\">{drift_labels['review']}</div></div>
-            <div class=\"threshold-item\"><div class=\"n\" style=\"color:#64748b;\">{drift_summary.get('unavailable_count', 0)}</div><div class=\"l\">{drift_labels['unavailable']}</div></div>
-          </div>
-        </div>
-      </section>
+    <div class=\"mini-grid report-ops-grid\">
       <section class=\"support-panel\">
         <h3>データ取得</h3>
         <div class=\"support-body\">
@@ -4001,19 +4546,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
           <div class=\"support-meta\">信頼性: <strong>{html.escape(_jp_reliability(report.get('data_reliability', {}).get('level', 'high')))}</strong><br>ソース: <strong>{html.escape(report['data_source'])}</strong><br>データ品質上限: <strong>{html.escape(_jp_action(str(report.get('data_reliability', {}).get('max_action', 'buy_window'))))}</strong><br>実データ取得率: <strong>{html.escape(_display_percent(report.get('data_reliability', {}).get('live_ratio')))}</strong><br>代替取得内訳: <strong>代替ティッカー={html.escape(str(report.get('data_reliability', {}).get('proxy_fallback_count', 0)))} / サンプル代替={html.escape(str(report.get('data_reliability', {}).get('sample_fallback_count', 0)))} / 未取得={html.escape(str(report.get('data_reliability', {}).get('unavailable_count', 0)))}</strong><br>データ品質による降格: <strong>{'あり' if action_decision.get('reliability_cap_applied') else 'なし'} / {html.escape(', '.join(action_decision.get('cap_reason', [])) or str(report.get('data_reliability', {}).get('reason_code', '-')))}</strong></div>
         </div>
       </section>
-
-      <section class=\"support-panel\">
-        <h3>メンテナンス</h3>
-        <div class=\"support-body\">
-          <div class=\"support-head\"><div class=\"support-icon\">✦</div><div class=\"support-title\">しきい値提案</div></div>
-          <div class=\"support-meta\">提案状態: <strong>{'生成済み' if threshold_maintenance.get('proposal_generated_this_run', False) else '未生成'}</strong><br>次回レビュー予定: <strong>{html.escape(drift_review_targets)}</strong></div>
-        </div>
-      </section>
     </div>
-
-    {_threshold_usage_html(report)}
-
-    {_threshold_rule_certification_html(report)}
 
     <section class=\"hero\">
       <div class=\"hero-top\">
@@ -4095,19 +4628,8 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         <li>サイクル判定: 上昇・終盤・回復・下降のどこに近いかを見る補助線です。</li>
         <li>合成スコア: 条件の揃い具合です。高いほど押し目検討の材料が増えます。</li>
         <li>スポット投資判断: 今すぐ積極化するか、監視を続けるか、待つかの運用向け要約です。</li>
-        <li>しきい値バージョン: {html.escape(str(report.get('risk_thresholds', {}).get('version', '-')))}</li>
-        <li>しきい値校正日時: {html.escape(str(report.get('risk_thresholds', {}).get('generated_at', '-')))}</li>
-        <li>しきい値ドリフト: 安定={drift_summary.get('stable_count', 0)} / 監視={drift_summary.get('watch_count', 0)} / 要確認={drift_summary.get('review_count', 0)} / 未取得={drift_summary.get('unavailable_count', 0)}</li>
-        <li>しきい値ドリフトのレビュー対象: {html.escape(', '.join(drift_summary.get('review_targets', [])) or '-')}</li>
-        <li>しきい値レビュー状態: {html.escape(_jp_threshold_status(threshold_review.get('status', '-')))} / 推奨={html.escape(_display_bool(threshold_review.get('review_recommended', False)))}</li>
-        <li>しきい値レビュー理由: {html.escape(', '.join(threshold_review.get('reasons', [])) or '-')}</li>
-        <li>しきい値メンテナンス状態: {html.escape(str(threshold_maintenance.get('status', '-')))}</li>
-        <li>しきい値メンテナンス所要時間: {html.escape(str(_display_number(threshold_maintenance.get('elapsed_seconds'))))} 秒</li>
-        <li>しきい値提案生成: {html.escape(_display_bool(threshold_maintenance.get('proposal_generated_this_run', False)))}</li>
       </ul>
     </section>
-
-    {_threshold_rule_certification_html(report)}
 
     <section class="section">
       <h2>判定理由</h2>
@@ -4136,7 +4658,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       {risk_line_confidence_audit_html}
       <ul>{risk_line_reason_items}</ul>
       <table>
-        <thead><tr><th>指標</th><th>判定</th><th>現在値</th><th>warning</th><th>danger</th><th>extreme</th><th>根拠</th></tr></thead>
+        <thead><tr><th>指標</th><th>判定</th><th>現在値</th><th>warning</th><th>danger</th><th>extreme</th><th>本判定根拠</th><th>参考・除外</th></tr></thead>
         <tbody>{risk_line_rows}</tbody>
       </table>
     </section>
@@ -4708,6 +5230,66 @@ def _data_quality_html_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
     return data_quality_html_rows(report)
 
 
+def _execution_mode_html_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
+    diagnostics = report.get("fetch_diagnostics") or {}
+    summary = diagnostics.get("summary") or {}
+    rows: list[tuple[str, str]] = []
+    data_mode = summary.get("data_mode_label")
+    execution_mode = summary.get("execution_mode")
+    if data_mode or execution_mode:
+        rows.append(("データモード", str(data_mode or execution_mode)))
+    snapshot_observed_at = summary.get("snapshot_observed_at")
+    if snapshot_observed_at:
+        rows.append(("キャッシュ観測時刻", str(snapshot_observed_at)))
+    snapshot_prices_path = summary.get("snapshot_prices_path")
+    if snapshot_prices_path:
+        rows.append(("キャッシュ価格ファイル", str(snapshot_prices_path)))
+    network_access = summary.get("network_access")
+    if network_access:
+        rows.append(("ネットワーク取得", str(network_access)))
+    return rows
+
+
+def _top_provenance_strip_html(report: dict[str, Any]) -> str:
+    provenance = report.get("data_provenance") or {}
+    if not isinstance(provenance, dict):
+        return ""
+    mode = str(provenance.get("data_mode_label") or report.get("data_source", "-"))
+    price_date = str(provenance.get("price_basis_date") or provenance.get("latest_observation_date") or "-")
+    retrieved_at = _format_provenance_datetime(provenance.get("retrieved_at") or provenance.get("cache_observed_at"))
+    live_label = str(
+        provenance.get("live_fetch_label") or ("ライブ更新あり" if provenance.get("live_fetch_performed") else "ライブ更新なし")
+    )
+    freshness = str(provenance.get("freshness_label") or provenance.get("freshness_status") or "-")
+    stale_reason = str(provenance.get("stale_reason") or "")
+    freshness_text = freshness if not stale_reason or stale_reason == freshness else f"{freshness} / {stale_reason}"
+    tone = "danger" if provenance.get("freshness_status") == "stale" else "warn" if mode in {"サンプルデータ", "過去時点再生"} else ""
+    chips = [
+        ("データモード", mode, tone),
+        ("価格基準日", price_date, ""),
+        ("取得日時", retrieved_at, ""),
+        ("ライブ取得", live_label, ""),
+        ("鮮度", freshness_text, tone),
+    ]
+    return (
+        "<div class='provenance-strip'>"
+        + "".join(
+            f"<div class='provenance-chip {html.escape(chip_tone)}'><strong>{html.escape(label)}</strong><span>{html.escape(value)}</span></div>"
+            for label, value, chip_tone in chips
+        )
+        + "</div>"
+    )
+
+
+def _format_provenance_datetime(value: Any) -> str:
+    if not value:
+        return "-"
+    text = str(value).replace("T", " ")
+    if len(text) >= 16:
+        return f"{text[:16]} JST"
+    return text
+
+
 def _action_validation_markdown_lines(report: dict[str, Any]) -> list[str]:
     validation = report.get("action_validation") or {}
     lines = ["", "## 判断検証"]
@@ -4816,6 +5398,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
     diagnostic_summary = diagnostics.get("summary", {})
     runtime_context = report.get("runtime_context", {})
     history_payload = _build_history_embed_payload(history_entries or [])
+    episode_chronicle = report.get("risk_engine_v2_episode_chronicle") or {}
 
     def esc(value: Any) -> str:
         return html.escape(str(value if value is not None else "-"))
@@ -4957,6 +5540,8 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
             _format_risk_threshold_beginner_html(row.get("warning_line")),
             _format_risk_threshold_beginner_html(row.get("danger_line")),
             _format_risk_threshold_beginner_html(row.get("extreme_line")),
+            esc(_risk_accepted_rule_summary(row)),
+            esc(_risk_diagnostic_rule_summary(row)),
         ]
         for row in risk_lines.get("indicators", [])
     ]
@@ -5072,6 +5657,7 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
         ["実行ファイル", runtime_context.get("python_executable", "-")],
         ["作業フォルダ", runtime_context.get("working_directory", "-")],
         ["取得ソース", diagnostic_summary.get("source", report.get("data_source", "-"))],
+        *_execution_mode_html_rows(report),
         *_data_quality_html_rows(report),
         ["失敗試行数", diagnostic_summary.get("failed_attempt_count", 0)],
         ["接続不良疑い", "あり" if diagnostic_summary.get("suspected_network_issue") else "なし"],
@@ -5088,6 +5674,46 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
     domestic_danger_panel = _domestic_danger_panel_html(domestic_danger, table, esc, source)
     integrated_context_panel = _japan_resident_integrated_context_panel_html(integrated_context, table, esc, source)
     hindenburg_omen_panel = _hindenburg_omen_panel_html(report.get("hindenburg_omen_context") or {}, esc)
+    chronicle_page = episode_chronicle.get("page_filename")
+    chronicle_ready = (
+        episode_chronicle.get("status") == "ready"
+        and episode_chronicle.get("freshness_status") == "current"
+        and episode_chronicle.get("policy_status") == "diagnostic_only_not_promoted"
+        and episode_chronicle.get("affects_final_action") is False
+        and episode_chronicle.get("promotion_allowed") is False
+        and isinstance(chronicle_page, str)
+        and Path(chronicle_page).name == chronicle_page
+    )
+    if chronicle_ready:
+        chronicle_action = (
+            f'<a class="chronicle-launch" href="{esc(chronicle_page)}" target="_blank" rel="noopener">'
+            '市場警戒年代記を別窓で開く <span aria-hidden="true">↗</span></a>'
+        )
+        chronicle_state = '<span class="chronicle-state ready">閲覧可能</span>'
+    else:
+        chronicle_action = '<span class="chronicle-launch disabled" aria-disabled="true">市場警戒年代記は現在開けません</span>'
+        chronicle_state = '<span class="chronicle-state unavailable">未生成・更新待ち</span>'
+    chronicle_reason = episode_chronicle.get("reason") or (
+        "読み取り専用の歴史・証拠画面です。本体判断と売買候補には影響しません。"
+        if chronicle_ready
+        else "証拠連鎖の検証後に利用可能になります。"
+    )
+    chronicle_panel = f"""
+      <div class="chronicle-launch-layout">
+        <div class="chronicle-copy">
+          <div class="chronicle-kicker">READ-ONLY CHRONICLE {chronicle_state}</div>
+          <p>アラート前後の価格、警戒段階、証拠、評価をエピソード単位で読み返します。年では区切らず、同じイベントIDの進行中記録を更新します。</p>
+          <small>{esc(chronicle_reason)}</small>
+        </div>
+        <dl class="chronicle-stats">
+          <div><dt>全エピソード</dt><dd>{esc(episode_chronicle.get('episode_count', 0))}</dd></div>
+          <div><dt>成熟済み</dt><dd>{esc(episode_chronicle.get('mature_count', 0))}</dd></div>
+          <div><dt>進行中</dt><dd>{esc(episode_chronicle.get('pending_count', 0))}</dd></div>
+        </dl>
+        <div class="chronicle-latest"><span>最新の章</span><strong>{esc(episode_chronicle.get('latest_event_title', '-'))}</strong><small>生成: {esc(episode_chronicle.get('generated_at', '-'))}</small></div>
+        <div class="chronicle-action-wrap">{chronicle_action}</div>
+      </div>
+    """
 
     def localize_signal_value(value: Any) -> str:
         text = str(value)
@@ -5504,57 +6130,107 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
   <title>補足レポート</title>
   <style>{style}
-    body {{ background:#f6f9fc; }}
-    .supplement-dashboard-shell {{ max-width:1600px; margin:0 auto; padding:0 22px 22px; }}
-    .supplement-topbar {{ display:grid; grid-template-columns:minmax(360px,1fr) auto; gap:18px; align-items:center; min-height:38px; margin:0 -22px 18px; padding:0 18px; background:linear-gradient(90deg,#06172b,#0f2e4d); color:#fff; }}
+    html, body {{ overflow-x:hidden; }}
+    body {{ background:#f7f9fc; font-size:16px; line-height:1.65; }}
+    .supplement-dashboard-shell {{ max-width:1380px; margin:0 auto; padding:0 28px 40px; }}
+    .supplement-topbar {{ display:flex; justify-content:space-between; gap:18px; align-items:center; min-height:44px; margin:0 -28px 22px; padding:0 28px; background:#102a55; color:#fff; }}
     .supplement-topbar strong {{ font-size:14px; }}
-    .supplement-topbar span {{ color:#c8d7e8; font-size:13px; }}
-    .supplement-hero {{ display:grid; grid-template-columns:minmax(360px,1fr) auto; gap:20px; align-items:center; margin-bottom:14px; }}
+    .supplement-topbar span {{ color:#d8e6fa; font-size:13px; }}
+    .supplement-hero {{ display:grid; grid-template-columns:minmax(320px,1fr) auto; gap:28px; align-items:center; margin-bottom:18px; }}
     .supplement-title-block {{ display:flex; gap:16px; align-items:center; }}
-    .supplement-title-icon {{ width:54px; height:54px; border:3px solid #66788e; border-radius:8px; display:grid; place-items:center; color:#66788e; font-size:34px; }}
-    .supplement-title-block h1 {{ margin:0; color:#0b1830; font-size:32px; }}
-    .scope-note {{ margin:5px 0 0; color:#1f3556; font-size:15px; font-weight:900; }}
-    .supplement-chip-row {{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }}
-    .supplement-chip {{ display:inline-flex; align-items:center; min-height:36px; padding:0 16px; border-radius:5px; background:#eef5ff; color:#17366d; font-size:14px; font-weight:900; }}
-    .supplement-chip.limit {{ background:#fff2d8; color:#c05600; }}
-    .supplement-chip.safe {{ background:#eef2f7; color:#1f2933; }}
-    .supplement-nav {{ display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin:0 0 14px; padding:8px 0; border-top:1px solid #cbd8e6; border-bottom:1px solid #cbd8e6; }}
-    .supplement-nav strong {{ margin-right:8px; color:#17366d; font-size:14px; }}
-    .supplement-nav a {{ display:inline-flex; align-items:center; gap:8px; min-height:32px; padding:0 13px; border:1px solid #9eb7d6; border-radius:6px; background:#fff; color:#17366d; font-size:13px; font-weight:900; text-decoration:none; }}
-    .supplement-nav b {{ display:inline-grid; place-items:center; width:20px; height:20px; border-radius:5px; background:#edf4ff; }}
-    .evidence-summary-grid {{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:8px; }}
-    .evidence-summary-card, .evidence-card {{ border:1px solid #d5e0eb; border-radius:6px; background:#fff; box-shadow:0 2px 8px rgba(15,35,70,.04); }}
-    .evidence-summary-card {{ padding:12px 14px; }}
-    .evidence-summary-card h2 {{ margin:0 0 10px; color:#17366d; font-size:16px; }}
-    .evidence-summary-card dl {{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:7px 10px; margin:0; font-size:13px; }}
-    .evidence-summary-card dt {{ color:#425466; font-weight:800; }}
+    .supplement-title-icon {{ width:52px; height:52px; flex:0 0 auto; border-radius:12px; display:grid; place-items:center; background:#e8f0fb; color:#173f7a; font-size:30px; }}
+    .supplement-title-block h1 {{ margin:0; color:#0b1830; font-size:clamp(28px,3vw,40px); letter-spacing:-.02em; }}
+    .scope-note {{ margin:5px 0 0; color:#425466; font-size:15px; font-weight:800; }}
+    .supplement-chip-row {{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }}
+    .supplement-chip {{ display:inline-flex; align-items:center; min-height:38px; padding:0 14px; border:1px solid #cbd8e6; border-radius:8px; background:#fff; color:#17366d; font-size:13px; font-weight:900; white-space:normal; overflow-wrap:anywhere; }}
+    .supplement-chip.limit {{ border-color:#efd09c; background:#fff7e8; color:#9a5700; }}
+    .supplement-chip.safe {{ background:#f1f4f8; color:#344054; }}
+    .supplement-chip-row .chronicle-launch {{ min-height:38px; padding:7px 14px; font-size:13px; line-height:1.35; }}
+    .supplement-reading-guide {{ display:grid; grid-template-columns:minmax(210px,.72fr) minmax(0,1.28fr); gap:18px; align-items:center; margin:0 0 18px; padding:16px 18px; border-left:5px solid #2f5f9f; border-radius:0 12px 12px 0; background:#eef4fb; }}
+    .supplement-reading-guide strong {{ color:#102a55; font-size:17px; }}
+    .supplement-reading-guide span {{ color:#425466; font-size:14px; line-height:1.6; overflow-wrap:anywhere; }}
+    .supplement-nav {{ position:sticky; top:0; z-index:8; display:flex; gap:8px; flex-wrap:wrap; align-items:stretch; margin:0 0 22px; padding:10px 0; border-block:1px solid #cbd8e6; background:rgba(247,249,252,.96); backdrop-filter:blur(8px); }}
+    .supplement-nav strong {{ display:flex; align-items:center; margin-right:4px; color:#17366d; font-size:14px; }}
+    .supplement-nav a {{ display:flex; align-items:center; gap:8px; min-height:44px; padding:5px 12px; border:1px solid #cbd8e6; border-radius:9px; background:#fff; color:#17366d; font-size:13px; font-weight:900; text-decoration:none; }}
+    .supplement-nav a small {{ display:block; color:#66788e; font-size:10px; font-weight:800; }}
+    .supplement-nav b {{ display:inline-grid; place-items:center; width:24px; height:24px; flex:0 0 auto; border-radius:999px; background:#e8f0fb; }}
+    .summary-intro {{ margin:0 0 12px; }}
+    .summary-intro h2 {{ margin:0; color:#102a55; font-size:24px; }}
+    .summary-intro p {{ margin:5px 0 0; color:#5f6c77; font-size:14px; }}
+    .evidence-summary-grid {{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0; margin-bottom:28px; border-block:1px solid #d5e0eb; background:#fff; }}
+    .evidence-summary-card, .evidence-card {{ background:#fff; box-shadow:none; }}
+    .evidence-summary-card {{ padding:18px; border:0; border-radius:0; }}
+    .evidence-summary-card + .evidence-summary-card {{ border-left:1px solid #d5e0eb; }}
+    .evidence-summary-card h2 {{ margin:0 0 13px; color:#17366d; font-size:16px; line-height:1.45; }}
+    .evidence-summary-card dl {{ display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px 10px; margin:0; font-size:14px; }}
+    .evidence-summary-card dt {{ color:#52606d; font-weight:700; }}
     .evidence-summary-card dd {{ margin:0; color:#0f1828; font-weight:900; }}
-    .supplement-evidence-grid {{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; align-items:start; }}
-    .evidence-card {{ padding:10px; min-width:0; }}
-    .evidence-card.wide {{ grid-column:span 2; }}
-    .evidence-card h2 {{ margin:0 0 9px; color:#17366d; font-size:16px; }}
-    .evidence-card .table-wrap {{ max-height:260px; }}
-    .evidence-card .table {{ font-size:12px; }}
-    .evidence-card .table th, .evidence-card .table td {{ padding:6px 8px; }}
-    .risk-line-detail-section {{ grid-column:span 1; }}
+    .supplement-evidence-grid {{ display:grid; grid-template-columns:minmax(0,1fr); gap:18px; align-items:start; }}
+    .evidence-card {{ padding:20px 22px; min-width:0; border:1px solid #d5e0eb; border-radius:12px; scroll-margin-top:82px; }}
+    .evidence-card.wide {{ grid-column:auto; }}
+    .evidence-card h2 {{ margin:0 0 14px; color:#17366d; font-size:21px; line-height:1.4; }}
+    .evidence-card .table-wrap {{ max-height:none; overflow:auto; border-radius:8px; }}
+    .evidence-card .table {{ min-width:720px; font-size:14px; font-variant-numeric:tabular-nums; }}
+    .evidence-card .table th, .evidence-card .table td {{ padding:10px 12px; line-height:1.5; }}
+    .evidence-card .table tbody tr:nth-child(even) {{ background:#f8fafc; }}
+    .risk-line-detail-section {{ grid-column:auto; border-top:4px solid #2f5f9f; }}
     .hindenburg-history-section .mini-panel {{ margin:0; }}
     .hindenburg-history-section .hindenburg-panel {{ border:0; padding:0; }}
     .manual-link-wrap {{ float:right; margin-left:8px; }}
     .manual-link {{ display:inline-flex; align-items:center; min-height:24px; padding:0 8px; border:1px solid #9eb7d6; border-radius:6px; background:#fff; color:#17366d; font-size:12px; font-weight:800; text-decoration:none; white-space:nowrap; }}
     .hindenburg-history-section .table-wrap {{ max-height:150px; }}
+    .episode-chronicle-launch-section {{ border-color:#9fb2c2; border-top:4px solid #102a55; background:linear-gradient(90deg,#f5f1e8 0,#fff 72%); }}
+    .chronicle-launch-layout {{ display:grid; grid-template-columns:minmax(280px,1.5fr) minmax(270px,.9fr) minmax(210px,.8fr); gap:22px; align-items:center; }}
+    .chronicle-copy p {{ margin:8px 0 6px; color:#263d54; line-height:1.7; }}
+    .chronicle-copy small, .chronicle-latest small {{ color:#66788e; overflow-wrap:anywhere; }}
+    .chronicle-kicker {{ display:flex; gap:10px; align-items:center; color:#102a55; font-size:12px; font-weight:900; letter-spacing:.06em; }}
+    .chronicle-state {{ display:inline-flex; align-items:center; min-height:25px; padding:2px 8px; border:1px solid; border-radius:999px; letter-spacing:0; }}
+    .chronicle-state.ready {{ color:#21633c; border-color:#83a68c; background:#edf6ee; }}
+    .chronicle-state.unavailable {{ color:#8b5a10; border-color:#d8aa66; background:#fff6e8; }}
+    .chronicle-stats {{ display:grid; grid-template-columns:repeat(3,1fr); margin:0; border-block:1px solid #cbd8e6; }}
+    .chronicle-stats div {{ padding:12px 8px; text-align:center; }}
+    .chronicle-stats div + div {{ border-left:1px solid #cbd8e6; }}
+    .chronicle-stats dt {{ color:#66788e; font-size:11px; font-weight:800; }}
+    .chronicle-stats dd {{ margin:3px 0 0; color:#102a55; font-family:Georgia,serif; font-size:25px; font-weight:700; }}
+    .chronicle-latest {{ display:grid; gap:3px; min-width:0; }}
+    .chronicle-latest span {{ color:#66788e; font-size:11px; font-weight:800; }}
+    .chronicle-latest strong {{ color:#102a55; overflow-wrap:anywhere; }}
+    .chronicle-action-wrap {{ grid-column:1/-1; display:flex; justify-content:flex-end; margin-top:-4px; }}
+    .chronicle-launch {{ display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:46px; padding:8px 18px; border:1px solid #102a55; border-radius:7px; background:#102a55; color:#fff; font-weight:900; text-decoration:none; }}
+    .chronicle-launch:hover {{ background:#1e4673; }}
+    .chronicle-launch.disabled {{ border-color:#b8c0c8; background:#eef1f4; color:#677482; cursor:not-allowed; }}
     .history-browser-section {{ grid-column:span 1; }}
     .history-mini-chart {{ height:150px; border:1px solid #dbe6eb; border-radius:6px; background:linear-gradient(180deg,#fff,#f8fbff); display:grid; place-items:center; color:#6b7785; font-weight:900; }}
-    .supplement-footer-note {{ margin-top:12px; padding:10px 14px; border:1px solid #c9def4; border-radius:6px; background:#edf7ff; color:#17366d; font-size:13px; font-weight:800; }}
+    .supplement-footer-note {{ margin-top:22px; padding:14px 18px; border-left:4px solid #2f5f9f; background:#edf4fb; color:#17366d; font-size:13px; font-weight:800; }}
     @media (max-width: 1180px) {{
-      .evidence-summary-grid, .supplement-evidence-grid {{ grid-template-columns:1fr 1fr; }}
-      .evidence-card.wide {{ grid-column:span 2; }}
+      .evidence-summary-grid {{ grid-template-columns:1fr 1fr; }}
+      .evidence-summary-card + .evidence-summary-card {{ border-left:0; border-top:1px solid #d5e0eb; }}
     }}
     @media (max-width: 760px) {{
-      .supplement-topbar, .supplement-hero, .evidence-summary-grid, .supplement-evidence-grid {{ grid-template-columns:1fr; }}
-      .evidence-card.wide {{ grid-column:auto; }}
+      .supplement-dashboard-shell {{ padding:0 14px 28px; }}
+      .supplement-topbar {{ align-items:flex-start; flex-direction:column; gap:2px; min-height:0; margin:0 -14px 16px; padding:9px 14px; }}
+      .supplement-topbar span {{ font-size:11px; overflow-wrap:anywhere; }}
+      .supplement-hero, .supplement-reading-guide, .evidence-summary-grid {{ grid-template-columns:1fr; }}
+      .supplement-hero {{ gap:14px; }}
+      .supplement-title-block {{ align-items:flex-start; }}
+      .supplement-title-icon {{ width:42px; height:42px; font-size:24px; }}
+      .scope-note {{ font-size:14px; line-height:1.5; }}
       .supplement-chip-row {{ justify-content:flex-start; }}
+      .supplement-chip {{ min-height:36px; padding:7px 11px; line-height:1.35; }}
+      .supplement-reading-guide {{ gap:5px; padding:14px; }}
+      .supplement-nav {{ flex-wrap:nowrap; margin-inline:-14px; padding:9px 14px; overflow-x:auto; scrollbar-width:thin; }}
+      .supplement-nav strong {{ display:none; }}
+      .supplement-nav a {{ min-width:max-content; }}
+      .evidence-summary-card + .evidence-summary-card {{ border-top:1px solid #d5e0eb; }}
+      .evidence-card {{ padding:17px 15px; }}
+      .evidence-card h2 {{ font-size:19px; }}
+      .chronicle-launch-layout {{ grid-template-columns:1fr; gap:14px; }}
+      .chronicle-action-wrap {{ grid-column:auto; justify-content:stretch; margin-top:0; }}
+      .chronicle-launch {{ width:100%; }}
+      .table-wrap {{ position:relative; }}
     }}
   </style>
 </head>
@@ -5573,41 +6249,46 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
         </div>
       </div>
       <div class="supplement-chip-row">
-        <span class="supplement-chip">補助確認</span>
         <span class="supplement-chip limit">データ制約</span>
         <span class="supplement-chip safe">本体判断への影響なし</span>
-        <span class="supplement-chip safe">データ品質上限 {quality_limit} / 実データ {quality_live_ratio} / {quality_cap_note}</span>
+        {chronicle_action}
         <a class="supplement-chip" href="report.html">本体レポートへ戻る</a>
       </div>
     </section>
+    <aside class="supplement-reading-guide" aria-label="補足レポートの読み方">
+      <strong>この画面は、気になる理由を深掘りするときに使います</strong>
+      <span>最初に「5つの要点」を確認し、必要な項目だけ下へ進んでください。データ品質上限: {quality_limit} / 実データ {quality_live_ratio} / {quality_cap_note}</span>
+    </aside>
     <nav class="supplement-nav" aria-label="補足レポート セクション">
-      <strong>セクション</strong>
-      <a href="#risk-lines"><b>1</b>危険ライン</a>
-      <a href="#resident-context"><b>2</b>日本在住者文脈</a>
-      <a href="#domestic-context"><b>3</b>国内文脈</a>
-      <a href="#hindenburg-detail"><b>4</b>ヒンデンブルグオーメン</a>
-      <a href="#data-acquisition"><b>5</b>データ取得</a>
-      <a href="#threshold-audit"><b>6</b>しきい値</a>
-      <a href="#runtime-diagnostics"><b>7</b>実行環境</a>
-      <a href="#history-browser"><b>8</b>履歴</a>
+      <strong>見たい内容へ移動</strong>
+      <a href="#risk-lines"><b>1</b><span>判断の根拠<small>危険ライン</small></span></a>
+      <a href="#resident-context"><b>2</b><span>日本在住者向け<small>日本在住者文脈・国内文脈</small></span></a>
+      <a href="#hindenburg-detail"><b>3</b><span>市場データ<small>ヒンデンブルグ・年代記・候補</small></span></a>
+      <a href="#data-acquisition"><b>4</b><span>データ品質<small>データ取得・しきい値・実行環境</small></span></a>
+      <a href="#history-browser"><b>5</b><span>履歴<small>過去との比較</small></span></a>
     </nav>
+    <div class="summary-intro">
+      <h2>まず確認する5つの要点</h2>
+      <p>数値の細部よりも、評価が「通常・注意・警戒」のどこにあるかを先に見ます。</p>
+    </div>
     <section class="evidence-summary-grid" aria-label="補足サマリー">
-      <article class="evidence-summary-card"><h2>1. 危険ライン（主要指標）</h2><dl><dt>総合評価</dt><dd>{esc(risk_lines.get('stage_label', '-'))}</dd><dt>危険/非常に危険</dt><dd>{esc(risk_lines.get('danger_count', 0))} / {esc(risk_lines.get('extreme_count', 0))}</dd><dt>要注意理由</dt><dd>{esc(len(risk_lines.get('reasons', [])))}</dd></dl></article>
-      <article class="evidence-summary-card"><h2>2. 日本在住者文脈（統合）</h2><dl><dt>統合評価</dt><dd>{esc(_domestic_danger_level_label(integrated_context.get('combined_context_level')))}</dd><dt>影響度</dt><dd>{esc(_domestic_danger_level_label(integrated_context.get('fx_risk_level')))}</dd><dt>確認項目</dt><dd>{esc(len(integrated_context.get('watch_items', [])))}</dd></dl></article>
-      <article class="evidence-summary-card"><h2>3. 国内文脈（危険シグナル）</h2><dl><dt>国内資産</dt><dd>{esc(_domestic_danger_level_label(domestic_danger.get('domestic_asset_level')))}</dd><dt>国内為替</dt><dd>{esc(_domestic_danger_level_label(domestic_danger.get('domestic_fx_level')))}</dd><dt>制約</dt><dd>{esc(len(domestic_danger.get('domestic_data_limitations', [])))}</dd></dl></article>
-      <article class="evidence-summary-card"><h2>4. ヒンデンブルグオーメン</h2><dl><dt>現在のランプ状態</dt><dd>{esc(_hindenburg_signal_label((report.get('hindenburg_omen_context') or {}).get('current_signal')))}</dd><dt>最新トリガー日</dt><dd>{esc((report.get('hindenburg_omen_context') or {}).get('latest_trigger_date', '-'))}</dd><dt>発動期間中か</dt><dd>{'はい' if (report.get('hindenburg_omen_context') or {}).get('is_currently_active') else 'いいえ'}</dd></dl></article>
-      <article class="evidence-summary-card"><h2>5. 資産クラス / 候補証拠</h2><dl><dt>資産比較</dt><dd>{esc(len(report.get('asset_compare', [])))}</dd><dt>候補数</dt><dd>{esc(len(candidate.get('candidate_tickers', [])))}</dd><dt>証拠</dt><dd>参考表示</dd></dl></article>
+      <article class="evidence-summary-card"><h2>1. 市場全体の危険度</h2><dl><dt>総合評価</dt><dd>{esc(risk_lines.get('stage_label', '-'))}</dd><dt>危険/非常に危険</dt><dd>{esc(risk_lines.get('danger_count', 0))} / {esc(risk_lines.get('extreme_count', 0))}</dd><dt>要注意理由</dt><dd>{esc(len(risk_lines.get('reasons', [])))}</dd></dl></article>
+      <article class="evidence-summary-card"><h2>2. 日本から投資するときの注意</h2><dl><dt>統合評価</dt><dd>{esc(_domestic_danger_level_label(integrated_context.get('combined_context_level')))}</dd><dt>為替の影響</dt><dd>{esc(_domestic_danger_level_label(integrated_context.get('fx_risk_level')))}</dd><dt>確認項目</dt><dd>{esc(len(integrated_context.get('watch_items', [])))}</dd></dl></article>
+      <article class="evidence-summary-card"><h2>3. 国内市場の状態</h2><dl><dt>国内資産</dt><dd>{esc(_domestic_danger_level_label(domestic_danger.get('domestic_asset_level')))}</dd><dt>国内為替</dt><dd>{esc(_domestic_danger_level_label(domestic_danger.get('domestic_fx_level')))}</dd><dt>データ制約</dt><dd>{esc(len(domestic_danger.get('domestic_data_limitations', [])))}</dd></dl></article>
+      <article class="evidence-summary-card"><h2>4. 急落の予兆を補助確認</h2><dl><dt>ヒンデンブルグオーメン</dt><dd>{esc(_hindenburg_signal_label((report.get('hindenburg_omen_context') or {}).get('current_signal')))}</dd><dt>最新トリガー日</dt><dd>{esc((report.get('hindenburg_omen_context') or {}).get('latest_trigger_date', '-'))}</dd><dt>発動期間中か</dt><dd>{'はい' if (report.get('hindenburg_omen_context') or {}).get('is_currently_active') else 'いいえ'}</dd></dl></article>
+      <article class="evidence-summary-card"><h2>5. 観察候補の数</h2><dl><dt>資産クラス比較</dt><dd>{esc(len(report.get('asset_compare', [])))}</dd><dt>候補数</dt><dd>{esc(len(candidate.get('candidate_tickers', [])))}</dd><dt>位置づけ</dt><dd>参考表示</dd></dl></article>
     </section>
     <section class="supplement-evidence-grid" aria-label="補足詳細">
-      <section class="evidence-card risk-line-detail-section" id="risk-lines"><h2>1. 危険ライン詳細と信頼度監査</h2><div class="table-wrap">{table(['指標','判定','現在値','注意ライン','危険ライン','非常に危険'], risk_line_rows)}</div><ul class="compact-list">{risk_reason_items}</ul></section>
+      <section class="evidence-card risk-line-detail-section" id="risk-lines"><h2>1. 危険ライン詳細と信頼度監査</h2><div class="table-wrap">{table(['指標','判定','現在値','注意ライン','危険ライン','非常に危険','本判定根拠','参考・除外'], risk_line_rows)}</div><ul class="compact-list">{risk_reason_items}</ul></section>
       <section class="evidence-card resident-context-detail-section" id="resident-context"><h2>2. 日本在住者文脈（統合）詳細</h2>{integrated_context_panel}<div class="table-wrap" style="margin-top:8px;">{table(['為替','現在値','1週','4週','12週','判定'], fx_rows)}</div></section>
       <section class="evidence-card domestic-context-detail-section" id="domestic-context"><h2>3. 国内文脈（危険シグナル）詳細</h2>{domestic_danger_panel}</section>
       <section class="evidence-card hindenburg-history-section" id="hindenburg-detail"><h2>4. ヒンデンブルグオーメンのトリガー / 発動履歴</h2>{hindenburg_omen_panel}</section>
-      <section class="evidence-card asset-candidate-evidence-section" id="asset-candidate-evidence"><h2>5. 資産クラス / 候補証拠 詳細</h2><div class="table-wrap">{table(['資産クラス','ティッカー','12週','年率ボラ','最大DD'], asset_rows)}</div><div class="table-wrap" style="margin-top:8px;">{table(['銘柄','判定','理由'], candidate_rows)}</div></section>
-      <section class="evidence-card data-acquisition-section" id="data-acquisition"><h2>6. データ取得状況</h2><div class="table-wrap">{table(['要求系列','状態','実使用系列','説明'], availability_rows)}</div></section>
-      <section class="evidence-card threshold-audit-section" id="threshold-audit"><h2>7. しきい値の使用状況と認証</h2><div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));">{metric('レビュー状態', f"{esc(_jp_threshold_status(threshold_review.get('status', '-')))} / 推奨={esc(_display_bool(threshold_review.get('review_recommended', False)))}", 'warn' if threshold_review.get('review_recommended') else '')}{metric('メンテナンス', f"{esc(_localize_display_text(threshold_maintenance.get('status', '-')))} / {number(threshold_maintenance.get('elapsed_seconds'))}秒")}{metric('提案生成', esc(_display_bool(threshold_maintenance.get('proposal_generated_this_run', False))))}</div><div class="drift-list"><div><span>安定</span><b>{esc(drift_summary.get('stable_count', 0))}</b></div><div><span>監視</span><b style="color:var(--orange)">{esc(drift_summary.get('watch_count', 0))}</b></div><div><span>要確認</span><b style="color:var(--red)">{esc(drift_summary.get('review_count', 0))}</b></div><div><span>未取得</span><b>{esc(drift_summary.get('unavailable_count', 0))}</b></div></div>{_threshold_usage_html(report)}{_threshold_rule_certification_html(report)}</section>
-      <section class="evidence-card runtime-diagnostics-section" id="runtime-diagnostics"><h2>8. 実行環境 / 接続診断</h2><div class="table-wrap">{table(['項目','内容'], [[esc(k), esc(v)] for k, v in diagnostic_rows], False)}</div><div style="margin-top:8px;">{alert_cards}</div><ul class="compact-list" style="margin-top:8px;">{warning_items}</ul></section>
-      <section class="evidence-card history-browser-section" id="history-browser"><h2>9. 履歴ブラウザ</h2><div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));">{metric('主基準 daily_latest', f"{esc(history_meta.get('daily_latest_count', 0))}件")}{metric('参考 all_history', f"{esc(history_meta.get('history_count', 0))}件")}{metric('最新スコア', esc(latest_history.get('score', '-')))}</div><div class="history-mini-chart">履歴確認用の参考表示</div></section>
+      <section class="evidence-card episode-chronicle-launch-section" id="episode-chronicle"><h2>5. 市場警戒年代記</h2>{chronicle_panel}</section>
+      <section class="evidence-card asset-candidate-evidence-section" id="asset-candidate-evidence"><h2>6. 資産クラス / 候補証拠 詳細</h2><div class="table-wrap">{table(['資産クラス','ティッカー','12週','年率ボラ','最大DD'], asset_rows)}</div><div class="table-wrap" style="margin-top:8px;">{table(['銘柄','判定','理由'], candidate_rows)}</div></section>
+      <section class="evidence-card data-acquisition-section" id="data-acquisition"><h2>7. データ取得状況</h2><div class="table-wrap">{table(['要求系列','状態','実使用系列','説明'], availability_rows)}</div></section>
+      <section class="evidence-card threshold-audit-section" id="threshold-audit"><h2>8. しきい値の使用状況と認証</h2><div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));">{metric('レビュー状態', f"{esc(_jp_threshold_status(threshold_review.get('status', '-')))} / 推奨={esc(_display_bool(threshold_review.get('review_recommended', False)))}", 'warn' if threshold_review.get('review_recommended') else '')}{metric('メンテナンス', f"{esc(_localize_display_text(threshold_maintenance.get('status', '-')))} / {number(threshold_maintenance.get('elapsed_seconds'))}秒")}{metric('提案生成', esc(_display_bool(threshold_maintenance.get('proposal_generated_this_run', False))))}</div><div class="drift-list"><div><span>安定</span><b>{esc(drift_summary.get('stable_count', 0))}</b></div><div><span>監視</span><b style="color:var(--orange)">{esc(drift_summary.get('watch_count', 0))}</b></div><div><span>要確認</span><b style="color:var(--red)">{esc(drift_summary.get('review_count', 0))}</b></div><div><span>未取得</span><b>{esc(drift_summary.get('unavailable_count', 0))}</b></div></div>{_threshold_usage_html(report)}{_threshold_rule_certification_html(report)}</section>
+      <section class="evidence-card runtime-diagnostics-section" id="runtime-diagnostics"><h2>9. 実行環境 / 接続診断</h2><div class="table-wrap">{table(['項目','内容'], [[esc(k), esc(v)] for k, v in diagnostic_rows], False)}</div><div style="margin-top:8px;">{alert_cards}</div><ul class="compact-list" style="margin-top:8px;">{warning_items}</ul></section>
+      <section class="evidence-card history-browser-section" id="history-browser"><h2>10. 履歴ブラウザ</h2><div class="metrics" style="grid-template-columns:repeat(3,minmax(0,1fr));">{metric('主基準 daily_latest', f"{esc(history_meta.get('daily_latest_count', 0))}件")}{metric('参考 all_history', f"{esc(history_meta.get('history_count', 0))}件")}{metric('最新スコア', esc(latest_history.get('score', '-')))}</div><div class="history-mini-chart">履歴確認用の参考表示</div></section>
     </section>
     <footer class="supplement-footer-note">本画面および生成されたレポート / キャッシュ / 診断アーティファクトは、本体判断の入力には利用されません。補助確認・監査・トラブルシュートのための情報です。</footer>
   </main>

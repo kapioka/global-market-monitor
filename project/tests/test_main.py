@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 import logging
 import shutil
 import sys
 import uuid
+from contextlib import nullcontext
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 
@@ -22,6 +25,8 @@ from project.main import (
     open_dashboard_file,
     persist_report,
     run_actual_smoke,
+    run_monitor,
+    run_with_backfill,
     save_fetch_snapshot,
     snapshot_exists_for_slot,
 )
@@ -66,7 +71,21 @@ def test_load_action_validation_summary_handles_missing_file(tmp_path: Path):
     assert result["status"] == "not_available"
 
 
-def test_open_dashboard_file_uses_default_browser(monkeypatch):
+def test_open_dashboard_file_uses_windows_html_file_association(monkeypatch):
+    captured = {}
+    dashboard_path = Path(__file__).resolve().parents[1] / "reports" / "dashboard.html"
+
+    def fake_startfile(path: str) -> None:
+        captured["path"] = path
+
+    monkeypatch.setattr("project.main.sys.platform", "win32")
+    monkeypatch.setattr("project.main.os.startfile", fake_startfile)
+
+    assert open_dashboard_file(dashboard_path) is True
+    assert captured["path"] == str(dashboard_path.resolve())
+
+
+def test_open_dashboard_file_uses_file_url_outside_windows(monkeypatch):
     captured = {}
     dashboard_path = Path(__file__).resolve().parents[1] / "reports" / "dashboard.html"
 
@@ -74,6 +93,7 @@ def test_open_dashboard_file_uses_default_browser(monkeypatch):
         captured["url"] = url
         return True
 
+    monkeypatch.setattr("project.main.sys.platform", "linux")
     monkeypatch.setattr("project.main.webbrowser.open", fake_open)
 
     assert open_dashboard_file(dashboard_path) is True
@@ -216,6 +236,7 @@ def test_run_actual_smoke_prefers_latest_cached_fetch(monkeypatch, tmp_path: Pat
     assert called["sample_only"] is False
     assert called["fetch_result"] is cached_fetch
     assert called["resample_weekly"] is True
+    assert called["refresh_episode_chronicle_artifacts"] is False
 
 
 def test_run_actual_smoke_uses_normal_fetch_when_cache_is_absent(monkeypatch, tmp_path: Path) -> None:
@@ -244,6 +265,140 @@ def test_run_actual_smoke_uses_normal_fetch_when_cache_is_absent(monkeypatch, tm
     assert called["sample_only"] is False
     assert called["fetch_result"] is None
     assert called["resample_weekly"] is True
+    assert called["refresh_episode_chronicle_artifacts"] is False
+
+
+def test_run_monitor_refreshes_episode_chronicle_once_and_passes_summary(monkeypatch, tmp_path: Path) -> None:
+    config = {
+        "app": {"log_level": "INFO"},
+        "paths": {
+            "logs_dir": str(tmp_path / "logs"),
+            "reports_dir": str(tmp_path / "reports"),
+            "sample_output_dir": str(tmp_path / "sample"),
+            "cache_dir": str(tmp_path / "cache"),
+        },
+        "scheduler": {"hour": 7, "minute": 30},
+    }
+    calls: dict[str, Any] = {"refresh": 0}
+    ready_summary = {"status": "ready", "page_filename": "risk_engine_v2_episode_chronicle.html"}
+
+    monkeypatch.setattr("project.main.load_config", lambda _path: config)
+    monkeypatch.setattr("project.main.setup_logging", lambda *_args: logging.getLogger("test"))
+    monkeypatch.setattr("project.main.console_spinner", lambda *_args, **_kwargs: nullcontext())
+    monkeypatch.setattr(
+        "project.main.run_periodic_risk_line_maintenance_with_progress",
+        lambda *_args, **_kwargs: {"maintenance": {}},
+    )
+
+    def fake_refresh(**kwargs):
+        calls["refresh"] = int(calls["refresh"]) + 1
+        calls["refresh_kwargs"] = kwargs
+        return {"status": "generated", "summary": ready_summary}
+
+    def fake_build_report(*_args, **kwargs):
+        calls["build_kwargs"] = kwargs
+        return {"status": "report"}
+
+    monkeypatch.setattr("project.main.refresh_episode_chronicle_for_run", fake_refresh)
+    monkeypatch.setattr("project.main.build_report", fake_build_report)
+    monkeypatch.setattr("project.main.persist_report", lambda report, *_args, **_kwargs: report)
+
+    fetch_result = FetchResult(pd.DataFrame(), [], "fixture", [], {})
+    result = run_monitor("config.yaml", fetch_result=fetch_result)
+
+    assert result == {"status": "report"}
+    assert calls["refresh"] == 1
+    assert calls["refresh_kwargs"]["enabled"] is True
+    assert calls["build_kwargs"]["episode_chronicle_summary"] == ready_summary
+
+
+def test_run_with_backfill_refreshes_once_for_all_reports(monkeypatch, tmp_path: Path) -> None:
+    config = {
+        "app": {"log_level": "INFO"},
+        "paths": {
+            "logs_dir": str(tmp_path / "logs"),
+            "reports_dir": str(tmp_path / "reports"),
+            "sample_output_dir": str(tmp_path / "sample"),
+            "cache_dir": str(tmp_path / "cache"),
+        },
+        "scheduler": {"hour": 7, "minute": 30},
+        "startup": {"max_backfill_days": 2},
+    }
+    ready_summary = {"status": "ready", "generation_id": "fixture"}
+    refresh_calls = 0
+    build_summaries: list[dict[str, object]] = []
+
+    monkeypatch.setattr("project.main.load_config", lambda _path: config)
+    monkeypatch.setattr("project.main.setup_logging", lambda *_args: logging.getLogger("test"))
+    monkeypatch.setattr("project.main.console_spinner", lambda *_args, **_kwargs: nullcontext())
+    monkeypatch.setattr(
+        "project.main.compute_backfill_dates",
+        lambda *_args, **_kwargs: [date(2026, 7, 17), date(2026, 7, 18)],
+    )
+    monkeypatch.setattr(
+        "project.main.run_periodic_risk_line_maintenance_with_progress",
+        lambda *_args, **_kwargs: {"maintenance": {}},
+    )
+    monkeypatch.setattr("project.main.fetch_market_snapshot", lambda *_args, **_kwargs: object())
+    monkeypatch.setattr("project.main.save_fetch_snapshot", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("project.main.existing_history_files_for_date", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr("project.main.snapshot_exists_for_slot", lambda *_args, **_kwargs: False)
+
+    def fake_refresh(**_kwargs):
+        nonlocal refresh_calls
+        refresh_calls += 1
+        return {"status": "no_change", "summary": ready_summary}
+
+    def fake_build_report(*_args, **kwargs):
+        build_summaries.append(kwargs["episode_chronicle_summary"])
+        return {"status": "report"}
+
+    monkeypatch.setattr("project.main.refresh_episode_chronicle_for_run", fake_refresh)
+    monkeypatch.setattr("project.main.build_report", fake_build_report)
+    monkeypatch.setattr("project.main.persist_report", lambda report, *_args, **_kwargs: report)
+
+    result = run_with_backfill("config.yaml")
+
+    assert result == {"status": "report"}
+    assert refresh_calls == 1
+    assert len(build_summaries) == 3
+    assert all(summary == ready_summary for summary in build_summaries)
+
+
+def test_sample_only_disables_episode_chronicle_generation(monkeypatch, tmp_path: Path) -> None:
+    config = {
+        "app": {"log_level": "INFO"},
+        "paths": {
+            "logs_dir": str(tmp_path / "logs"),
+            "reports_dir": str(tmp_path / "reports"),
+            "sample_output_dir": str(tmp_path / "sample"),
+            "cache_dir": str(tmp_path / "cache"),
+        },
+        "scheduler": {"hour": 7, "minute": 30},
+    }
+    captured: dict[str, object] = {}
+
+    monkeypatch.setattr("project.main.load_config", lambda _path: config)
+    monkeypatch.setattr("project.main.setup_logging", lambda *_args: logging.getLogger("test"))
+    monkeypatch.setattr("project.main.console_spinner", lambda *_args, **_kwargs: nullcontext())
+    monkeypatch.setattr(
+        "project.main.run_periodic_risk_line_maintenance_with_progress",
+        lambda *_args, **_kwargs: {"maintenance": {}},
+    )
+
+    def fake_refresh(**kwargs):
+        captured.update(kwargs)
+        return {"status": "unavailable", "summary": {"status": "unavailable"}}
+
+    monkeypatch.setattr("project.main.refresh_episode_chronicle_for_run", fake_refresh)
+    monkeypatch.setattr("project.main.build_report", lambda *_args, **_kwargs: {"status": "report"})
+    monkeypatch.setattr("project.main.persist_report", lambda report, *_args, **_kwargs: report)
+
+    fetch_result = FetchResult(pd.DataFrame(), [], "fixture", [], {})
+    run_monitor("config.yaml", sample_only=True, fetch_result=fetch_result)
+
+    assert captured["enabled"] is False
+    assert "サンプル" in str(captured["disabled_reason"])
 
 
 def test_default_config_path_for_source_layout():
@@ -354,6 +509,15 @@ def test_build_report_includes_alerts():
     assert report["history_alignment"] == {}
     assert isinstance(report["alerts"], list)
     assert "risk_lines" in report
+    assert report["oil_context"]["status"] == "ok"
+    assert "oil_context" in next(row for row in report["risk_monitor"] if row["ticker"] == "CL=F")
+    assert report["risk_engine_schema_version"] == "2.0"
+    assert report["risk_engine_mode"] == "shadow"
+    assert report["risk_domains"]["engine_mode"] == "shadow"
+    assert isinstance(report["risk_domains"]["domains"], list)
+    assert report["risk_engine_comparison"]["policy_status"] == "shadow_only"
+    assert report["risk_engine_comparison"]["affects_final_action"] is False
+    assert report["risk_engine_v2_replay"] == {}
     assert report["japan_risk"]["available"] is True
     assert report["risk_lines"]["stage_label"]
     assert "investment_candidates" in report
@@ -585,6 +749,15 @@ def test_persist_report_skips_non_live_history_and_prunes_same_day_entries():
             "analogues": [],
             "warnings": [],
             "data_availability": [],
+            "risk_engine_state": {
+                "will_persist": True,
+                "path": str(paths["reports_dir"] / "risk_engine_v2_state.json"),
+                "next_state": {
+                    "schema_version": "2.0",
+                    "global": {"confirmed_stage": "warning"},
+                    "domains": {"credit": {"confirmed_stage": "warning"}},
+                },
+            },
         }
         invalid_report = {
             **valid_report,
@@ -608,5 +781,7 @@ def test_persist_report_skips_non_live_history_and_prunes_same_day_entries():
         history_files = sorted(history_dir.glob("report_*.json"))
         assert len(history_files) == 1
         assert history_files[0].name == "report_2026-03-20_073000.json"
+        risk_state = json.loads((paths["reports_dir"] / "risk_engine_v2_state.json").read_text(encoding="utf-8"))
+        assert risk_state["global"]["confirmed_stage"] == "warning"
     finally:
         shutil.rmtree(tmp_path, ignore_errors=True)

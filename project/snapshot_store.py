@@ -62,12 +62,19 @@ def _load_fetch_snapshot_files(prices_path: Path, metadata_path: Path) -> FetchR
 
     prices = pd.read_csv(prices_path, index_col=0, parse_dates=True)
     metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    diagnostics = dict(metadata.get("diagnostics", {}))
+    summary = dict(diagnostics.get("summary", {}))
+    summary.setdefault("source", str(metadata.get("source", "snapshot")))
+    summary["snapshot_observed_at"] = metadata.get("observed_at")
+    summary["snapshot_metadata_path"] = str(metadata_path)
+    summary["snapshot_prices_path"] = str(prices_path)
+    diagnostics["summary"] = summary
     return FetchResult(
         prices=prices,
         warnings=list(metadata.get("warnings", [])),
         source=str(metadata.get("source", "snapshot")),
         acquisition_log=list(metadata.get("acquisition_log", [])),
-        diagnostics=dict(metadata.get("diagnostics", {})),
+        diagnostics=diagnostics,
     )
 
 

@@ -35,12 +35,13 @@ def build_domestic_market_metrics(
     acquisition_log: list[dict[str, Any]] | None = None,
     include_references: bool = True,
     zscore_window: int = 26,
+    data_provenance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     acquisition_map = _acquisition_map(acquisition_log or [])
     symbols = list(TARGET_SYMBOLS)
     if include_references:
         symbols.extend(REFERENCE_SYMBOLS)
-    rows = [_metric_row(prices, symbol, acquisition_map.get(symbol), zscore_window) for symbol in symbols]
+    rows = [_metric_row(prices, symbol, acquisition_map.get(symbol), zscore_window, data_provenance or {}) for symbol in symbols]
     return {
         "title": "国内市場メトリクス",
         "summary": "国内ETF・為替系列の価格メトリクスを表示専用で整理します。",
@@ -56,9 +57,15 @@ def _metric_row(
     symbol: str,
     acquisition: dict[str, Any] | None,
     zscore_window: int,
+    data_provenance: dict[str, Any],
 ) -> dict[str, Any]:
     source_status = str((acquisition or {}).get("status") or ("ok" if symbol in prices.columns else "missing"))
-    source_kind = str((acquisition or {}).get("source") or (acquisition or {}).get("source_kind") or "price_series")
+    source_kind = str(
+        (acquisition or {}).get("source")
+        or (acquisition or {}).get("source_kind")
+        or data_provenance.get("source_kind")
+        or "price_series"
+    )
     is_sample = source_status == "sample_fallback" or source_kind == "sample"
     series = _clean_series(prices[symbol]) if symbol in prices.columns else pd.Series(dtype=float)
     limitations: list[str] = []
@@ -71,9 +78,10 @@ def _metric_row(
         limitations.append("split_or_discontinuity_suspected")
 
     current_value = _latest(series)
-    change_1w = _change_percent(series, 1, limitations)
-    change_4w = _change_percent(series, 4, limitations)
-    change_12w = _change_percent(series, 12, limitations)
+    comparison_windows: dict[str, Any] = {}
+    change_1w = _change_percent(series, 1, limitations, comparison_windows, "change_1w")
+    change_4w = _change_percent(series, 4, limitations, comparison_windows, "change_4w")
+    change_12w = _change_percent(series, 12, limitations, comparison_windows, "change_12w")
     momentum_12w = _safe_metric(momentum(series, 12))
     drawdown_12w = _safe_metric(max_drawdown(series.tail(13)))
     drawdown_26w = _safe_metric(max_drawdown(series.tail(27)))
@@ -89,17 +97,25 @@ def _metric_row(
         zscore = None
 
     is_available = current_value is not None and source_status not in {"missing", "failed", "unavailable"}
+    latest_date = _latest_date(series)
     return {
         "symbol": symbol,
         "display_name": ticker_label_ja(symbol),
         "asset_group": DOMESTIC_METRIC_SYMBOLS[symbol],
         "source_status": source_status,
         "source_kind": source_kind,
-        "latest_date": _latest_date(series),
+        "evaluation_date": data_provenance.get("evaluation_date"),
+        "latest_date": latest_date,
+        "latest_observation_date": latest_date,
+        "age_business_days": data_provenance.get("age_business_days"),
+        "freshness_status": data_provenance.get("freshness_status"),
+        "stale_reason": data_provenance.get("stale_reason"),
+        "live_fetch_performed": data_provenance.get("live_fetch_performed"),
         "current_value": current_value,
         "change_1w": change_1w,
         "change_4w": change_4w,
         "change_12w": change_12w,
+        "comparison_windows": comparison_windows,
         "momentum_12w": _percent(momentum_12w),
         "max_drawdown": _percent(drawdown_12w),
         "max_drawdown_12w": _percent(drawdown_12w),
@@ -110,6 +126,7 @@ def _metric_row(
         "volatility_label": _volatility_label(volatility),
         "data_quality": _data_quality(is_available, is_sample, limitations),
         "risk_signal_allowed": is_available and not suspicious_discontinuity,
+        "stage_eligible": is_available and not suspicious_discontinuity and data_provenance.get("freshness_status") != "stale",
         "is_sample": is_sample,
         "is_partial": source_status in {"partial", "sample_fallback"} or bool(limitations),
         "is_available": is_available,
@@ -148,21 +165,54 @@ def _latest(series: pd.Series) -> float | None:
 def _latest_date(series: pd.Series) -> str | None:
     if series.empty:
         return None
-    value = series.index[-1]
+    return _date_to_string(series.index[-1])
+
+
+def _date_to_string(value: Any) -> str:
     if hasattr(value, "date"):
         return value.date().isoformat()
     return str(value)
 
 
-def _change_percent(series: pd.Series, window: int, limitations: list[str]) -> float | None:
+def _change_percent(
+    series: pd.Series,
+    window: int,
+    limitations: list[str],
+    comparison_windows: dict[str, Any],
+    label: str,
+) -> float | None:
     if len(series) <= window:
         if "insufficient_history" not in limitations:
             limitations.append("insufficient_history")
+        comparison_windows[label] = {
+            "window_observations": window,
+            "latest_observation_date": _latest_date(series),
+            "comparison_observation_date": None,
+            "comparison_value": None,
+            "comparison_available": False,
+            "reason": "insufficient_history",
+        }
         return None
+    previous_index = series.index[-(window + 1)]
     previous = float(series.iloc[-(window + 1)])
     if previous == 0:
         limitations.append("zero_reference_value")
+        comparison_windows[label] = {
+            "window_observations": window,
+            "latest_observation_date": _latest_date(series),
+            "comparison_observation_date": _date_to_string(previous_index),
+            "comparison_value": _rounded(previous),
+            "comparison_available": False,
+            "reason": "zero_reference_value",
+        }
         return None
+    comparison_windows[label] = {
+        "window_observations": window,
+        "latest_observation_date": _latest_date(series),
+        "comparison_observation_date": _date_to_string(previous_index),
+        "comparison_value": _rounded(previous),
+        "comparison_available": True,
+    }
     return _rounded((float(series.iloc[-1]) / previous - 1.0) * 100.0)
 
 

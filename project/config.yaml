@@ -203,3 +203,49 @@ hindenburg_omen:
     - marketwatch_us_market_data
     - wsj_market_diary
 
+risk_engine_v2:
+  mode: shadow
+  schema_version: 2
+  minimum_eligible_domain_coverage: 0.75
+  freshness_limits_calendar_days:
+    daily: 5
+    weekly: 14
+    monthly: 45
+    irregular: 14
+    unknown: 14
+  minimum_history:
+    daily: 252
+    weekly: 104
+    monthly: 36
+  robust_statistics:
+    zscore_window: 252
+    percentile_window: 504
+    mad_scale: 0.6745
+  domain_weights:
+    equity: 0.16
+    equity_volatility: 0.14
+    bond_volatility: 0.10
+    credit: 0.20
+    rates: 0.16
+    usd_funding: 0.10
+    commodity_inflation: 0.14
+  persistence:
+    warning_entry_observations: 2
+    warning_entry_window: 3
+    danger_entry_consecutive: 2
+    exit_consecutive: 2
+  official_series:
+    credit_hy_oas: FRED:BAMLH0A0HYM2
+    credit_ig_oas: FRED:BAMLC0A0CM
+    real_yield_10y: FRED:DFII10
+    breakeven_10y: FRED:T10YIE
+    curve_10y2y: FRED:T10Y2Y
+    curve_10y3m: FRED:T10Y3M
+    financial_conditions: FRED:NFCI
+  gold:
+    relative_outperformance_threshold: 0.03
+    correlation_window_sessions: 60
+  oil:
+    inflation_shock_return_4w: 0.08
+    demand_collapse_return_4w: -0.12
+

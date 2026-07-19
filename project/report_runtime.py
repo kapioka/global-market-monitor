@@ -1,15 +1,40 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
 from project.history_dashboard import write_dashboard
 from project.report_generator import write_reports
+from project.risk_domain_state import write_risk_domain_state
 
 
 OpenDashboardFn = Callable[[str | Path], bool]
+
+
+@dataclass(frozen=True)
+class PersistencePolicy:
+    persist_reports: bool = True
+    persist_summary: bool = True
+    persist_history: bool = True
+    persist_risk_state: bool = True
+    prune_history: bool = True
+    write_dashboard: bool = True
+    policy_name: str = "normal"
+
+
+NORMAL_PERSISTENCE_POLICY = PersistencePolicy()
+ACTUAL_SMOKE_PERSISTENCE_POLICY = PersistencePolicy(
+    persist_reports=True,
+    persist_summary=True,
+    persist_history=False,
+    persist_risk_state=False,
+    prune_history=False,
+    write_dashboard=True,
+    policy_name="actual_smoke_non_persistent",
+)
 
 
 def persist_report(
@@ -20,7 +45,12 @@ def persist_report(
     persist_history: bool = True,
     history_slot: tuple[int, int] | None = None,
     open_dashboard_file_fn: OpenDashboardFn | None = None,
+    persistence_policy: PersistencePolicy | None = None,
 ) -> dict[str, Any]:
+    policy = persistence_policy or NORMAL_PERSISTENCE_POLICY
+    if not policy.persist_reports:
+        logger.info("Skipped report persistence due to policy=%s.", policy.policy_name)
+        return report
     markdown_path, html_path, history_markdown_path, history_html_path, history_json_path = write_reports(
         report,
         reports_dir=paths["reports_dir"],
@@ -30,16 +60,23 @@ def persist_report(
     logger.info("Report written to %s and %s", markdown_path, html_path)
     summary_path = Path(paths["reports_dir"]) / "report_summary.json"
     summary_json = json.dumps(report, ensure_ascii=False, indent=2)
-    summary_path.write_text(summary_json, encoding="utf-8")
-    if persist_history and should_persist_history(report):
+    if policy.persist_summary:
+        summary_path.write_text(summary_json, encoding="utf-8")
+    if policy.persist_history and persist_history and should_persist_history(report):
         history_json_path.write_text(summary_json, encoding="utf-8")
+        if policy.persist_risk_state:
+            persist_risk_engine_state(report, logger)
+        else:
+            logger.info("Skipped risk engine v2 state persistence due to policy=%s.", policy.policy_name)
         logger.info("History written to %s, %s and %s", history_markdown_path, history_html_path, history_json_path)
     else:
         remove_report_files(history_markdown_path, history_html_path, history_json_path)
         logger.info("Skipped history persistence for this run due to non-live or non-decision-safe context.")
-    prune_history_directory(Path(paths["reports_dir"]) / "history", logger, history_slot=history_slot)
-    dashboard_path = write_dashboard(paths["reports_dir"])
-    logger.info("Dashboard written to %s", dashboard_path)
+    if policy.prune_history:
+        prune_history_directory(Path(paths["reports_dir"]) / "history", logger, history_slot=history_slot)
+    if policy.write_dashboard:
+        dashboard_path = write_dashboard(paths["reports_dir"])
+        logger.info("Dashboard written to %s", dashboard_path)
     if open_dashboard and open_dashboard_file_fn is not None:
         opened = open_dashboard_file_fn(html_path)
         if opened:
@@ -47,6 +84,18 @@ def persist_report(
         else:
             logger.warning("Failed to open latest report in default browser: %s", html_path)
     return report
+
+
+def persist_risk_engine_state(report: dict[str, Any], logger: Any) -> None:
+    state_info = report.get("risk_engine_state", {})
+    if not isinstance(state_info, dict) or not state_info.get("will_persist"):
+        return
+    path = state_info.get("path")
+    next_state = state_info.get("next_state")
+    if not path or not isinstance(next_state, dict):
+        return
+    written = write_risk_domain_state(path, next_state)
+    logger.info("Risk engine v2 state written to %s", written)
 
 
 def should_persist_history(report: dict[str, Any]) -> bool:

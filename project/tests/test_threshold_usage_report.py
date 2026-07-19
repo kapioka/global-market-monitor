@@ -1,4 +1,4 @@
-from project.report_generator import render_html, render_markdown
+from project.report_generator import render_developer_diagnostics_markdown, render_html, render_markdown
 from project.tests.test_report_generator import _report
 from project.threshold_certainty import build_threshold_certainty
 from project.threshold_decision_policy import build_threshold_usage
@@ -18,7 +18,7 @@ def test_threshold_usage_report_shape():
     assert usage["proposed_status"] == "hold"
 
 
-def test_threshold_usage_section_appears_in_markdown_and_html():
+def test_threshold_usage_section_appears_only_in_developer_diagnostics():
     report = _report()
     report["threshold_usage"] = {
         "operational_set": "active",
@@ -45,16 +45,18 @@ def test_threshold_usage_section_appears_in_markdown_and_html():
     }
 
     markdown = render_markdown(report)
+    developer_markdown = render_developer_diagnostics_markdown(report)
     html = render_html(report)
 
-    assert "しきい値利用方針" in markdown
-    assert "実運用しきい値: 実運用" in markdown
-    assert "提案中しきい値: 保留" in markdown
-    assert "候補版v2: 診断専用" in markdown
-    assert "最終判断の根拠: 実運用しきい値 + データ信頼性方針" in markdown
-    assert "提案中しきい値 / 候補版v2 の最終判断への影響: いいえ" in markdown
-    assert "しきい値利用方針" in html
-    assert "実運用しきい値 + データ信頼性方針" in html
+    assert "しきい値利用方針" not in markdown
+    assert "しきい値利用方針" in developer_markdown
+    assert "実運用しきい値: 実運用" in developer_markdown
+    assert "提案中しきい値: 保留" in developer_markdown
+    assert "候補版v2: 診断専用" in developer_markdown
+    assert "最終判断の根拠: 実運用しきい値 + データ信頼性方針" in developer_markdown
+    assert "提案中しきい値 / 候補版v2 の最終判断への影響: いいえ" in developer_markdown
+    assert "しきい値利用方針" not in html
+    assert "実運用しきい値 + データ信頼性方針" not in html
 
 
 def test_threshold_usage_section_handles_missing_payload():
@@ -63,8 +65,10 @@ def test_threshold_usage_section_handles_missing_payload():
     report.pop("threshold_certainty", None)
 
     markdown = render_markdown(report)
+    developer_markdown = render_developer_diagnostics_markdown(report)
     html = render_html(report)
 
-    assert "しきい値利用方針" in markdown
-    assert "実運用しきい値: -" in markdown
-    assert "しきい値利用方針" in html
+    assert "しきい値利用方針" not in markdown
+    assert "しきい値利用方針" in developer_markdown
+    assert "実運用しきい値: -" in developer_markdown
+    assert "しきい値利用方針" not in html

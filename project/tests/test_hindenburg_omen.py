@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -212,7 +213,7 @@ def test_manual_daily_input_rejects_negative_value(tmp_path: Path) -> None:
 
 def test_manual_daily_input_idempotent_and_conflict_detection(tmp_path: Path) -> None:
     db_path = tmp_path / "hindenburg.sqlite3"
-    kwargs = {
+    kwargs: dict[str, Any] = {
         "market_date": "2026-01-02",
         "new_highs": 20,
         "new_lows": 18,

@@ -44,6 +44,7 @@ def evaluate_risk_lines(
     inflation_flag = str(regime.get("inflation_regime_flag", "neutral"))
     regime_label = str(regime.get("regime_label", ""))
     cycle_label = str(cycle.get("phase_label", ""))
+    by_inflation_ticker = {str(row.get("ticker")): row for row in inflation_monitor}
 
     vix = by_ticker.get("^VIX")
     move = by_ticker.get("^MOVE")
@@ -55,10 +56,23 @@ def evaluate_risk_lines(
     ratio = by_ticker.get("HYG/LQD")
     hyg = by_ticker.get("HYG")
     lqd = by_ticker.get("LQD")
+    gold = by_inflation_ticker.get("GC=F") or by_inflation_ticker.get("GLD") or by_inflation_ticker.get("IAU")
 
     oil_row = _worse_row(wti, brent)
     oil_warning = _at_least(oil_row, "warning")
     oil_danger = _at_least(oil_row, "danger")
+    gold_safe_haven = _gold_safe_haven(gold)
+    gold_inflation_confirmation = gold_safe_haven and (
+        oil_warning
+        or _at_least(dxy, "warning")
+        or inflation_flag in {"inflation_shock_broad", "inflation_shock_oil_only", "stagflation_warning"}
+    )
+    gold_crash_confirmation = gold_safe_haven and (
+        _at_least(vix, "warning")
+        or _at_least(spy, "warning")
+        or _at_least(ratio, "warning")
+        or credit_flag in {"credit_stress_moderate", "credit_stress_severe"}
+    )
     vix_persist_danger = _persisted_at_least(vix, "danger", 2)
     vix_persist_extreme = _persisted_at_least(vix, "danger", 3) or _persisted_at_least(vix, "extreme", 1)
 
@@ -67,7 +81,12 @@ def evaluate_risk_lines(
         and _at_least(tnx, "warning")
         and _at_least(spy, "warning")
         and (_at_least(ratio, "warning") or credit_flag in {"credit_stress_moderate", "credit_stress_severe"})
-        and (oil_warning or _at_least(dxy, "warning") or inflation_flag in {"inflation_shock_broad", "inflation_shock_oil_only", "stagflation_warning"})
+        and (
+            oil_warning
+            or _at_least(dxy, "warning")
+            or gold_safe_haven
+            or inflation_flag in {"inflation_shock_broad", "inflation_shock_oil_only", "stagflation_warning"}
+        )
     )
     danger_line = (
         composite_risk_score >= 62
@@ -88,6 +107,8 @@ def evaluate_risk_lines(
         or len(warning_hits) >= 3
         or (_at_least(vix, "warning") and _at_least(spy, "warning"))
         or (_at_least(tnx, "warning") and oil_warning)
+        or gold_inflation_confirmation
+        or gold_crash_confirmation
     )
 
     if extreme_line:
@@ -121,6 +142,10 @@ def evaluate_risk_lines(
         strict_missing=strict_missing,
         missing_indicators=missing_indicators,
         vix_persist_danger=vix_persist_danger,
+        gold=gold,
+        gold_safe_haven=gold_safe_haven,
+        gold_inflation_confirmation=gold_inflation_confirmation,
+        gold_crash_confirmation=gold_crash_confirmation,
     )
     trigger_path = _build_trigger_path(
         rows=rows,
@@ -133,6 +158,9 @@ def evaluate_risk_lines(
         credit_initial=credit_initial,
         danger_line=danger_line,
         extreme_line=extreme_line,
+        gold_safe_haven=gold_safe_haven,
+        gold_inflation_confirmation=gold_inflation_confirmation,
+        gold_crash_confirmation=gold_crash_confirmation,
     )
     summary = _summary_for_stage(stage_key, reasons, strict_missing)
     strict_judgement_available = len(strict_missing) == 0
@@ -146,6 +174,10 @@ def evaluate_risk_lines(
         tnx=tnx,
         dxy=dxy,
         oil_row=oil_row,
+        gold=gold,
+        gold_safe_haven=gold_safe_haven,
+        gold_inflation_confirmation=gold_inflation_confirmation,
+        gold_crash_confirmation=gold_crash_confirmation,
     )
 
     return {
@@ -184,6 +216,9 @@ def _build_trigger_path(
     credit_initial: bool,
     danger_line: bool,
     extreme_line: bool,
+    gold_safe_haven: bool,
+    gold_inflation_confirmation: bool,
+    gold_crash_confirmation: bool,
 ) -> list[dict[str, Any]]:
     path: list[dict[str, Any]] = []
     material_rows = danger_hits if stage_key == "extreme_danger_line_reached" else danger_hits
@@ -208,6 +243,9 @@ def _build_trigger_path(
         ("credit_spillover_initial", credit_initial),
         ("danger_line_rule", danger_line),
         ("extreme_line_rule", extreme_line),
+        ("gold_safe_haven", gold_safe_haven),
+        ("gold_inflation_confirmation", gold_inflation_confirmation),
+        ("gold_crash_confirmation", gold_crash_confirmation),
     ]
     for name, matched in overlays:
         if matched:
@@ -254,6 +292,10 @@ def _build_reasons(
     strict_missing: list[str],
     missing_indicators: list[str],
     vix_persist_danger: bool,
+    gold: dict[str, Any] | None,
+    gold_safe_haven: bool,
+    gold_inflation_confirmation: bool,
+    gold_crash_confirmation: bool,
 ) -> list[str]:
     reasons: list[str] = []
     if strict_missing:
@@ -268,6 +310,12 @@ def _build_reasons(
         reasons.append("HYG/LQD は悪化していますが、まだ信用危機本番を断定するより、信用波及の入口として扱う方が妥当です。")
     if _at_least(vix, "warning") and _at_least(tnx, "warning") and _at_least(spy, "warning") and (_at_least(oil_row, "warning") or _at_least(dxy, "warning") or inflation_flag in {"inflation_shock_broad", "stagflation_warning"}):
         reasons.append("インフレショック、金利上昇、株安の組み合わせが同時進行しており、二段下げリスクを押し上げています。")
+    if gold_inflation_confirmation:
+        reasons.append("金先物が安全資産選好を示しており、原油・ドル・インフレ系ストレスの確認材料になっています。")
+    elif gold_crash_confirmation:
+        reasons.append("金先物が安全資産選好を示しており、VIX・株安・信用環境の悪化と合わせて暴落前の防御シグナルとして確認します。")
+    elif gold_safe_haven:
+        reasons.append("金先物は安全資産選好を示していますが、他の主要ストレス確認が弱いため単独では危険ラインを上げません。")
     if vix_persist_danger:
         reasons.append("VIX の危険ライン到達が一時的ではなく、直近でも継続しているため、ボラティリティ上昇は定着寄りです。")
     if _at_least(move, "danger"):
@@ -309,6 +357,10 @@ def _decision_overlay(
     tnx: dict[str, Any] | None,
     dxy: dict[str, Any] | None,
     oil_row: dict[str, Any] | None,
+    gold: dict[str, Any] | None,
+    gold_safe_haven: bool,
+    gold_inflation_confirmation: bool,
+    gold_crash_confirmation: bool,
 ) -> tuple[str, list[str], str]:
     flags: list[str] = []
     if stage_key == "extreme_danger_line_reached":
@@ -343,6 +395,12 @@ def _decision_overlay(
         flags.append("dollar_warning")
     if _at_least(oil_row, "warning"):
         flags.append("oil_warning")
+    if gold_safe_haven:
+        flags.append("gold_safe_haven")
+    if gold_inflation_confirmation:
+        flags.append("gold_inflation_confirmation")
+    if gold_crash_confirmation:
+        flags.append("gold_crash_confirmation")
 
     if stage_key in {"extreme_danger_line_reached", "danger_line_reached"} or credit_flag == "credit_stress_severe":
         level = "block"
@@ -350,7 +408,18 @@ def _decision_overlay(
     elif stage_key in {"credit_spillover_initial", "caution"} or credit_flag == "credit_stress_moderate":
         level = "caution"
         summary = "改善が見えても、まだ騙し上昇を警戒して買い判断を抑えるべき状態です。"
-    elif any(flag in flags for flag in {"rates_warning", "dollar_warning", "oil_warning", "vix_warning", "move_warning"}):
+    elif any(
+        flag in flags
+        for flag in {
+            "rates_warning",
+            "dollar_warning",
+            "oil_warning",
+            "vix_warning",
+            "move_warning",
+            "gold_inflation_confirmation",
+            "gold_crash_confirmation",
+        }
+    ):
         level = "caution"
         summary = "強いブロックではありませんが、追加投資は慎重に監視したい状態です。"
     else:
@@ -364,7 +433,8 @@ def _composite_risk_score(rows: list[dict[str, Any]]) -> float:
     total_weight = 0.0
     for row in rows:
         weight = float(row.get("weight", 1.0) or 1.0)
-        pressure = float(row.get("pressure_score", 0.5) or 0.5)
+        pressure_value = row.get("pressure_score", 0.5)
+        pressure = 0.5 if pressure_value is None else float(pressure_value)
         weighted += weight * pressure
         total_weight += weight
     if total_weight <= 0:
@@ -377,6 +447,19 @@ def _worse_row(*rows: dict[str, Any] | None) -> dict[str, Any] | None:
     if not present:
         return None
     return max(present, key=lambda row: (_level_rank(row.get("line_level")), float(row.get("pressure_score", 0.0))))
+
+
+def _gold_safe_haven(row: dict[str, Any] | None) -> bool:
+    if not row:
+        return False
+    if str(row.get("signal_label") or "") == "安全資産選好":
+        return True
+    try:
+        change_1w = float(row.get("change_1w", 0.0) or 0.0)
+        zscore = float(row.get("zscore", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        return False
+    return change_1w >= 0.02 and zscore >= 1.0
 
 
 def _at_least(row: dict[str, Any] | None, level: str) -> bool:

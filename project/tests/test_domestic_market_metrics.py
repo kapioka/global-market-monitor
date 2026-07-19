@@ -35,6 +35,9 @@ def test_build_domestic_market_metrics_calculates_target_series() -> None:
     assert by_symbol["1306.T"]["asset_group"] == "jp_equity"
     assert by_symbol["1306.T"]["current_value"] == 103.0
     assert by_symbol["1306.T"]["change_4w"] < 0
+    assert by_symbol["1306.T"]["comparison_windows"]["change_4w"]["latest_observation_date"] == "2026-04-17"
+    assert by_symbol["1306.T"]["comparison_windows"]["change_4w"]["comparison_observation_date"] == "2026-03-20"
+    assert by_symbol["1306.T"]["comparison_windows"]["change_4w"]["window_observations"] == 4
     assert by_symbol["1306.T"]["change_12w"] is not None
     assert by_symbol["1306.T"]["max_drawdown"] is not None
     assert by_symbol["1306.T"]["max_drawdown_12w"] is not None
@@ -65,6 +68,7 @@ def test_domestic_market_metrics_mark_missing_partial_and_sample() -> None:
     assert by_symbol["2510.T"]["is_sample"] is True
     assert by_symbol["2510.T"]["data_quality"] == "sample"
     assert "insufficient_history" in by_symbol["2510.T"]["limitations"]
+    assert by_symbol["2510.T"]["comparison_windows"]["change_4w"]["comparison_available"] is False
     assert by_symbol["1343.T"]["is_available"] is False
     assert by_symbol["1343.T"]["data_quality"] == "unavailable"
     assert "missing_series" in by_symbol["1343.T"]["limitations"]

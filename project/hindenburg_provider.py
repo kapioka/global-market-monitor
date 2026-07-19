@@ -9,6 +9,7 @@ import tempfile
 import time
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from email.message import Message
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -16,7 +17,7 @@ from urllib.parse import urlsplit, urlunsplit
 from urllib.request import Request, urlopen
 
 try:
-    import requests
+    import requests  # type: ignore[import-untyped]
 except ImportError:  # pragma: no cover - stdlib fallback
     requests = None
 
@@ -245,8 +246,11 @@ def parse_barchart_market_momentum_html(
                 "limitations": ["NYSE row does not expose advancing/declining issue counts"],
             }
         return {"status": "failed", "failure_code": "MANDATORY_FIELD_MISSING", "limitations": ["NYSE mandatory fields missing"]}
-    if values["total_issues"] is None and values["unchanged"] is not None:
-        values["total_issues"] = values["advancers"] + values["decliners"] + values["unchanged"]
+    advancers = values["advancers"]
+    decliners = values["decliners"]
+    unchanged = values["unchanged"]
+    if values["total_issues"] is None and unchanged is not None and advancers is not None and decliners is not None:
+        values["total_issues"] = advancers + decliners + unchanged
     return {
         "status": "ok",
         "provider_id": "barchart_market_momentum",
@@ -334,7 +338,7 @@ def _download_text(source_url: str, *, read_timeout_seconds: int = DEFAULT_READ_
             timeout=(DEFAULT_CONNECT_TIMEOUT_SECONDS, read_timeout_seconds),
         )
         if response.status_code >= 400:
-            raise HTTPError(source_url, response.status_code, "HTTP error", hdrs=None, fp=None)
+            raise HTTPError(source_url, response.status_code, "HTTP error", hdrs=Message(), fp=None)
         payload = response.content
         if len(payload) > DEFAULT_MAX_RESPONSE_BYTES:
             raise ValueError("OVERSIZED_RESPONSE")
@@ -343,7 +347,7 @@ def _download_text(source_url: str, *, read_timeout_seconds: int = DEFAULT_READ_
     with urlopen(request, timeout=read_timeout_seconds) as response:
         status = getattr(response, "status", 200)
         if int(status) >= 400:
-            raise HTTPError(source_url, int(status), "HTTP error", hdrs=None, fp=None)
+            raise HTTPError(source_url, int(status), "HTTP error", hdrs=Message(), fp=None)
         payload = _read_limited(response, DEFAULT_MAX_RESPONSE_BYTES)
     return payload.decode("utf-8", errors="replace")
 
@@ -547,7 +551,7 @@ def _download_static_csv(
             with urlopen(request, timeout=read_timeout_seconds) as response:
                 status = getattr(response, "status", 200)
                 if int(status) >= 400:
-                    raise HTTPError(source_url, int(status), "HTTP error", hdrs=None, fp=None)
+                    raise HTTPError(source_url, int(status), "HTTP error", hdrs=Message(), fp=None)
                 payload = _read_limited(response, max_response_bytes)
             fd, temp_name = tempfile.mkstemp(prefix="hindenburg_", suffix=".csv", dir=str(cache_dir))
             temp_path = Path(temp_name)

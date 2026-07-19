@@ -78,6 +78,94 @@ def test_fetch_market_data_supports_fred_series(monkeypatch):
     assert result.acquisition_log[0]["status"] == "ok"
 
 
+def test_fetch_market_data_supports_fred_observation_date_column(monkeypatch):
+    monkeypatch.setattr(data_fetcher, "yf", None)
+
+    def fake_read_csv(url: str, timeout: int = 20, headers: dict | None = None):
+        return pd.DataFrame(
+            {
+                "observation_date": ["2026-01-02", "2026-01-09", "2026-01-16"],
+                "value": [0.1, 0.2, 0.3],
+            }
+        )
+
+    monkeypatch.setattr(data_fetcher, "_read_csv_from_url", fake_read_csv)
+
+    result = data_fetcher.fetch_market_data(
+        tickers=["FRED:NFCI"],
+        period_years=10,
+        interval="1wk",
+        logger=logging.getLogger("test"),
+        use_sample_on_failure=False,
+    )
+
+    assert "FRED:NFCI" in result.prices.columns
+    assert result.prices["FRED:NFCI"].iloc[-1] == 0.3
+    assert result.acquisition_log[0]["status"] == "ok"
+
+
+def test_fetch_market_data_supports_official_risk_engine_v2_fred_series(monkeypatch):
+    monkeypatch.setattr(data_fetcher, "yf", None)
+    requested: list[str] = []
+
+    def fake_read_csv(url: str, timeout: int = 20, headers: dict | None = None):
+        series_id = url.split("id=", 1)[1]
+        requested.append(series_id)
+        return pd.DataFrame(
+            {
+                "DATE": ["2026-01-02", "2026-01-09", "2026-01-16"],
+                series_id: [1.0, 1.1, 1.2],
+            }
+        )
+
+    monkeypatch.setattr(data_fetcher, "_read_csv_from_url", fake_read_csv)
+
+    tickers = [
+        "FRED:BAMLH0A0HYM2",
+        "FRED:BAMLC0A0CM",
+        "FRED:DFII10",
+        "FRED:T10YIE",
+        "FRED:T10Y2Y",
+        "FRED:T10Y3M",
+        "FRED:NFCI",
+    ]
+    result = data_fetcher.fetch_market_data(
+        tickers=tickers,
+        period_years=10,
+        interval="1wk",
+        logger=logging.getLogger("test"),
+        use_sample_on_failure=False,
+    )
+
+    assert set(result.prices.columns) == set(tickers)
+    assert {entry["provider"] for entry in result.acquisition_log} == {"fred"}
+    assert {entry["status"] for entry in result.acquisition_log} == {"ok"}
+    assert result.acquisition_log[0]["requested_ticker_name_ja"] == "米ハイイールドOAS"
+    assert requested == [ticker.split(":", 1)[1] for ticker in tickers]
+
+
+def test_fetch_market_data_marks_official_fred_unavailable_without_sample(monkeypatch):
+    monkeypatch.setattr(data_fetcher, "yf", None)
+
+    def fake_read_csv(url: str, timeout: int = 20, headers: dict | None = None):
+        raise RuntimeError("FRED temporary failure")
+
+    monkeypatch.setattr(data_fetcher, "_read_csv_from_url", fake_read_csv)
+
+    result = data_fetcher.fetch_market_data(
+        tickers=["FRED:BAMLH0A0HYM2"],
+        period_years=10,
+        interval="1wk",
+        logger=logging.getLogger("test"),
+        use_sample_on_failure=False,
+    )
+
+    assert result.prices.empty
+    assert result.acquisition_log[0]["status"] == "unavailable"
+    assert result.acquisition_log[0]["provider"] == "none"
+    assert result.acquisition_log[0]["attempts"][0]["symbol"] == "BAMLH0A0HYM2"
+
+
 def test_fetch_market_data_falls_back_to_freddie_mac_when_fred_fails(monkeypatch):
     monkeypatch.setattr(data_fetcher, "yf", None)
     calls: list[str] = []

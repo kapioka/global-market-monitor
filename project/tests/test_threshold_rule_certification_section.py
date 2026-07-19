@@ -1,8 +1,8 @@
-from project.report_generator import render_html, render_markdown
+from project.report_generator import render_developer_diagnostics_markdown, render_html, render_markdown
 from project.tests.test_report_generator import _report
 
 
-def test_rule_certification_summary_appears_in_markdown_and_html():
+def test_rule_certification_summary_appears_only_in_developer_diagnostics():
     report = _report()
     report["threshold_rule_certification"] = {
         "summary": {
@@ -18,9 +18,11 @@ def test_rule_certification_summary_appears_in_markdown_and_html():
     }
 
     markdown = render_markdown(report)
+    developer_markdown = render_developer_diagnostics_markdown(report)
     html = render_html(report)
 
-    assert "しきい値ルール認証" in markdown
-    assert "認証済みルール: 0" in markdown
-    assert "しきい値ルール認証" in html
-    assert "暫定レビュー" in html
+    assert "しきい値ルール認証" not in markdown
+    assert "しきい値ルール認証" in developer_markdown
+    assert "認証済みルール: 0" in developer_markdown
+    assert "しきい値ルール認証" not in html
+    assert "暫定レビュー" not in html

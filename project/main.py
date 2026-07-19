@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import copy
+import os
 import sys
 import webbrowser
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +17,8 @@ from project.config_loader import load_config
 from project.data_fetcher import FetchResult
 from project.japan_macro_adapters import run_official_japan_macro_dry_run
 from project.pipeline import build_report, collect_tickers, fetch_market_snapshot
-from project.report_runtime import persist_report
+from project.report_runtime import ACTUAL_SMOKE_PERSISTENCE_POLICY, PersistencePolicy, persist_report
+from project.risk_engine_v2_episode_chronicle_runtime import refresh_episode_chronicle_for_run
 from project.risk_line_review_status import run_periodic_risk_line_maintenance_with_progress
 from project.runtime import console_spinner, ensure_directories, setup_logging
 from project.scheduler import run_scheduler
@@ -48,6 +51,9 @@ def default_config_path() -> Path:
 def open_dashboard_file(dashboard_path: str | Path) -> bool:
     path = Path(dashboard_path).resolve()
     try:
+        if sys.platform == "win32":
+            os.startfile(str(path))
+            return True
         return webbrowser.open(path.as_uri())
     except Exception:
         return False
@@ -60,6 +66,9 @@ def run_monitor(
     as_of_date: date | None = None,
     fetch_result: FetchResult | None = None,
     resample_weekly: bool = False,
+    cache_write_allowed: bool = True,
+    persistence_policy: PersistencePolicy | None = None,
+    refresh_episode_chronicle_artifacts: bool = True,
 ) -> dict[str, Any]:
     config = load_config(config_path)
     paths = config["paths"]
@@ -73,6 +82,13 @@ def run_monitor(
         ]
     )
     logger = setup_logging(paths["logs_dir"], config["app"]["log_level"])
+    episode_chronicle_summary = _episode_chronicle_summary_for_run(
+        config_path=config_path,
+        paths=paths,
+        logger=logger,
+        sample_only=sample_only,
+        refresh_allowed=refresh_episode_chronicle_artifacts,
+    )
     logger.info("Run started (sample_only=%s, as_of_date=%s, resample_weekly=%s).", sample_only, as_of_date, resample_weekly)
     logger.info("Stage 0/3: refreshing risk-line drift/recalibration maintenance.")
     with console_spinner("threshold maintenance"):
@@ -89,12 +105,17 @@ def run_monitor(
     logger.info("Stage 1/3: fetching market snapshot.")
     with console_spinner("market data fetch"):
         fetch = fetch_result or fetch_market_snapshot(config, logger, sample_only=sample_only)
-    if not sample_only and fetch_result is None:
+    if cache_write_allowed and not sample_only and fetch_result is None:
         save_fetch_snapshot(fetch, paths["cache_dir"], fetch_snapshot_observed_at(), logger)
     logger.info("Stage 2/3: building report payload.")
     with console_spinner("building report"):
         report = build_report(
-            config, fetch, as_of_date=as_of_date, resample_weekly=resample_weekly, maintenance_summary=maintenance.get("maintenance")
+            config,
+            fetch,
+            as_of_date=as_of_date,
+            resample_weekly=resample_weekly,
+            maintenance_summary=maintenance.get("maintenance"),
+            episode_chronicle_summary=episode_chronicle_summary,
         )
     logger.info("Stage 3/3: writing reports and dashboard.")
     return persist_report(
@@ -105,6 +126,7 @@ def run_monitor(
         persist_history=not sample_only,
         history_slot=target_history_slot,
         open_dashboard_file_fn=open_dashboard_file,
+        persistence_policy=persistence_policy,
     )
 
 
@@ -125,6 +147,13 @@ def run_with_backfill(
         ]
     )
     logger = setup_logging(paths["logs_dir"], config["app"]["log_level"])
+    episode_chronicle_summary = _episode_chronicle_summary_for_run(
+        config_path=config_path,
+        paths=paths,
+        logger=logger,
+        sample_only=sample_only,
+        refresh_allowed=True,
+    )
     logger.info("Run with backfill started (sample_only=%s).", sample_only)
     startup_config = config.get("startup", {})
     max_backfill_days = int(startup_config.get("max_backfill_days", 14))
@@ -189,6 +218,7 @@ def run_with_backfill(
                     "replaced_history_entries": existing_names,
                     "source": alignment_source,
                 },
+                episode_chronicle_summary=episode_chronicle_summary,
             )
         persist_report(
             report,
@@ -203,7 +233,12 @@ def run_with_backfill(
     logger.info("Stage 3/4: building latest weekly report.")
     with console_spinner("building latest weekly report"):
         latest_report = build_report(
-            config, fetch, as_of_date=None, resample_weekly=True, maintenance_summary=maintenance.get("maintenance")
+            config,
+            fetch,
+            as_of_date=None,
+            resample_weekly=True,
+            maintenance_summary=maintenance.get("maintenance"),
+            episode_chronicle_summary=episode_chronicle_summary,
         )
     logger.info("Stage 4/4: writing latest reports and dashboard.")
     return persist_report(
@@ -220,24 +255,99 @@ def run_with_backfill(
 def run_actual_smoke(config_path: str | Path, open_dashboard: bool = False) -> dict[str, Any]:
     config = load_config(config_path)
     paths = config["paths"]
-    ensure_directories([paths["logs_dir"], paths["reports_dir"], paths["sample_output_dir"], paths["cache_dir"]])
-    logger = setup_logging(paths["logs_dir"], config["app"]["log_level"])
     cached_fetch = load_latest_fetch_snapshot(paths["cache_dir"])
+    smoke_config = _actual_smoke_config(config)
+    smoke_paths = smoke_config["paths"]
+    ensure_directories([smoke_paths["logs_dir"], smoke_paths["reports_dir"], smoke_paths["sample_output_dir"], smoke_paths["cache_dir"]])
+    logger = setup_logging(smoke_paths["logs_dir"], config["app"]["log_level"])
     if cached_fetch is not None:
         logger.info("Actual-data smoke using latest acquired snapshot from cache (source=%s).", cached_fetch.source)
+        diagnostics = dict(cached_fetch.diagnostics or {})
+        summary = dict(diagnostics.get("summary", {}))
+        summary["execution_mode"] = "actual_smoke_cache_only"
+        summary["data_mode_label"] = "キャッシュ使用"
+        summary["network_access"] = "not_used_when_cache_available"
+        summary["cache_read_allowed"] = True
+        summary["cache_write_allowed"] = False
+        summary["production_state_write_allowed"] = False
+        summary["live_fetch_performed"] = False
+        diagnostics["summary"] = summary
+        cached_fetch.diagnostics = diagnostics
     else:
         logger.info("Actual-data smoke found no acquired snapshot in cache; attempting the normal remote fetch path.")
     try:
         return run_monitor(
-            config_path=config_path,
+            config_path=_write_actual_smoke_config(smoke_config),
             sample_only=False,
             open_dashboard=open_dashboard,
             fetch_result=cached_fetch,
             resample_weekly=True,
+            cache_write_allowed=False,
+            persistence_policy=ACTUAL_SMOKE_PERSISTENCE_POLICY,
+            refresh_episode_chronicle_artifacts=False,
         )
     except Exception as exc:
         logger.error("Actual-data smoke failed while using cached acquired data or attempting remote fetch: %s", exc)
         raise
+
+
+def _actual_smoke_config(config: dict[str, Any]) -> dict[str, Any]:
+    smoke_config = copy.deepcopy(config)
+    root = (Path.cwd() / ".tmp" / "actual_smoke" / datetime.now().strftime("%Y%m%d_%H%M%S")).resolve()
+    smoke_config["paths"] = {
+        "logs_dir": str(root / "logs"),
+        "reports_dir": str(root / "reports"),
+        "sample_output_dir": str(root / "sample_output"),
+        "cache_dir": str(root / "cache"),
+    }
+    return smoke_config
+
+
+def _episode_chronicle_summary_for_run(
+    *,
+    config_path: str | Path,
+    paths: dict[str, Any],
+    logger: Any,
+    sample_only: bool,
+    refresh_allowed: bool,
+) -> dict[str, Any]:
+    if sample_only:
+        enabled = False
+        disabled_reason = "サンプル専用実行では本番の市場警戒年代記を更新しません"
+    elif not refresh_allowed:
+        enabled = False
+        disabled_reason = "actual-smokeでは本番の市場警戒年代記を更新しません"
+    else:
+        enabled = True
+        disabled_reason = None
+    result = refresh_episode_chronicle_for_run(
+        reports_dir=paths["reports_dir"],
+        config_path=config_path,
+        logger=logger,
+        enabled=enabled,
+        disabled_reason=disabled_reason,
+    )
+    summary = result.get("summary")
+    return (
+        dict(summary)
+        if isinstance(summary, dict)
+        else {
+            "status": "failed",
+            "reason": "市場警戒年代記の実行結果が不正です",
+            "policy_status": "diagnostic_only_not_promoted",
+            "affects_final_action": False,
+            "promotion_allowed": False,
+        }
+    )
+
+
+def _write_actual_smoke_config(config: dict[str, Any]) -> Path:
+    import yaml
+
+    config_path = Path(config["paths"]["reports_dir"]).parent / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding="utf-8")
+    return config_path
 
 
 def build_parser() -> argparse.ArgumentParser:

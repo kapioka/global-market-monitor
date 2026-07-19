@@ -8,9 +8,8 @@ import subprocess
 import sys
 import zipfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
-
 
 EXCLUDED_PREFIXES = (
     ".git/",
@@ -33,6 +32,10 @@ EXCLUDED_PREFIXES = (
     "release/",
 )
 EXCLUDED_SUFFIXES = (
+    "-shm",
+    "-wal",
+    ".backup",
+    ".bak",
     ".db",
     ".key",
     ".log",
@@ -43,9 +46,14 @@ EXCLUDED_SUFFIXES = (
     ".pyo",
     ".secret",
     ".sqlite",
+    ".sqlite3",
     ".zip",
 )
 EXCLUDED_NAMES = {".env"}
+EXCLUDED_PATHS = {
+    "docs/market_data_storage_baseline.json",
+    "docs/market_data_storage_migration_result.json",
+}
 ALLOWED_EXCLUDED_TRACKED_FILES = {"docs/visual-evidence/.gitkeep"}
 MANIFEST_NAME = "PACKAGE_MANIFEST.json"
 
@@ -64,8 +72,7 @@ def run_git(repo_root: Path, *args: str) -> list[str]:
         cwd=repo_root,
         check=True,
         text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
     )
     return [line for line in result.stdout.splitlines() if line]
 
@@ -81,6 +88,7 @@ def is_excluded(path: str) -> bool:
     lower_name = name.lower()
     return (
         lower_name in EXCLUDED_NAMES
+        or lower_path in EXCLUDED_PATHS
         or any(lower_path.startswith(prefix.lower()) for prefix in EXCLUDED_PREFIXES)
         or any(lower_path.endswith(suffix) for suffix in EXCLUDED_SUFFIXES)
         or ".secret." in lower_path
@@ -113,7 +121,7 @@ def build_manifest(files: list[str], metadata: GitMetadata, archive_name: str) -
     return {
         "name": "global-market-monitor",
         "archive_name": archive_name,
-        "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "generated_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
         "commit": metadata.commit,
         "short_commit": metadata.short_commit,
         "tags": metadata.tags,

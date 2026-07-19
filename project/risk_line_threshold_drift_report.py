@@ -111,6 +111,7 @@ def _drift_for_rule(prices, ticker: str, rule: dict[str, Any], config: dict[str,
         series = prices[ticker].astype(float)
     features = build_feature_values(
         series.dropna(),
+        ticker,
         config["data"].get("monitor_windows_weeks", {"short": 1, "medium": 4, "long": 12}),
         int(config["data"].get("zscore_window_weeks", 52)),
     )

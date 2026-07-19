@@ -20,6 +20,13 @@ github_upload/
 # Local cache / logs
 project/cache/
 project/logs/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3.backup*
+docs/market_data_storage_baseline.json
+docs/market_data_storage_migration_result.json
+docs/visuals/*mockup*.png
 
 # Generated reports and samples
 project/reports/
