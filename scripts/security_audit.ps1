@@ -140,7 +140,7 @@ if (Test-Tool "detect-secrets") {
     $detectOutput = Join-Path $securityDir "detect-secrets.baseline.json"
     $detectResult = Invoke-Capture "detect_secrets_scan" $detectOutput {
         detect-secrets scan --all-files `
-            --exclude-files '^(\.tmp|\.mypy_cache|\.ruff_cache|project[\\/]reports|project[\\/]cache|project[\\/]runtime|project[\\/]\.runtime|\.git|archive|docs[\\/]visual-evidence)([\\/]|$)|^docs[\\/]market_data_storage_(baseline|migration_result)\.json$'
+            --exclude-files '^(\.tmp|\.mypy_cache|\.pytest_cache|\.pytest_tmp|\.ruff_cache|archive|build|dist|release|project[\\/]diagnostics|project[\\/]logs|project[\\/]reports|project[\\/]cache|project[\\/]runtime|project[\\/]\.runtime|project[\\/]sample_output|project[\\/]test_output_history|project[\\/]tests[\\/]_tmp|\.git|docs[\\/]visual-evidence)([\\/]|$)|(^|[\\/])__pycache__([\\/]|$)|^docs[\\/]market_data_storage_(baseline|migration_result)\.json$'
     }
     $detectFindingCount = 0
     try {
