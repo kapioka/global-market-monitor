@@ -997,7 +997,7 @@ def test_render_html_contains_japanese_explanations():
     assert "データ更新:" not in html
     assert "スポット投資判断" in html
     assert "セクター概要" in html
-    sector_start = html.index("<h3>セクター概要</h3>")
+    sector_start = html.index("<h3>3. セクター概要</h3>")
     sector_end = html.index("</section>", sector_start)
     sector_overview = html[sector_start:sector_end]
     sector_header_end = sector_overview.index("</div>")
@@ -1475,6 +1475,7 @@ def test_render_supplement_dashboard_html_maps_all_source_sections():
         "domestic-context-detail-section",
         "hindenburg-history-section",
         "episode-chronicle-launch-section",
+        "asset-candidate-evidence-section",
         "data-acquisition-section",
         "threshold-audit-section",
         "runtime-diagnostics-section",
@@ -1501,6 +1502,61 @@ def test_render_supplement_dashboard_html_maps_all_source_sections():
     assert "SPY" in html
     assert "USDJPY=X" in html
     assert "生活コスト上昇警戒" in html
+
+
+def test_signal_canvas_layout_preserves_content_and_wraps_supplement_below():
+    report = deepcopy(_report())
+    protected_before = {
+        "buy_decision_card": deepcopy(report["buy_decision_card"]),
+        "spot_action_decision": deepcopy(report["spot_signal"]["action_decision"]),
+        "risk_thresholds": deepcopy(report["risk_thresholds"]),
+        "risk_threshold_review": deepcopy(report["risk_threshold_review"]),
+    }
+
+    html = render_html(report)
+    supplement = render_supplement_dashboard_html(report)
+
+    assert '<div class="report-workspace">' in html
+    assert '<div class="report-primary-column">' in html
+    assert '<aside class="supplement-overview-rail"' in html
+    assert "概要（5ポイント）" in html
+    assert "詳細セクション" in html
+    assert html.index("1. まず見る：今日の判断") < html.index("2. 観察候補")
+    assert html.index("2. 観察候補") < html.index("3. セクター概要")
+    assert html.index("3. セクター概要") < html.index("4. 危険ライン")
+    for anchor in [
+        "risk-lines",
+        "resident-context",
+        "domestic-context",
+        "hindenburg-detail",
+        "episode-chronicle",
+        "asset-candidate-evidence",
+        "data-acquisition",
+        "threshold-audit",
+        "runtime-diagnostics",
+        "history-browser",
+    ]:
+        assert f"supplement_dashboard.html#{anchor}" in html
+
+    assert (".report-workspace { display:grid; " "grid-template-columns:minmax(900px,1.38fr) minmax(430px,.9fr);") in html
+    assert "@media (max-width: 1480px)" in html
+    assert ".report-workspace { grid-template-columns:1fr; }" in html
+    assert (".supplement-overview-rail { position:static; " "width:min(100%,980px);") in html
+    assert "box-sizing:border-box" in html
+
+    assert "supplement-evidence-primary" in supplement
+    assert "supplement-evidence-secondary" in supplement
+    assert (".supplement-evidence-grid { " "grid-template-columns:repeat(2,minmax(0,1fr));") in supplement
+    assert "@media (max-width: 1280px)" in supplement
+    assert ".supplement-evidence-grid { grid-template-columns:1fr; }" in supplement
+    assert ".evidence-card .table-wrap { overflow:auto; }" in supplement
+    assert ".evidence-card .table { min-width:680px; }" in supplement
+    assert ".supplement-reading-guide { grid-template-columns:1fr; gap:5px; }" in supplement
+
+    assert report["buy_decision_card"] == protected_before["buy_decision_card"]
+    assert report["spot_signal"]["action_decision"] == protected_before["spot_action_decision"]
+    assert report["risk_thresholds"] == protected_before["risk_thresholds"]
+    assert report["risk_threshold_review"] == protected_before["risk_threshold_review"]
 
 
 def test_render_outputs_include_active_hindenburg_omen_without_decision_impact():
