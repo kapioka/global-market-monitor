@@ -339,8 +339,10 @@ after the contract fixture is frozen.
   newest episode, generation time and freshness state
 - open the full chronicle with `target="_blank"` and `rel="noopener"`; label the
   action explicitly as `市場警戒年代記を別窓で開く`
-- when the chronicle is absent, stale or invalid, keep the supplement dashboard
-  usable, disable the launch action and display the diagnostic reason
+- when the chronicle is absent or invalid, keep the supplement dashboard usable,
+  disable the launch action and display the diagnostic reason
+- when refresh inputs are stale or refresh otherwise fails, keep any validated
+  retained Chronicle viewable and show its generation time plus refresh reason
 - never make chronicle generation a prerequisite for `report.html` or
   `supplement_dashboard.html`
 
@@ -601,13 +603,13 @@ market report and all protected production-decision surfaces.
    built: once in `run_with_backfill` for the whole backfill batch and once in
    `run_monitor` for a normal or scheduled run. Never invoke it for each
    backfill date.
-3. Pass the resulting Chronicle summary explicitly into `build_report`. A
-   successful result enables the separate-window launcher; a failed, busy or
-   unavailable result disables the launcher for that report rather than
-   presenting a retained older page as current.
+3. Pass the resulting Chronicle summary explicitly into `build_report`.
+   Successful refresh enables the separate-window launcher, while failed, busy
+   or unavailable refresh keeps a validated retained Chronicle viewable with its
+   original generation time and an explicit refresh-status message.
 4. Do not regenerate production Chronicle artifacts in `--sample-only` or
-   `--actual-smoke`. Those modes receive an explicit non-publishable summary and
-   must not mutate the production report directory.
+   `--actual-smoke`. Those modes may display a validated retained Chronicle when
+   it exists, but must not mutate the Chronicle files.
 5. Reuse the existing fingerprint no-op, freshness reconciliation, shadow
    contract checks, generation lock, temporary validation, atomic pair replace
    and rollback behavior. Do not add retries or polling loops.
@@ -636,9 +638,9 @@ Implementation outcome:
   explicitly skip production Chronicle generation.
 - `project/pipeline.py` accepts the per-run summary override while retaining its
   existing disk loader as the compatibility default for other callers.
-- a failed, unavailable or busy refresh leaves the previous publication files
-  untouched but passes a non-publishable summary, so the supplement launcher is
-  disabled rather than presenting retained output as current.
+- a failed, unavailable or busy refresh leaves the previous Chronicle files
+  untouched and supplies a validated retained summary, so every saved episode
+  remains viewable without presenting its generation time as a new refresh.
 - an existing output pair must now pass the complete schema, shadow, freshness,
   generation-ID and offline-HTML checks before it can return `no_change`.
 - focused integration and Risk Engine V2 validation passed 177 tests; Ruff,

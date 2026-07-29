@@ -36,7 +36,7 @@ def test_refresh_returns_validated_ready_summary(monkeypatch, tmp_path) -> None:
     result = refresh_episode_chronicle_for_run(tmp_path, tmp_path / "config.yaml", logging.getLogger("test"))
 
     assert result["status"] == "generated"
-    assert result["publishable"] is True
+    assert result["viewable"] is True
     assert result["summary"]["status"] == "ready"
     assert result["summary"]["refresh_status"] == "generated"
     assert result["source_fingerprint"] == "abc"
@@ -55,7 +55,7 @@ def test_refresh_no_change_uses_same_validated_summary(monkeypatch, tmp_path) ->
     result = refresh_episode_chronicle_for_run(tmp_path, tmp_path / "config.yaml", logging.getLogger("test"))
 
     assert result["status"] == "no_change"
-    assert result["publishable"] is True
+    assert result["viewable"] is True
     assert result["summary"]["refresh_status"] == "no_change"
 
 
@@ -67,6 +67,10 @@ def test_disabled_refresh_never_calls_generator(monkeypatch, tmp_path) -> None:
         "project.risk_engine_v2_episode_chronicle_runtime.run_risk_engine_v2_episode_chronicle",
         fail_if_called,
     )
+    monkeypatch.setattr(
+        "project.risk_engine_v2_episode_chronicle_runtime.load_risk_engine_v2_episode_chronicle_summary",
+        lambda _path: _ready_summary(),
+    )
 
     result = refresh_episode_chronicle_for_run(
         tmp_path,
@@ -77,12 +81,14 @@ def test_disabled_refresh_never_calls_generator(monkeypatch, tmp_path) -> None:
     )
 
     assert result["status"] == "unavailable"
-    assert result["publishable"] is False
+    assert result["viewable"] is True
+    assert result["summary"]["status"] == "ready"
+    assert result["summary"]["archive_status"] == "retained"
     assert result["summary"]["affects_final_action"] is False
     assert "sample-only" in result["summary"]["reason"]
 
 
-def test_busy_refresh_is_non_publishable_and_does_not_load_old_output(monkeypatch, tmp_path) -> None:
+def test_busy_refresh_keeps_validated_retained_archive_viewable(monkeypatch, tmp_path) -> None:
     def raise_busy(**_kwargs):
         raise ChronicleBusyError("already active")
 
@@ -92,14 +98,17 @@ def test_busy_refresh_is_non_publishable_and_does_not_load_old_output(monkeypatc
     )
     monkeypatch.setattr(
         "project.risk_engine_v2_episode_chronicle_runtime.load_risk_engine_v2_episode_chronicle_summary",
-        lambda _path: (_ for _ in ()).throw(AssertionError("old output must not be presented as current")),
+        lambda _path: _ready_summary(),
     )
 
     result = refresh_episode_chronicle_for_run(tmp_path, tmp_path / "config.yaml", logging.getLogger("test"))
 
     assert result["status"] == "busy"
-    assert result["publishable"] is False
-    assert result["summary"]["status"] == "busy"
+    assert result["viewable"] is True
+    assert result["summary"]["status"] == "ready"
+    assert result["summary"]["refresh_status"] == "busy"
+    assert result["summary"]["archive_status"] == "retained"
+    assert result["summary"]["freshness_status"] == "historical"
 
 
 def test_invalid_source_isolated_from_parent_run(monkeypatch, tmp_path) -> None:
@@ -110,11 +119,17 @@ def test_invalid_source_isolated_from_parent_run(monkeypatch, tmp_path) -> None:
         "project.risk_engine_v2_episode_chronicle_runtime.run_risk_engine_v2_episode_chronicle",
         raise_invalid,
     )
+    monkeypatch.setattr(
+        "project.risk_engine_v2_episode_chronicle_runtime.load_risk_engine_v2_episode_chronicle_summary",
+        lambda _path: _ready_summary(),
+    )
 
     result = refresh_episode_chronicle_for_run(tmp_path, tmp_path / "config.yaml", logging.getLogger("test"))
 
     assert result["status"] == "unavailable"
-    assert result["publishable"] is False
+    assert result["viewable"] is True
+    assert result["summary"]["status"] == "ready"
+    assert result["summary"]["archive_status"] == "retained"
     assert result["summary"]["policy_status"] == "diagnostic_only_not_promoted"
     assert result["summary"]["promotion_allowed"] is False
 
@@ -127,11 +142,16 @@ def test_unexpected_failure_isolated_and_reported(monkeypatch, tmp_path) -> None
         "project.risk_engine_v2_episode_chronicle_runtime.run_risk_engine_v2_episode_chronicle",
         raise_unexpected,
     )
+    monkeypatch.setattr(
+        "project.risk_engine_v2_episode_chronicle_runtime.load_risk_engine_v2_episode_chronicle_summary",
+        lambda _path: _ready_summary(),
+    )
 
     result = refresh_episode_chronicle_for_run(tmp_path, tmp_path / "config.yaml", logging.getLogger("test"))
 
     assert result["status"] == "failed"
-    assert result["publishable"] is False
+    assert result["viewable"] is True
+    assert result["summary"]["archive_status"] == "retained"
     assert "既存成果物は保持" in result["reason"]
 
 
@@ -148,5 +168,5 @@ def test_generated_output_must_pass_summary_loader(monkeypatch, tmp_path) -> Non
     result = refresh_episode_chronicle_for_run(tmp_path, tmp_path / "config.yaml", logging.getLogger("test"))
 
     assert result["status"] == "failed"
-    assert result["publishable"] is False
+    assert result["viewable"] is False
     assert result["summary"]["status"] == "failed"

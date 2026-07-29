@@ -889,8 +889,6 @@ def load_risk_engine_v2_episode_chronicle_summary(reports_dir: str | Path | None
         violations.append("implementation_version")
     if payload.get("status") != "ready":
         violations.append("status")
-    if payload.get("freshness_status") != "current":
-        violations.append("freshness_status")
     if payload.get("policy_status") != "diagnostic_only_not_promoted":
         violations.append("policy_status")
     if payload.get("affects_final_action") is not False:

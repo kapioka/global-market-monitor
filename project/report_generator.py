@@ -3710,6 +3710,7 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
         )
         or "<div class='sector-overview-empty'>セクター概要データなし</div>"
     )
+    sector_overview_svg = _render_sector_rotation_svg(report.get("sector_rotation", {}), sector_context)
     history_payload = _build_history_embed_payload(history_entries or [])
     history_payload_json = json.dumps(history_payload, ensure_ascii=False).replace("</", "<\\/")
     approved_report_dashboard_html = _approved_report_dashboard_html(report)
@@ -4182,9 +4183,10 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .decision-reasons li::before {{ content:'●'; color:#c53030; font-size:13px; line-height:1.3; }}
     .candidate-inline {{ margin-top:8px; color:#52606d; font-size:13px; }}
     .candidate-inline strong {{ color:#7c4a00; }}
-    .pre-supplement-grid {{ display:grid; grid-template-columns:minmax(0,.86fr) minmax(0,1fr) minmax(0,1.32fr); gap:16px; margin-top:18px; margin-bottom:18px; align-items:stretch; }}
+    .pre-supplement-grid {{ display:grid; grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr); gap:16px; margin-top:18px; margin-bottom:18px; align-items:stretch; }}
     .pre-supplement-grid .mini-panel, .pre-supplement-grid .overview-panel {{ box-sizing:border-box; height:auto; min-height:420px; }}
     .pre-supplement-grid .sector-overview-row {{ grid-template-columns:44px 112px minmax(0,1fr) 54px; }}
+    .sector-compact-panel {{ grid-column:1 / -1; }}
     .mini-grid {{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-top:18px; align-items:stretch; }}
     .mini-panel {{ box-sizing:border-box; padding:16px 18px; min-height:188px; height:100%; display:flex; flex-direction:column; }}
     .mini-content {{ margin-top:12px; }}
@@ -4237,7 +4239,18 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
     .overview-panel {{ padding:16px 18px; }}
     .overview-panel-head {{ display:flex; align-items:center; justify-content:space-between; gap:14px; }}
     .overview-panel-head h3 {{ margin:0; }}
-    .sector-overview-layout {{ margin-top:12px; display:block; }}
+    .sector-overview-layout {{ margin-top:12px; display:grid; grid-template-columns:minmax(0,1.18fr) minmax(360px,.82fr); gap:22px; align-items:center; }}
+    .sector-overview-chart {{ min-width:0; padding:10px 12px 8px; border:1px solid #e1e8ef; border-radius:14px; background:#fbfdff; }}
+    .sector-overview-chart svg {{ display:block; width:100%; height:auto; max-height:500px; }}
+    .sector-overview-legend {{ display:flex; flex-wrap:wrap; gap:8px 14px; margin-top:8px; color:#52606d; font-size:12px; line-height:1.4; }}
+    .sector-overview-legend span {{ display:inline-flex; align-items:center; gap:6px; }}
+    .sector-overview-legend i {{ display:inline-block; border-radius:999px; }}
+    .sector-overview-legend .two-weeks-ago {{ width:7px; height:7px; background:#aab6c2; opacity:.3; }}
+    .sector-overview-legend .previous {{ width:8px; height:8px; background:#9aa9b8; opacity:.48; }}
+    .sector-overview-legend .current {{ width:11px; height:11px; background:#173f7a; box-shadow:0 0 0 2px #fff, 0 0 0 3px #b9c7d5; }}
+    .sector-overview-legend .move {{ width:22px; height:3px; border-radius:2px; background:linear-gradient(90deg,#a8b4c0,#173f7a); }}
+    .sector-overview-side {{ min-width:0; align-self:stretch; display:flex; flex-direction:column; }}
+    .sector-overview-side .momentum-side {{ margin-bottom:12px; }}
     .sector-overview-wrap {{ min-width:0; }}
     .sector-overview-row {{ display:grid; grid-template-columns:44px 124px minmax(0,1fr) 54px; gap:10px; align-items:center; margin-top:10px; }}
     .sector-overview-tone {{ font-size:13px; font-weight:700; }}
@@ -4361,8 +4374,9 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       .buy-steps {{ grid-template-columns:1fr; }}
       .readiness-panel {{ border-left:0; border-top:1px solid var(--line); padding-left:0; padding-top:14px; }}
       .sector-overview-layout {{ grid-template-columns:1fr; gap:12px; }}
+      .sector-compact-panel {{ grid-column:auto; }}
       .overview-panel-head {{ align-items:flex-start; }}
-      .momentum-side {{ justify-content:flex-start; }}
+      .momentum-side {{ justify-content:flex-end; }}
       .history-embed-head {{ grid-template-columns:1fr; }}
       .history-embed-side {{ width:100%; }}
       .history-embed-strip {{ grid-template-columns:1fr; }}
@@ -4524,13 +4538,24 @@ def render_html(report: dict[str, Any], history_entries: list[dict[str, Any]] | 
       <section class=\"overview-panel sector-compact-panel\">
         <div class=\"overview-panel-head\">
           <h3>セクター概要</h3>
-          <div class=\"momentum-side\">
-            <div class=\"momentum-card\"><div class=\"momentum-title\">相対モメンタム</div><div class=\"momentum-scale\"></div><div class=\"momentum-labels\"><span>弱</span><span>中立</span><span>強</span></div></div>
-          </div>
         </div>
         <div class=\"sector-overview-layout\">
-          <div class=\"sector-overview-wrap\">
-            {sector_overview_html}
+          <div class=\"sector-overview-chart\">
+            {sector_overview_svg}
+            <div class=\"sector-overview-legend\" aria-label=\"セクター移動の凡例\">
+              <span><i class=\"two-weeks-ago\"></i>2週前の位置</span>
+              <span><i class=\"previous\"></i>先週の位置</span>
+              <span><i class=\"move\"></i>2週前から現在への軌跡</span>
+              <span><i class=\"current\"></i>現在の位置</span>
+            </div>
+          </div>
+          <div class=\"sector-overview-side\">
+            <div class=\"momentum-side\">
+              <div class=\"momentum-card\"><div class=\"momentum-title\">相対モメンタム</div><div class=\"momentum-scale\"></div><div class=\"momentum-labels\"><span>弱</span><span>中立</span><span>強</span></div></div>
+            </div>
+            <div class=\"sector-overview-wrap\">
+              {sector_overview_html}
+            </div>
           </div>
         </div>
       </section>
@@ -5046,20 +5071,22 @@ def _render_sector_rotation_svg(sector_rotation: dict[str, Any], sector_context:
         x_mid, y_mid = scale_point(point_mid)
         x_cur, y_cur = scale_point(point_cur)
         base_color = _sector_base_color(ticker)
-        middle_color = _blend_hex_color(base_color, "#cbd5e0", 0.45)
+        middle_color = _blend_hex_color(base_color, "#dbe3ea", 0.68)
         tooltip = html.escape(_sector_tooltip(ticker, row, analysis))
         label = html.escape(ticker)
         candidate_label = html.escape(str(analysis.get("candidate_label", "")))
         show_label = bool(candidate_label)
 
-        previous_vectors.append(_sector_vector_segment(x_old, y_old, x_mid, y_mid, middle_color, tooltip, 2.2))
+        previous_vectors.append(_sector_vector_segment(x_old, y_old, x_mid, y_mid, middle_color, tooltip, 1.8))
         current_vectors.append(_sector_vector_segment(x_mid, y_mid, x_cur, y_cur, base_color, tooltip, 2.8))
-        old_points.append(f"<circle cx='{x_old:.1f}' cy='{y_old:.1f}' r='4.2' fill='#d4d8dd'><title>{tooltip}</title></circle>")
+        old_points.append(
+            f"<circle class='sector-two-weeks-ago-point' cx='{x_old:.1f}' cy='{y_old:.1f}' r='3.4' fill='{middle_color}' fill-opacity='0.3' stroke='#ffffff' stroke-width='0.7'><title>{tooltip}</title></circle>"
+        )
         mid_points.append(
-            f"<circle cx='{x_mid:.1f}' cy='{y_mid:.1f}' r='5' fill='{middle_color}' stroke='#ffffff' stroke-width='0.8'><title>{tooltip}</title></circle>"
+            f"<circle class='sector-previous-point' cx='{x_mid:.1f}' cy='{y_mid:.1f}' r='4.2' fill='{middle_color}' fill-opacity='0.58' stroke='#ffffff' stroke-width='0.8'><title>{tooltip}</title></circle>"
         )
         current_points_svg.append(
-            f"<circle cx='{x_cur:.1f}' cy='{y_cur:.1f}' r='6.2' fill='{base_color}' stroke='#ffffff' stroke-width='0.9'><title>{tooltip}</title></circle>"
+            f"<circle class='sector-current-point' cx='{x_cur:.1f}' cy='{y_cur:.1f}' r='6.2' fill='{base_color}' stroke='#ffffff' stroke-width='0.9'><title>{tooltip}</title></circle>"
         )
         labels.append(f"<text x='{x_cur + 8:.1f}' y='{y_cur - 8:.1f}' font-size='11' font-weight='700' fill='#1f2933'>{label}</text>")
         if show_label:
@@ -5677,7 +5704,6 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
     chronicle_page = episode_chronicle.get("page_filename")
     chronicle_ready = (
         episode_chronicle.get("status") == "ready"
-        and episode_chronicle.get("freshness_status") == "current"
         and episode_chronicle.get("policy_status") == "diagnostic_only_not_promoted"
         and episode_chronicle.get("affects_final_action") is False
         and episode_chronicle.get("promotion_allowed") is False
@@ -5689,7 +5715,12 @@ def render_supplement_dashboard_html(report: dict[str, Any], history_entries: li
             f'<a class="chronicle-launch" href="{esc(chronicle_page)}" target="_blank" rel="noopener">'
             '市場警戒年代記を別窓で開く <span aria-hidden="true">↗</span></a>'
         )
-        chronicle_state = '<span class="chronicle-state ready">閲覧可能</span>'
+        chronicle_state_label = (
+            "保存済みを閲覧可能"
+            if episode_chronicle.get("archive_status") == "retained"
+            else "閲覧可能"
+        )
+        chronicle_state = f'<span class="chronicle-state ready">{chronicle_state_label}</span>'
     else:
         chronicle_action = '<span class="chronicle-launch disabled" aria-disabled="true">市場警戒年代記は現在開けません</span>'
         chronicle_state = '<span class="chronicle-state unavailable">未生成・更新待ち</span>'

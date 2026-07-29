@@ -895,7 +895,9 @@ def _load_publication_sources(
         raise ChronicleBuildError("artifact freshness reconciliation is not consistent")
     snapshot_status = (freshness.get("artifact_snapshot") or {}).get("status")
     if snapshot_status != "current":
-        raise ChronicleBuildError(f"artifact freshness snapshot is not publishable: {snapshot_status}")
+        if snapshot_status == "historical":
+            raise ChronicleBuildError("入力成果物が更新期限を超えています")
+        raise ChronicleBuildError(f"入力成果物の鮮度状態が更新条件を満たしません（状態: {snapshot_status}）")
 
     sources: dict[str, dict[str, Any]] = {}
     source_artifacts: list[dict[str, Any]] = []

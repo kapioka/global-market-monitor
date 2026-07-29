@@ -997,6 +997,23 @@ def test_render_html_contains_japanese_explanations():
     assert "データ更新:" not in html
     assert "スポット投資判断" in html
     assert "セクター概要" in html
+    sector_start = html.index("<h3>セクター概要</h3>")
+    sector_end = html.index("</section>", sector_start)
+    sector_overview = html[sector_start:sector_end]
+    sector_header_end = sector_overview.index("</div>")
+    sector_side_start = sector_overview.index('<div class="sector-overview-side">')
+    momentum_start = sector_overview.index('<div class="momentum-side">', sector_side_start)
+    bars_start = sector_overview.index('<div class="sector-overview-wrap">', sector_side_start)
+    assert "momentum-card" not in sector_overview[:sector_header_end]
+    assert sector_side_start < momentum_start < bars_start
+    assert "セクターローテーション図" in sector_overview
+    assert "2週前の位置" in sector_overview
+    assert "先週の位置" in sector_overview
+    assert "2週前から現在への軌跡" in sector_overview
+    assert "現在の位置" in sector_overview
+    assert "sector-two-weeks-ago-point" in sector_overview
+    assert "sector-previous-point" in sector_overview
+    assert "sector-current-point" in sector_overview
     assert "アラート" in html
     assert "データ健全性" in html
     assert "データ品質上限" in html
@@ -1543,6 +1560,32 @@ def test_supplement_opens_ready_episode_chronicle_in_separate_window_without_dec
     assert "2026年7月17日 — 警戒局面" in supplement
     assert report["buy_decision_card"]["final_action"] == before_action
     assert report["buy_decision_card"]["buy_readiness_score"] == before_score
+
+
+def test_supplement_keeps_retained_episode_chronicle_viewable_after_refresh_failure():
+    report = deepcopy(_report())
+    report["risk_engine_v2_episode_chronicle"] = {
+        "status": "ready",
+        "freshness_status": "historical",
+        "refresh_status": "unavailable",
+        "archive_status": "retained",
+        "reason": "更新用の入力は期限超過です。保存済みの市場警戒年代記は引き続き閲覧できます。",
+        "policy_status": "diagnostic_only_not_promoted",
+        "affects_final_action": False,
+        "promotion_allowed": False,
+        "page_filename": "risk_engine_v2_episode_chronicle.html",
+        "episode_count": 18,
+        "mature_count": 16,
+        "pending_count": 2,
+        "latest_event_title": "2026年7月17日 — 警戒局面",
+        "generated_at": "2026-07-19T00:00:00+00:00",
+    }
+
+    supplement = render_supplement_dashboard_html(report)
+
+    assert "保存済みを閲覧可能" in supplement
+    assert 'href="risk_engine_v2_episode_chronicle.html"' in supplement
+    assert "市場警戒年代記は現在開けません" not in supplement
 
 
 def test_supplement_disables_episode_chronicle_when_contract_is_not_ready():

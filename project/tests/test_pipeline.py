@@ -89,6 +89,6 @@ def test_load_episode_chronicle_summary_is_fail_closed(tmp_path: Path) -> None:
 
     payload["freshness_status"] = "historical"
     path.write_text(json.dumps(payload), encoding="utf-8")
-    stale = load_risk_engine_v2_episode_chronicle_summary(tmp_path)
-    assert stale["status"] == "invalid"
-    assert "freshness_status" in stale["reason"]
+    historical = load_risk_engine_v2_episode_chronicle_summary(tmp_path)
+    assert historical["status"] == "ready"
+    assert historical["freshness_status"] == "historical"
