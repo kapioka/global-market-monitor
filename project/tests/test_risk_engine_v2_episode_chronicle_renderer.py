@@ -43,3 +43,17 @@ def test_renderer_escapes_embedded_script_termination() -> None:
 
     assert "</script><script>bad()" not in html
     assert "\\u003c/script\\u003e" in html
+
+
+def test_renderer_escapes_metadata_outside_embedded_json() -> None:
+    payload = _build()
+    payload["generation_id"] = 'fixture" onmouseover="bad()'
+    payload["generated_at"] = "${bad()}`</script><script>bad()</script>"
+
+    html = render_episode_chronicle_html(payload)
+
+    assert 'data-generation-id="fixture&quot; onmouseover=&quot;bad()"' in html
+    assert "__GENERATED_AT__" not in html
+    assert "生成 ${String(DATA.generated_at || '-')}" in html
+    assert "${bad()}`</script><script>bad()" not in html
+    assert "\\u003c/script\\u003e" in html

@@ -6,7 +6,6 @@ from pathlib import Path
 from project.history_dashboard import load_history_entries, render_dashboard_html, write_dashboard
 
 
-
 def _history_payload(generated_at: str, score: float, regime: str) -> dict:
     return {
         "title": "Test Report",
@@ -26,7 +25,11 @@ def _history_payload(generated_at: str, score: float, regime: str) -> dict:
             "adjusted_score": round(score - 0.05, 2),
             "regime_penalty": 0.05,
             "risk_off_relief_applied": regime == "risk_off" and score >= 0.48,
-            "recovery_evidence": {"score": round(score - 0.02, 2), "grade": "confirmed" if score >= 0.6 else "building", "summary": "phase2"},
+            "recovery_evidence": {
+                "score": round(score - 0.02, 2),
+                "grade": "confirmed" if score >= 0.6 else "building",
+                "summary": "phase2",
+            },
             "blocker_assessment": {"level": "none" if regime == "risk_on" else "caution", "summary": "phase2 blocker"},
             "action_decision": {"action": "buy_window" if regime == "risk_on" else "watch", "mode": "phase2"},
             "rationale": ["score check", "cycle check"],
@@ -64,7 +67,7 @@ def _history_payload(generated_at: str, score: float, regime: str) -> dict:
                     "y_current": 0.8,
                     "avg_length_12w": 0.3,
                 }
-            ]
+            ],
         },
         "asset_compare": [
             {
@@ -130,9 +133,7 @@ def test_load_history_entries_summarizes_reports(tmp_path: Path):
     history_dir.mkdir(parents=True, exist_ok=True)
 
     payload = _history_payload("2026-03-19T21:20:30", 0.61, "risk_on")
-    (history_dir / "report_2026-03-19_212030.json").write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    (history_dir / "report_2026-03-19_212030.json").write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
     entries = load_history_entries(history_dir)
     assert len(entries) == 1
@@ -159,15 +160,9 @@ def test_write_dashboard_creates_interactive_html(tmp_path: Path):
     first = _history_payload("2026-03-19T21:20:30", 0.61, "risk_on")
     second = _history_payload("2026-03-19T21:25:30", 0.42, "risk_off")
     (work_dir / "reports").mkdir(parents=True, exist_ok=True)
-    (history_dir / "report_2026-03-19_212030.json").write_text(
-        json.dumps(first, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    (history_dir / "report_2026-03-19_212530.json").write_text(
-        json.dumps(second, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    (work_dir / "reports" / "report_summary.json").write_text(
-        json.dumps(second, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    (history_dir / "report_2026-03-19_212030.json").write_text(json.dumps(first, ensure_ascii=False, indent=2), encoding="utf-8")
+    (history_dir / "report_2026-03-19_212530.json").write_text(json.dumps(second, ensure_ascii=False, indent=2), encoding="utf-8")
+    (work_dir / "reports" / "report_summary.json").write_text(json.dumps(second, ensure_ascii=False, indent=2), encoding="utf-8")
 
     dashboard_path = write_dashboard(work_dir / "reports")
     html = dashboard_path.read_text(encoding="utf-8")
@@ -213,10 +208,10 @@ def test_write_dashboard_creates_interactive_html(tmp_path: Path):
     assert "先回り候補の詳細" in html
     assert "レジーム先回り候補の詳細" in html
     assert '"meta": {' in html
-    assert '<polygon' in html
-    assert 'report.html' in html
-    assert '最新レポートを見る' in html
-    assert '先々週・先週・今週の3点と2本のベクトル' in html
+    assert "<polygon" in html
+    assert "report.html" in html
+    assert "最新レポートを見る" in html
+    assert "先々週・先週・今週の3点と2本のベクトル" in html
 
 
 def test_render_dashboard_html_handles_empty_history():
@@ -225,3 +220,20 @@ def test_render_dashboard_html_handles_empty_history():
     assert '"history": []' in html
     assert '"current_run": null' in html
     assert '"primary_basis": "daily_latest"' in html
+
+
+def test_render_dashboard_html_neutralizes_script_breakout_and_untrusted_html(tmp_path: Path):
+    history_dir = tmp_path / "reports" / "history"
+    history_dir.mkdir(parents=True, exist_ok=True)
+    payload = _history_payload("2026-03-19T21:20:30", 0.61, "risk_on")
+    payload["alerts"][0]["title"] = "</script><script>window.bad()</script>"
+    payload["alerts"][0]["message"] = '<img src=x onerror="window.bad()">'
+    (history_dir / "report_2026-03-19_212030.json").write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    html = render_dashboard_html(load_history_entries(history_dir))
+
+    assert "</script><script>window.bad()" not in html
+    assert "\\u003c/script\\u003e\\u003cscript\\u003ewindow.bad()" in html
+    assert "if (text.includes('<')) return text;" not in html
+    assert "value instanceof SafeHtml" in html
+    assert "escapeHtml(alert.title || '-')" in html

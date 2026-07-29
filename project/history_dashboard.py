@@ -6,7 +6,6 @@ from typing import Any
 
 from project.action_schema import ACTION_LABELS_JA
 
-
 REGIME_LABELS = {
     "risk_on": "リスクオン",
     "transition": "移行局面",
@@ -1129,6 +1128,20 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         .replace(/'/g, '&#39;');
     }
 
+    class SafeHtml {
+      constructor(value) {
+        this.value = String(value);
+      }
+
+      toString() {
+        return this.value;
+      }
+    }
+
+    function safeHtml(value) {
+      return new SafeHtml(value);
+    }
+
     function severityTone(value) {
       if (value === 'extreme') return 'extreme';
       if (value === 'high') return 'danger';
@@ -1137,9 +1150,10 @@ DASHBOARD_TEMPLATE = """<!doctype html>
     }
 
     function formatSeverityInline(label, tone) {
-      if (!label) return '-';
-      if (tone === 'normal') return label;
-      return `<span class="severity-inline ${tone}">${label}</span>`;
+      const escapedLabel = escapeHtml(label || '-');
+      const safeTone = ['extreme', 'danger', 'caution'].includes(tone) ? tone : 'normal';
+      if (safeTone === 'normal') return safeHtml(escapedLabel);
+      return safeHtml(`<span class="severity-inline ${safeTone}">${escapedLabel}</span>`);
     }
 
     function actionTone(value) {
@@ -1190,9 +1204,9 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         (current, { pattern, tone }) => current.replace(pattern, (match) => `<span class="severity-inline ${tone}">${match}</span>`),
         protectedText,
       );
-      return emphasized
+      return safeHtml(emphasized
         .replace(/__KEEP_RISK_LINE__/g, '危険ライン')
-        .replace(/__KEEP_CAUTION_LINE__/g, '警戒ライン');
+        .replace(/__KEEP_CAUTION_LINE__/g, '警戒ライン'));
     }
 
     function setDetailCopy(value, emphasize = true) {
@@ -1200,11 +1214,11 @@ DASHBOARD_TEMPLATE = """<!doctype html>
     }
 
     function decorateAttentionValue(value, emphasize = true) {
+      if (value instanceof SafeHtml) return value.toString();
       const raw = value ?? '-';
       const text = typeof raw === 'string' ? raw : String(raw);
       if (!emphasize) return escapeHtml(text);
-      if (text.includes('<')) return text;
-      return emphasizeRiskText(text);
+      return emphasizeRiskText(text).toString();
     }
 
     function riskStageTone(stageKey) {
@@ -1217,8 +1231,9 @@ DASHBOARD_TEMPLATE = """<!doctype html>
     function formatRiskStageInline(riskLines) {
       const label = riskLines?.stage_label || '-';
       const tone = riskStageTone(riskLines?.stage_key || 'normal');
-      if (tone === 'normal') return label;
-      return `<span class="risk-stage-inline ${tone}">${label}</span>`;
+      const escapedLabel = escapeHtml(label);
+      if (tone === 'normal') return safeHtml(escapedLabel);
+      return safeHtml(`<span class="risk-stage-inline ${tone}">${escapedLabel}</span>`);
     }
 
     function internalWarningLabel(entry) {
@@ -1230,10 +1245,10 @@ DASHBOARD_TEMPLATE = """<!doctype html>
     }
 
     function formatTimestampStacked(value) {
-      if (!value) return 'なし';
+      if (!value) return safeHtml('なし');
       const parts = String(value).split('T');
-      if (parts.length !== 2) return String(value);
-      return `${parts[0]}<br>${parts[1]}`;
+      if (parts.length !== 2) return safeHtml(escapeHtml(value));
+      return safeHtml(`${escapeHtml(parts[0])}<br>${escapeHtml(parts[1])}`);
     }
 
     function formatStatusCounts(summary) {
@@ -1289,7 +1304,11 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         return;
       }
       target.className = 'badge-row';
-      target.innerHTML = badges.map((badge) => `<span class="badge badge-${badge.tone || 'neutral'}">${badge.label}</span>`).join('');
+      const allowedTones = new Set(['neutral', 'credit', 'inflation', 'relief']);
+      target.innerHTML = badges.map((badge) => {
+        const tone = allowedTones.has(badge.tone) ? badge.tone : 'neutral';
+        return `<span class="badge badge-${tone}">${escapeHtml(badge.label)}</span>`;
+      }).join('');
     }
 
     function renderCalibrationSummary() {
@@ -1337,12 +1356,12 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       el('currentRunUnavailableCount').textContent = String(unavailableCount);
       el('currentRunWarningCount').textContent = String((entry.warnings || []).length);
 
-      const head = ['要求系列', '状態', '実使用系列', '説明'].map((header) => `<th>${header}</th>`).join('');
+      const head = ['要求系列', '状態', '実使用系列', '説明'].map((header) => `<th>${escapeHtml(header)}</th>`).join('');
       const rows = (entry.availability || []).map((row) => (
         `<tr><td>${cellWithSub(row.requested_ticker || '-', row.requested_ticker_name_ja)}</td>` +
         `<td>${row.status === 'ok' ? '取得成功' : row.status === 'proxy_fallback' ? '代替ティッカーで取得' : row.status === 'sample_fallback' ? 'サンプル代替' : '未取得'}</td>` +
         `<td>${cellWithSub(row.used_ticker || '-', row.used_ticker_name_ja)}</td>` +
-        `<td>${row.message || '-'}</td></tr>`
+        `<td>${escapeHtml(row.message || '-')}</td></tr>`
       )).join('');
       wrap.innerHTML = rows
         ? `<table class="list-table"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`
@@ -1350,11 +1369,11 @@ DASHBOARD_TEMPLATE = """<!doctype html>
     }
 
     function cellWithSub(value, sub) {
-      return `${value || '-'}${sub ? `<small>${sub}</small>` : ''}`;
+      return safeHtml(`${escapeHtml(value || '-')}${sub ? `<small>${escapeHtml(sub)}</small>` : ''}`);
     }
 
     function plainInline(value) {
-      return `<span class="plain-inline">${escapeHtml(value || '-')}</span>`;
+      return safeHtml(`<span class="plain-inline">${escapeHtml(value || '-')}</span>`);
     }
 
     function pulseMetric(name) {
@@ -1380,7 +1399,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         wrap.innerHTML = '<div class=\"detail-empty\">追加の明細はありません。</div>';
         return;
       }
-      const head = headers.map((header) => `<th>${header}</th>`).join('');
+      const head = headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('');
       const body = rows.map((row) => `<tr>${row.map((cell) => `<td>${decorateAttentionValue(cell)}</td>`).join('')}</tr>`).join('');
       wrap.innerHTML = `<table class=\"list-table\"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
     }
@@ -1389,16 +1408,20 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       if (!alerts.length) {
         return '<div class="detail-empty">この時点では追加の警告はありません。</div>';
       }
-      return `<div class="alert-stack">${alerts.map((alert) => `
-        <article class="alert-card ${alert.severity || 'low'}">
-          <h4>${alert.title || '-'}</h4>
+      return `<div class="alert-stack">${alerts.map((alert) => {
+        const severity = ['high', 'moderate', 'low'].includes(alert.severity) ? alert.severity : 'low';
+        const badgeTone = severity === 'high' ? 'inflation' : severity === 'moderate' ? 'credit' : 'neutral';
+        return `
+        <article class="alert-card ${severity}">
+          <h4>${escapeHtml(alert.title || '-')}</h4>
           <div class="badge-row">
-            <span class="badge badge-neutral">${alert.category_label || '-'}</span>
-            <span class="badge badge-${alert.severity === 'high' ? 'inflation' : alert.severity === 'moderate' ? 'credit' : 'neutral'}">${formatAlertSeverityInline(alert)}</span>
+            <span class="badge badge-neutral">${escapeHtml(alert.category_label || '-')}</span>
+            <span class="badge badge-${badgeTone}">${formatAlertSeverityInline(alert)}</span>
           </div>
-          <p>${alert.message || '-'}</p>
+          <p>${escapeHtml(alert.message || '-')}</p>
         </article>
-      `).join('')}</div>`;
+      `;
+      }).join('')}</div>`;
     }
 
     function buildSectorRotationSvgLegacy(rows) {
@@ -1438,8 +1461,10 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         const labelY = cy + labelRadius * Math.sin(angle) + 4;
         const anchor = labelX >= cx + 14 ? 'start' : labelX <= cx - 14 ? 'end' : 'middle';
         const color = colors[row.rotation_phase] || '#7a5c4d';
-        parts.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" fill="${color}"><title>${row.ticker} ${row.sector_name_ja || row.ticker} / ${formatSigned(row.return_12w, 4)}</title></circle>`);
-        parts.push(`<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="${anchor}" font-size="11.5" fill="#243b53">${row.ticker}</text>`);
+        const ticker = escapeHtml(row.ticker || '-');
+        const sectorLabel = escapeHtml(row.sector_name_ja || row.ticker || '-');
+        parts.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6" fill="${color}"><title>${ticker} ${sectorLabel} / ${formatSigned(row.return_12w, 4)}</title></circle>`);
+        parts.push(`<text x="${labelX.toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="${anchor}" font-size="11.5" fill="#243b53">${ticker}</text>`);
       });
       parts.push('</svg>');
       return parts.join('');
@@ -1688,10 +1713,10 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         if (ticker) acc[ticker] = true;
         return acc;
       }, {}) : {};
-      const tableHead = ['順位', 'ティッカー', '日本語', '12週騰落率', '位置'].map((header) => `<th>${header}</th>`).join('');
+      const tableHead = ['順位', 'ティッカー', '日本語', '12週騰落率', '位置'].map((header) => `<th>${escapeHtml(header)}</th>`).join('');
       const tableBody = rows.map((row) => {
         const labelBadge = historyFlags[row.ticker || ''] ? '<br><span class="sector-label-badge">履歴あり</span>' : '';
-        return `<tr><td>${row.rank ?? '-'}</td><td>${row.ticker || '-'}</td><td>${row.sector_name_ja || row.ticker || '-'}${labelBadge}</td><td>${formatSigned(row.return_12w, 4)}</td><td>${row.rotation_phase_ja || row.rotation_phase || '-'}</td></tr>`;
+        return `<tr><td>${escapeHtml(row.rank ?? '-')}</td><td>${escapeHtml(row.ticker || '-')}</td><td>${escapeHtml(row.sector_name_ja || row.ticker || '-')}${labelBadge}</td><td>${formatSigned(row.return_12w, 4)}</td><td>${escapeHtml(row.rotation_phase_ja || row.rotation_phase || '-')}</td></tr>`;
       }).join('');
       el('detailTableWrap').innerHTML = `<div class="sector-visual"><div class="sector-visual-card"><h4>簡易ローテーション図</h4>${buildSectorRotationSvg(sectorRotation)}<p>先々週・先週・今週の3点と2本のベクトルで流れを確認します。履歴が無い場合は従来の簡易ローテーション図へ戻ります。</p><p><a href="report.html">最新レポートを見る</a></p></div><div class="sector-visual-card"><h4>セクター順位</h4><table class="list-table"><thead><tr>${tableHead}</tr></thead><tbody>${tableBody}</tbody></table></div></div>`;
       disclosure.open = true;
@@ -1736,12 +1761,12 @@ DASHBOARD_TEMPLATE = """<!doctype html>
         const x = projectX(index);
         const y = projectY(typeof entry.score === 'number' ? entry.score : 0);
         const color = regimeColors[entry.regime.key] || regimeColors.default;
-        markup += `<circle class=\"chart-point\" data-index=\"${index}\" cx=\"${x}\" cy=\"${y}\" r=\"5.5\" fill=\"${color}\" stroke=\"#fff\" stroke-width=\"2\"><title>${entry.generated_at} / ${entry.regime.label} / score ${formatScore(entry.score)}</title></circle>`;
+        markup += `<circle class=\"chart-point\" data-index=\"${index}\" cx=\"${x}\" cy=\"${y}\" r=\"5.5\" fill=\"${color}\" stroke=\"#fff\" stroke-width=\"2\"><title>${escapeHtml(entry.generated_at)} / ${escapeHtml(entry.regime.label)} / score ${formatScore(entry.score)}</title></circle>`;
       });
       markup += `<line id=\"chartMarker\" class=\"marker-line\" x1=\"${projectX(detailState.currentIndex)}\" y1=\"${top}\" x2=\"${projectX(detailState.currentIndex)}\" y2=\"${height - bottom}\" stroke=\"#243b53\" stroke-width=\"2\" stroke-dasharray=\"5 5\" />`;
       dashboardData.forEach((entry, index) => {
         if (index % Math.max(Math.ceil(dashboardData.length / 6), 1) === 0 || index === dashboardData.length - 1) {
-          markup += `<text x=\"${projectX(index)}\" y=\"${height - 14}\" text-anchor=\"middle\" fill=\"#5c6976\" font-size=\"11\">${entry.generated_at.slice(5, 16).replace('T', ' ')}</text>`;
+          markup += `<text x=\"${projectX(index)}\" y=\"${height - 14}\" text-anchor=\"middle\" fill=\"#5c6976\" font-size=\"11\">${escapeHtml(String(entry.generated_at || '-').slice(5, 16).replace('T', ' '))}</text>`;
         }
       });
       svg.innerHTML = markup;
@@ -2021,7 +2046,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       renderBadgeRow('metricRegimeBadges', stageBadges(entry));
       pulseMetric('primary');
       el('metricScore').textContent = formatScore(entry.score);
-      el('metricScoreSub').innerHTML = `上昇再開 ${entry.spot_signal.recovery_evidence.grade} ${formatScore(entry.spot_signal.recovery_evidence.score)} / 警戒 ${entry.spot_signal.blocker_assessment.level} / ${formatRiskStageInline(entry.risk_lines)}`;
+      el('metricScoreSub').innerHTML = `上昇再開 ${escapeHtml(entry.spot_signal.recovery_evidence.grade)} ${formatScore(entry.spot_signal.recovery_evidence.score)} / 警戒 ${escapeHtml(entry.spot_signal.blocker_assessment.level)} / ${formatRiskStageInline(entry.risk_lines)}`;
       el('metricScoreDelta').textContent = formatDelta(scoreDelta);
       el('metricScoreDelta').className = `v ${deltaClass(scoreDelta)}`;
       el('metricAdjusted').textContent = `${entry.spot_signal.recovery_evidence.grade} / ${formatScore(entry.spot_signal.recovery_evidence.score)}`;
@@ -2039,13 +2064,13 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       const issueCount = entry.availability_summary?.issues || 0;
       const issueLabel = issueCount === 0 ? '異常なし' : `問題 ${issueCount}件`;
       const availabilitySub = el('metricAvailabilitySub');
-      if (availabilitySub) availabilitySub.innerHTML = `<strong>${issueLabel}</strong><br>今回の実行結果で監査`;
+      if (availabilitySub) availabilitySub.innerHTML = `<strong>${escapeHtml(issueLabel)}</strong><br>今回の実行結果で監査`;
       pulseMetric('availability');
       el('nodeRegime').textContent = entry.regime.label;
       el('nodeRegime').style.color = regimeColors[entry.regime.key] || regimeColors.default;
       el('nodeRegimeSub').textContent = `source: ${entry.data_source}`;
       el('nodeScore').textContent = formatScore(entry.score);
-      el('nodeScoreSub').innerHTML = `上昇再開 ${entry.spot_signal.recovery_evidence.grade} / 警戒 ${entry.spot_signal.blocker_assessment.level} / ${formatRiskStageInline(entry.risk_lines)}`;
+      el('nodeScoreSub').innerHTML = `上昇再開 ${escapeHtml(entry.spot_signal.recovery_evidence.grade)} / 警戒 ${escapeHtml(entry.spot_signal.blocker_assessment.level)} / ${formatRiskStageInline(entry.risk_lines)}`;
       el('nodeCycle').textContent = entry.cycle.label;
       el('nodeCycleSub').textContent = `位相角 ${entry.cycle.angle ?? '-'} 度`;
       el('nodeSpot').innerHTML = formatActionInline(entry.spot_signal.action, entry.spot_signal.label);
@@ -2056,7 +2081,7 @@ DASHBOARD_TEMPLATE = """<!doctype html>
       el('nodeSectorSub').textContent = entry.top_sector ? `${entry.top_sector.ticker} / 12週 ${formatSigned(entry.top_sector.return_12w, 4)}` : 'データなし';
       const alerts = entry.alerts || [];
       const highAlert = alerts.find((alert) => alert.severity === 'high') || alerts[0];
-      el('nodeAlerts').innerHTML = highAlert ? escapeHtml(highAlert.title) : '追加警告なし';
+      el('nodeAlerts').textContent = highAlert ? highAlert.title : '追加警告なし';
       el('nodeAlertsSub').innerHTML = highAlert
         ? `${escapeHtml(highAlert.category_label)} / ${formatAlertSeverityInline(highAlert)}`
         : '内部警告は静穏';
@@ -2195,6 +2220,7 @@ def render_dashboard_html(entries: list[dict[str, Any]], current_run: dict[str, 
         },
         ensure_ascii=False,
     )
+    payload = payload.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
     return DASHBOARD_TEMPLATE.replace("__PAYLOAD__", payload)
 
 
@@ -2203,9 +2229,7 @@ def _normalize_dashboard_entry(data: dict[str, Any]) -> dict[str, Any]:
     sector_table = sector_rotation.get("table", [])
     asset_rows = data.get("asset_compare", [])
     availability = data.get("data_availability", [])
-    issue_count = sum(
-        1 for item in availability if item.get("status") in {"proxy_fallback", "sample_fallback", "unavailable"}
-    )
+    issue_count = sum(1 for item in availability if item.get("status") in {"proxy_fallback", "sample_fallback", "unavailable"})
     return {
         "generated_at": data.get("generated_at", ""),
         "data_source": data.get("data_source", "-"),
@@ -2246,16 +2270,29 @@ def _normalize_dashboard_entry(data: dict[str, Any]) -> dict[str, Any]:
             "rationale": _translate_spot_rationale(data.get("spot_signal", {}).get("rationale", [])),
             "risk_off_relief_applied": bool(data.get("spot_signal", {}).get("risk_off_relief_applied", False)),
             "recovery_evidence": {
-                "score": data.get("spot_signal", {}).get("recovery_evidence", {}).get("score", data.get("spot_signal", {}).get("legacy_adjusted_score", data.get("spot_signal", {}).get("adjusted_score", data.get("score", {}).get("total_score")))),
+                "score": data.get("spot_signal", {})
+                .get("recovery_evidence", {})
+                .get(
+                    "score",
+                    data.get("spot_signal", {}).get(
+                        "legacy_adjusted_score", data.get("spot_signal", {}).get("adjusted_score", data.get("score", {}).get("total_score"))
+                    ),
+                ),
                 "grade": data.get("spot_signal", {}).get("recovery_evidence", {}).get("grade", "legacy"),
                 "summary": data.get("spot_signal", {}).get("recovery_evidence", {}).get("summary", "legacy score fallback"),
             },
             "blocker_assessment": {
-                "level": data.get("spot_signal", {}).get("blocker_assessment", {}).get("level", data.get("risk_lines", {}).get("decision_level", "none")),
-                "summary": data.get("spot_signal", {}).get("blocker_assessment", {}).get("summary", data.get("risk_lines", {}).get("decision_summary", data.get("risk_lines", {}).get("summary", "-"))),
+                "level": data.get("spot_signal", {})
+                .get("blocker_assessment", {})
+                .get("level", data.get("risk_lines", {}).get("decision_level", "none")),
+                "summary": data.get("spot_signal", {})
+                .get("blocker_assessment", {})
+                .get("summary", data.get("risk_lines", {}).get("decision_summary", data.get("risk_lines", {}).get("summary", "-"))),
             },
             "action_decision": {
-                "action": data.get("spot_signal", {}).get("action_decision", {}).get("action", data.get("spot_signal", {}).get("action", "")),
+                "action": data.get("spot_signal", {})
+                .get("action_decision", {})
+                .get("action", data.get("spot_signal", {}).get("action", "")),
                 "label": ACTION_LABELS.get(
                     data.get("spot_signal", {}).get("action_decision", {}).get("action", data.get("spot_signal", {}).get("action", "")),
                     data.get("spot_signal", {}).get("action_decision", {}).get("action", data.get("spot_signal", {}).get("action", "")),
@@ -2273,9 +2310,24 @@ def _normalize_dashboard_entry(data: dict[str, Any]) -> dict[str, Any]:
             "precision_label": data.get("risk_lines", {}).get("precision_label", "-"),
         },
         "japan_risk": _normalize_japan_risk(data.get("japan_risk", {})),
-        "investment_candidates": data.get("investment_candidates", {"label": "候補なし", "summary": "-", "candidate_tickers": [], "rationale": []}),
-        "recovery_candidates": data.get("recovery_candidates", {"label": "候補なし", "summary": "-", "candidate_tickers": [], "rationale": []}),
-        "regime_leading_candidates": data.get("regime_leading_candidates", {"label": "候補なし", "summary": "-", "candidate_tickers": [], "rationale": [], "preferred_sector": None, "preferred_region": None, "preferred_asset_class": None}),
+        "investment_candidates": data.get(
+            "investment_candidates", {"label": "候補なし", "summary": "-", "candidate_tickers": [], "rationale": []}
+        ),
+        "recovery_candidates": data.get(
+            "recovery_candidates", {"label": "候補なし", "summary": "-", "candidate_tickers": [], "rationale": []}
+        ),
+        "regime_leading_candidates": data.get(
+            "regime_leading_candidates",
+            {
+                "label": "候補なし",
+                "summary": "-",
+                "candidate_tickers": [],
+                "rationale": [],
+                "preferred_sector": None,
+                "preferred_region": None,
+                "preferred_asset_class": None,
+            },
+        ),
         "top_sector": _top_sector(sector_table),
         "top_asset": _top_asset(asset_rows),
         "sector_rotation": sector_rotation,
@@ -2411,4 +2463,3 @@ def _top_asset(rows: list[dict[str, Any]]) -> dict[str, Any] | None:
         "label": row.get("ticker_name_ja", row.get("ticker", "-")),
         "momentum_12w": row.get("momentum_12w", "-"),
     }
-

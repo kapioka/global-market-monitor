@@ -6,7 +6,7 @@ This is not investment advice, does not improve investment decision logic, and d
 
 ## Scope
 
-Use this checklist for releases based on v0.7.3 or later release-operation hardening.
+Use this checklist for v0.11.0 and later releases based on the existing release-operation hardening.
 
 For the overall responsibility map across CI, local security audit, release package generation, manifest verification, optional scanner review, and scanner finding policy, see `docs/pre_publish_integration_review_v0.7.11.md`.
 
@@ -34,13 +34,21 @@ python -m pytest
 python -m ruff check .
 python -m black --check .
 python -m mypy .
-powershell -ExecutionPolicy Bypass -File scripts\security_audit.ps1 -Python "python" -ExpectedTag "<release-tag>" -Strict
+powershell -ExecutionPolicy Bypass -File scripts\security_audit.ps1 -Python "python" -ExpectedTag "" -Strict
 python scripts\create_release_package.py --dry-run
+```
+
+Before permission, validate the complete proposed source in an isolated rehearsal repository. Do not create the real tag or push.
+
+After explicit publication permission, commit the reviewed scope, create the release tag, and run the tag-specific checks:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\security_audit.ps1 -Python "python" -ExpectedTag "<release-tag>" -Strict
 python scripts\create_release_package.py
 python scripts\verify_release_package.py --package release\global-market-monitor-<release-tag>-source.zip --expected-tag <release-tag>
 ```
 
-For a v0.7.3 publish check, use `-ExpectedTag "v0.7.3"`. For the next release, pass the actual target tag as `-ExpectedTag "<release-tag>"`.
+For v0.11.0, use `-ExpectedTag "v0.11.0"` only after that tag exists on the reviewed commit.
 
 CI also creates a source package and verifies the newest package in `release/` with commit matching enabled. Normal push and pull request CI may run without a release tag, so tag verification remains a release-publish check:
 
@@ -108,7 +116,7 @@ Do not commit outputs from:
 ## Tag Check
 
 ```powershell
-git tag --list "v0.7.*"
+git tag --list "v0.11.*"
 git rev-parse HEAD
 git rev-parse <release-tag>
 ```
@@ -181,23 +189,17 @@ Confirm:
 - No `fx_soft_cap` or regime-aware adoption change.
 - No automated trading feature.
 
-## Known Warnings
+## Security Scanner Status
 
-`gitleaks` and `trufflehog` are workstation-optional at this stage. If they are not installed, `security_audit.ps1` records that status and continues with fallback checks. Missing optional scanners are not release blockers by themselves.
+From v0.11.0, GitHub Actions runs Gitleaks as a required job with read-only repository permissions. The action and all other third-party Actions are pinned to reviewed full commit SHAs. A Gitleaks failure blocks publication until the result is explained and resolved.
 
-For optional secret scanner adoption guidance, see `docs/secret_scanner_adoption_v0.7.5.md`.
+`trufflehog` remains an optional local supplemental scanner. The local `security_audit.ps1` records the availability of optional scanners and still requires `detect-secrets`, fallback scans, dependency audit, and protected-surface checks in strict mode.
 
-In v0.7.5:
+Historical adoption and evaluation records remain available in:
 
-- Gitleaks is the preferred optional scanner.
-- TruffleHog remains a candidate scanner.
-- Required CI enforcement is intentionally deferred.
-
-In v0.7.8, CI includes a non-blocking `gitleaks-optional` job using the default Gitleaks action rules. Treat this job as an observation signal, not as the sole release gate. If it reports a verified or high-confidence finding, stop publishing and review the finding before adding any allowlist entry.
-
-For v0.7.9 optional CI evaluation, also review `docs/gitleaks_optional_ci_evaluation_v0.7.9.md`. Required Gitleaks enforcement, `.gitleaks.toml`, and allowlist additions remain separate follow-up decisions, not checklist defaults.
-
-For v0.7.10 scanner finding integration, also review `docs/scanner_findings_integration_decision_v0.7.10.md`. Gitleaks optional CI findings are release review inputs. Verified, high-confidence, or unexplained findings stop publishing, but scanner findings are not written into `PACKAGE_MANIFEST.json` in v0.7.10.
+- `docs/secret_scanner_adoption_v0.7.5.md`
+- `docs/gitleaks_optional_ci_evaluation_v0.7.9.md`
+- `docs/scanner_findings_integration_decision_v0.7.10.md`
 
 Required security signals:
 
@@ -216,8 +218,11 @@ For v0.7.4, do not expand full-repository typing. Type cleanup for excluded olde
 
 ## Publish Decision
 
+Passing the preparation checks means the source is ready to request publication permission. It does not authorize a commit, tag, push, or GitHub Release.
+
 Publish is allowed only when all are true:
 
+- the user has explicitly authorized publication;
 - `pytest` passes.
 - `ruff` passes.
 - `black --check` passes.

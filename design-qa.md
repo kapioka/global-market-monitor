@@ -6,13 +6,10 @@
 
 ## 比較対象
 
-- 選択モック: `C:\Users\akiso\.codex\generated_images\019fadc1-847d-7783-bf67-e99c52fca556\call_3JZ2IPXekj4plWURdxLRjrTr.png`
-- 実装比較: `C:\Users\akiso\.codex\visualizations\2026\07\29\019fadc1-847d-7783-bf67-e99c52fca556\design-comparison.png`
-- 本体 1536 × 1024: `C:\Users\akiso\.codex\visualizations\2026\07\29\019fadc1-847d-7783-bf67-e99c52fca556\report-wide-1536.png`
-- 本体 1366 × 900（補足を下段表示）: `C:\Users\akiso\.codex\visualizations\2026\07\29\019fadc1-847d-7783-bf67-e99c52fca556\report-wrap-1366.png`
-- 本体 390 × 844: `C:\Users\akiso\.codex\visualizations\2026\07\29\019fadc1-847d-7783-bf67-e99c52fca556\report-mobile-top-390.png`
-- 補足 1536 × 1024: `C:\Users\akiso\.codex\visualizations\2026\07\29\019fadc1-847d-7783-bf67-e99c52fca556\supplement-wide-1536.png`
-- 補足 390 × 844: `C:\Users\akiso\.codex\visualizations\2026\07\29\019fadc1-847d-7783-bf67-e99c52fca556\supplement-mobile-390.png`
+- 選択モックと実装結果を、1536 × 1024、1366 × 900、390 × 844 の各表示幅で比較した。
+- 本体は広幅、補足を下段へ回す幅、モバイル幅を確認した。
+- 補足ダッシュボードは広幅とモバイル幅を確認した。
+- 比較用画像は一時的なローカル成果物であり、公開ソースには含めない。
 
 ## 確認結果
 

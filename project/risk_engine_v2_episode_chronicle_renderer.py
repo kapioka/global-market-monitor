@@ -1,18 +1,16 @@
 from __future__ import annotations
 
+import html
 import json
 from typing import Any
 
 
 def render_episode_chronicle_html(payload: dict[str, Any]) -> str:
     generation_id = str(payload.get("generation_id") or "unknown")
+    escaped_generation_id = html.escape(generation_id, quote=True)
     embedded = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     embedded = embedded.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
-    return (
-        _TEMPLATE.replace("__GENERATION_ID__", generation_id)
-        .replace("__CHRONICLE_DATA__", embedded)
-        .replace("__GENERATED_AT__", str(payload.get("generated_at") or "-"))
-    )
+    return _TEMPLATE.replace("__GENERATION_ID__", escaped_generation_id).replace("__CHRONICLE_DATA__", embedded)
 
 
 _TEMPLATE = r"""<!doctype html>
@@ -293,7 +291,7 @@ _TEMPLATE = r"""<!doctype html>
         button.append(heading,meta); button.addEventListener('click',()=>selectEpisode(item.event_id)); list.append(button);
       });
       document.getElementById('episode-count').textContent=`新しい順・${rows.length}件`;
-      document.getElementById('index-footer').textContent=`全${episodes.length}件 / 生成 __GENERATED_AT__`;
+      document.getElementById('index-footer').textContent=`全${episodes.length}件 / 生成 ${String(DATA.generated_at || '-')}`;
       list.querySelector('.episode-item.active')?.scrollIntoView({block:'nearest'});
     }
     function selectEpisode(eventId) {

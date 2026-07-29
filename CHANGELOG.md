@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.11.0 - Signal Canvasレイアウトと公開前セキュリティ強化
+
+### Changed
+
+- 最新レポートと補足ダッシュボードを、広幅では並列、狭い画面では補足を下段へ回すレスポンシブ構成へ再設計しました。
+- セクター概要へ4象限図を戻し、2週間前、先週、現在の位置と2本の移動軌跡を表示するようにしました。
+- 相対モメンタムをセクター概要の右上へ移し、セクター別の横棒をその下へ整理しました。
+- 市場警戒年代記の保存済みエピソードを常時閲覧可能にし、鮮度条件は更新可否だけに適用するよう表示契約を明確にしました。
+- 履歴ダッシュボードと市場警戒年代記で、埋め込みJSON、HTML断片、属性、表示メタデータのエスケープを強化しました。
+- GitHub Actionsの権限を`contents: read`へ限定し、checkoutの認証情報保持を無効化し、使用Actionを検証済みコミットへ固定しました。
+- Gitleaksを任意ジョブから必須のCI検査へ変更しました。
+- 公開文書に残っていたローカル環境固有の比較画像パスを削除しました。
+
+### Safety / Scope
+
+- 画面配置、保存済み年代記の閲覧、HTML出力防御、CI、公開文書だけを変更しました。
+- `risk_engine_v2.mode=shadow`、`promotion_allowed=false`、`policy_status=diagnostic_only_not_promoted`を維持します。
+- `final_action`、productionの買い候補度、`reliability_policy`、threshold JSON、buy-window / buy-candidate policyを変更していません。
+- 市場キャッシュ、SQLite DB、生成済みレポート、ログ、ローカル比較画像は公開物へ含めません。
+
 ## v0.10.0 - 市場警戒年代記と安全な市場データ保存基盤
 
 ### Added
